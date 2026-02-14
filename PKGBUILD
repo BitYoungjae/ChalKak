@@ -9,7 +9,7 @@ license=('MIT' 'Apache-2.0')
 depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')
 makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('7644184f1f7de14f788d7ccebb0f8a8fe401f18779c3aedbee04adeae68c0d63')
 
 build() {
   cd "$pkgname-$pkgver"

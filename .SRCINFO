@@ -17,6 +17,6 @@ pkgbase = chalkak
 	depends = slurp
 	depends = wl-clipboard
 	source = chalkak-0.1.0.tar.gz::https://github.com/bityoungjae/chalkak/archive/refs/tags/v0.1.0.tar.gz
-	sha256sums = SKIP
+	sha256sums = 7644184f1f7de14f788d7ccebb0f8a8fe401f18779c3aedbee04adeae68c0d63
 
 pkgname = chalkak
