@@ -4,6 +4,10 @@
 
 Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보기 중심 흐름과 가벼운 주석 편집기를 제공합니다.
 
+## 이름 유래
+
+`Chalkak`은 카메라 셔터 소리를 뜻하는 한국어 의성어 `찰칵!`에서 따왔습니다.
+
 ## 핵심 기능
 
 - 캡처 모드: 전체 화면, 영역, 창.
@@ -44,7 +48,7 @@ yay -S chalkak
 ### 소스에서 빌드
 
 ```bash
-git clone <repo-url> chalkak
+git clone https://github.com/BitYoungjae/ChalKak.git chalkak
 cd chalkak
 cargo run
 ```
@@ -131,7 +135,7 @@ chalkak
 
 임시 캡처 저장 경로:
 
-- `$XDG_RUNTIME_DIR/chalkak/`
+- `$XDG_RUNTIME_DIR/`
 - fallback: `/tmp/chalkak/`
 
 최종 이미지 저장 경로:
@@ -160,13 +164,16 @@ cargo clippy --all-targets --all-features -D warnings
 - `src/theme`, `src/ui`: 테마/스타일 토큰
 - `src/state`: 앱 상태 머신
 - `src/clipboard`: 클립보드(`wl-copy`) 연동
+- `src/config`: 설정/키바인딩/테마 경로 헬퍼
+- `src/error`: 애플리케이션 공통 에러/결과 타입
+- `src/logging`: tracing subscriber 초기화
 
 ## AUR 패키징 메모 (유지보수자용)
 
 권장 `PKGBUILD` 기본 의존성:
 
 - `depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')`
-- `makedepends=('rust' 'pkgconf' 'gtk4')`
+- `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')`
 
 패키지명 목표: `chalkak`.
 

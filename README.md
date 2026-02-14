@@ -4,6 +4,10 @@ English | [한국어](README.ko.md)
 
 A Hyprland-focused screenshot utility for Wayland with a preview-first workflow and a lightweight annotation editor.
 
+## Name Origin
+
+`Chalkak` is inspired by the Korean onomatopoeia `찰칵!`, the camera shutter click sound.
+
 ## Highlights
 
 - Capture modes: fullscreen, region, and window.
@@ -44,7 +48,7 @@ yay -S chalkak
 ### Build from source
 
 ```bash
-git clone <repo-url> chalkak
+git clone https://github.com/BitYoungjae/ChalKak.git chalkak
 cd chalkak
 cargo run
 ```
@@ -131,7 +135,7 @@ Files:
 
 Temporary captures:
 
-- `$XDG_RUNTIME_DIR/chalkak/`
+- `$XDG_RUNTIME_DIR/`
 - fallback: `/tmp/chalkak/`
 
 Saved screenshots:
@@ -160,13 +164,16 @@ Current module layout:
 - `src/theme`, `src/ui`: theme/config + shared style tokens
 - `src/state`: app state machine
 - `src/clipboard`: clipboard integration (`wl-copy`)
+- `src/config`: config/keybinding/theme path helpers
+- `src/error`: application-level error/result types
+- `src/logging`: tracing subscriber setup
 
 ## AUR Packaging Notes (for maintainers)
 
 Suggested `PKGBUILD` dependency baseline:
 
 - `depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')`
-- `makedepends=('rust' 'pkgconf' 'gtk4')`
+- `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')`
 
 Package name target: `chalkak`.
 
