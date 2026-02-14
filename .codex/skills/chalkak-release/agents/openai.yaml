@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chalkak Release"
+  short_description: "Tag release and sync AUR metadata"
+  default_prompt: "Use $chalkak-release [version] to tag a release, update PKGBUILD/.SRCINFO checksums, and push to AUR."
