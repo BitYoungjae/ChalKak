@@ -4,6 +4,15 @@
 
 Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보기 중심 흐름과 가벼운 주석 편집기를 제공합니다.
 
+## 데모 영상
+
+- [데모 영상 보기](https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50)
+
+## 사용자 가이드
+
+- [English User Guide](docs/USER_GUIDE.md)
+- [한국어 사용자 가이드](docs/USER_GUIDE.ko.md)
+
 ## 이름 유래
 
 `Chalkak`은 카메라 셔터 소리를 뜻하는 한국어 의성어 `찰칵!`에서 따왔습니다.

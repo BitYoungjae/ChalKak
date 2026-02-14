@@ -4,6 +4,15 @@ English | [한국어](README.ko.md)
 
 A Hyprland-focused screenshot utility for Wayland with a preview-first workflow and a lightweight annotation editor.
 
+## Demo Video
+
+- [Watch the demo](https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50)
+
+## User Guides
+
+- [English User Guide](docs/USER_GUIDE.md)
+- [한국어 사용자 가이드](docs/USER_GUIDE.ko.md)
+
 ## Name Origin
 
 `Chalkak` is inspired by the Korean onomatopoeia `찰칵!`, the camera shutter click sound.
