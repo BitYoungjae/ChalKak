@@ -6,7 +6,7 @@
 
 ## 데모 영상
 
-- [데모 영상 보기](https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50)
+<https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
 
 ## 1. Chalkak이 잘 맞는 사용 방식
 

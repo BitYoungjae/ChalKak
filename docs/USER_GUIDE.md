@@ -6,7 +6,7 @@ This guide is for general users who want a reliable screenshot workflow on Wayla
 
 ## Demo Video
 
-- [Watch the demo](https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50)
+<https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
 
 ## 1. What Chalkak Is Best For
 
