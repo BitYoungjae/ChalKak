@@ -237,6 +237,14 @@ Extended example:
     "tool_color_palette": ["#ff6b6b", "#ffd166", "#3a86ff", "#06d6a0"],
     "stroke_width_presets": [2, 4, 8, 12],
     "text_size_presets": [14, 18, 24, 32]
+  },
+  "editor_modes": {
+    "dark": {
+      "default_tool_color": "#f4f4f5"
+    },
+    "light": {
+      "default_tool_color": "#18181b"
+    }
   }
 }
 ```
@@ -249,7 +257,8 @@ Notes:
 - `editor.tool_color_palette` accepts a list of hex colors in strict `#RRGGBB` format for option chips (`RRGGBB` without `#` is ignored).
 - Selection visuals in the editor can be customized with `editor.selection_drag_fill_color`, `editor.selection_drag_stroke_color`, `editor.selection_outline_color`, and `editor.selection_handle_color`.
 - Selection color fields accept strict `#RRGGBB` or `#RRGGBBAA` format.
-- Built-in defaults for selection visuals are mode-aware: light mode uses deep neutral graphite tones, while dark/system mode uses bright neutral zinc tones.
+- Built-in defaults for selection visuals are mode-aware: light mode uses deep neutral graphite tones, while dark mode uses bright neutral zinc tones (and `system` follows the resolved runtime mode).
+- `editor` is the shared baseline for all modes. `editor_modes.dark` and `editor_modes.light` can override only the fields you want for each mode.
 - `editor.stroke_width_presets` and `editor.text_size_presets` drive popup option chip lists.
 - Each preset list accepts up to 6 items; extras are ignored.
 - Preset order is preserved; duplicates or out-of-range values are ignored.
