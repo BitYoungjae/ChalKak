@@ -306,7 +306,9 @@ fn theme_config_path_with(
     })
 }
 
-fn parse_theme_config_with_aliases(serialized: &str) -> std::result::Result<ThemeConfig, serde_json::Error> {
+fn parse_theme_config_with_aliases(
+    serialized: &str,
+) -> std::result::Result<ThemeConfig, serde_json::Error> {
     let raw: serde_json::Value = serde_json::from_str(serialized)?;
     let mut config: ThemeConfig = serde_json::from_value(raw.clone())?;
     apply_editor_aliases(&mut config, &raw)?;
