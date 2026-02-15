@@ -39,6 +39,16 @@
 - Create a version tag (for example `v0.2.0`) immediately after merging to `main`.
 - For urgent production fixes, branch from `main` as `hotfix/*`, merge to `main` first, then back-merge the same fix into `develop`.
 
+## Version & Release Notes
+- Project versioning follows Semantic Versioning (SemVer).
+- Canonical app version lives in `Cargo.toml` (`version = "X.Y.Z"`).
+- For a new upstream release, update `Cargo.toml`, create annotated Git tag `vX.Y.Z`, and keep AUR metadata in sync.
+- Update `PKGBUILD` with `pkgver=X.Y.Z` and reset `pkgrel=1` when `pkgver` changes.
+- If only packaging metadata changes (no upstream version bump), keep `pkgver` and increment `pkgrel`.
+- After tag push, refresh AUR metadata with `updpkgsums` and regenerate `.SRCINFO` via `makepkg --printsrcinfo > .SRCINFO`.
+- Commit packaging updates with only `PKGBUILD` and `.SRCINFO` for AUR sync flow.
+- Prefer using the `chalkak-release` skill for end-to-end release steps and guardrails.
+
 ## Configuration & Runtime Notes
 - User config files live at `$XDG_CONFIG_HOME/chalkak/` (fallback `$HOME/.config/chalkak/`), including `theme.json` and `keybindings.json`.
 - Temporary captures are created under `$XDG_RUNTIME_DIR/chalkak/`; preserve cleanup behavior when changing storage/capture code.
