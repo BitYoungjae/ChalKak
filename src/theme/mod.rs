@@ -50,9 +50,11 @@ pub struct ColorOverrides {
     pub accent_text_color: Option<String>,
 }
 
-/// Color overrides keyed by mode
+/// Color overrides with optional shared defaults + per-mode overrides.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ThemeColors {
+    #[serde(default)]
+    pub common: ColorOverrides,
     #[serde(default)]
     pub dark: ColorOverrides,
     #[serde(default)]
@@ -160,6 +162,7 @@ pub fn resolve_color_tokens(mode: ThemeMode, overrides: Option<&ThemeColors>) ->
     let mut tokens = default_color_tokens(mode);
 
     if let Some(colors) = overrides {
+        apply_overrides(&mut tokens, &colors.common);
         let mode_overrides = match mode {
             ThemeMode::Dark | ThemeMode::System => &colors.dark,
             ThemeMode::Light => &colors.light,
@@ -235,7 +238,7 @@ fn load_theme_config_with(
         path: path.clone(),
         source,
     })?;
-    let config: ThemeConfig = serde_json::from_str(&serialized)?;
+    let config = parse_theme_config_with_aliases(&serialized)?;
     Ok(config)
 }
 
@@ -267,7 +270,7 @@ fn save_theme_preference_with(
     let existing_config = if path.exists() {
         fs::read_to_string(&path)
             .ok()
-            .and_then(|s| serde_json::from_str::<ThemeConfig>(&s).ok())
+            .and_then(|s| parse_theme_config_with_aliases(&s).ok())
     } else {
         None
     };
@@ -301,6 +304,52 @@ fn theme_config_path_with(
             ConfigPathError::MissingHomeDirectory => ThemeError::MissingHomeDirectory,
         }
     })
+}
+
+fn parse_theme_config_with_aliases(serialized: &str) -> std::result::Result<ThemeConfig, serde_json::Error> {
+    let raw: serde_json::Value = serde_json::from_str(serialized)?;
+    let mut config: ThemeConfig = serde_json::from_value(raw.clone())?;
+    apply_editor_aliases(&mut config, &raw)?;
+    Ok(config)
+}
+
+fn apply_editor_aliases(
+    config: &mut ThemeConfig,
+    raw: &serde_json::Value,
+) -> std::result::Result<(), serde_json::Error> {
+    let Some(editor_obj) = raw.get("editor").and_then(serde_json::Value::as_object) else {
+        return Ok(());
+    };
+
+    if let Some(common_raw) = editor_obj.get("common").filter(|v| !v.is_null()) {
+        let common: EditorDefaults = serde_json::from_value(common_raw.clone())?;
+        config.editor = config.editor.merged_with(&common);
+    }
+
+    let mut nested_modes = EditorModeDefaults::default();
+    let mut has_nested_modes = false;
+
+    if let Some(dark_raw) = editor_obj.get("dark").filter(|v| !v.is_null()) {
+        nested_modes.dark = serde_json::from_value(dark_raw.clone())?;
+        has_nested_modes = true;
+    }
+    if let Some(light_raw) = editor_obj.get("light").filter(|v| !v.is_null()) {
+        nested_modes.light = serde_json::from_value(light_raw.clone())?;
+        has_nested_modes = true;
+    }
+
+    if has_nested_modes {
+        let merged_modes = match config.editor_modes.take() {
+            Some(existing) => EditorModeDefaults {
+                dark: existing.dark.merged_with(&nested_modes.dark),
+                light: existing.light.merged_with(&nested_modes.light),
+            },
+            None => nested_modes,
+        };
+        config.editor_modes = Some(merged_modes);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -442,6 +491,10 @@ mod tests {
             let json = r##"{
                 "mode": "dark",
                 "colors": {
+                    "common": {
+                        "focus_ring_color": "#444444",
+                        "text_color": "#555555"
+                    },
                     "dark": {
                         "canvas_background": "#111111"
                     },
@@ -456,6 +509,8 @@ mod tests {
             let config = load_theme_config_with(Some(root), None).unwrap();
             assert_eq!(config.mode, ThemeMode::Dark);
             let colors = config.colors.unwrap();
+            assert_eq!(colors.common.focus_ring_color.as_deref(), Some("#444444"));
+            assert_eq!(colors.common.text_color.as_deref(), Some("#555555"));
             assert_eq!(colors.dark.canvas_background.as_deref(), Some("#111111"));
             assert_eq!(colors.light.text_color.as_deref(), Some("#222222"));
             assert_eq!(colors.light.accent_text_color.as_deref(), Some("#333333"));
@@ -516,6 +571,72 @@ mod tests {
             assert_eq!(config.editor.stroke_width_presets, Some(vec![3, 7, 11]));
             assert_eq!(config.editor.text_size_presets, Some(vec![12, 18, 26]));
             assert!(config.editor_modes.is_none());
+        });
+    }
+
+    #[test]
+    fn theme_config_parses_editor_common_and_mode_aliases() {
+        with_temp_root(|root| {
+            let path = theme_config_path_with(Some(root), None).unwrap();
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            let json = r##"{
+                "mode": "dark",
+                "editor": {
+                    "default_stroke_width": 4,
+                    "common": {
+                        "default_tool_color": "#aaaaaa",
+                        "default_text_size": 20
+                    },
+                    "dark": {
+                        "default_tool_color": "#eeeeee"
+                    },
+                    "light": {
+                        "default_tool_color": "#222222",
+                        "default_stroke_width": 2
+                    }
+                }
+            }"##;
+            fs::write(&path, json).unwrap();
+
+            let config = load_theme_config_with(Some(root), None).unwrap();
+            assert_eq!(config.editor.default_tool_color.as_deref(), Some("#aaaaaa"));
+            assert_eq!(config.editor.default_text_size, Some(20));
+            assert_eq!(config.editor.default_stroke_width, Some(4));
+
+            let modes = config.editor_modes.expect("expected editor mode defaults");
+            assert_eq!(modes.dark.default_tool_color.as_deref(), Some("#eeeeee"));
+            assert_eq!(modes.light.default_tool_color.as_deref(), Some("#222222"));
+            assert_eq!(modes.light.default_stroke_width, Some(2));
+        });
+    }
+
+    #[test]
+    fn theme_config_editor_mode_aliases_override_top_level_editor_modes() {
+        with_temp_root(|root| {
+            let path = theme_config_path_with(Some(root), None).unwrap();
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            let json = r##"{
+                "mode": "dark",
+                "editor_modes": {
+                    "dark": {
+                        "default_tool_color": "#111111"
+                    }
+                },
+                "editor": {
+                    "dark": {
+                        "default_tool_color": "#eeeeee"
+                    }
+                }
+            }"##;
+            fs::write(&path, json).unwrap();
+
+            let config = load_theme_config_with(Some(root), None).unwrap();
+            let modes = config.editor_modes.expect("expected editor mode defaults");
+            assert_eq!(modes.dark.default_tool_color.as_deref(), Some("#eeeeee"));
         });
     }
 
@@ -635,8 +756,45 @@ mod tests {
     }
 
     #[test]
+    fn theme_persistence_save_keeps_editor_alias_defaults() {
+        with_temp_root(|root| {
+            let path = theme_config_path_with(Some(root), None).unwrap();
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(
+                &path,
+                r##"{
+                    "mode": "dark",
+                    "editor": {
+                        "common": { "default_tool_color": "#aaaaaa", "default_stroke_width": 4 },
+                        "dark": { "default_tool_color": "#eeeeee" },
+                        "light": { "default_tool_color": "#111111", "default_stroke_width": 2 }
+                    }
+                }"##,
+            )
+            .unwrap();
+
+            save_theme_preference_with(ThemeMode::Light, Some(root), None).unwrap();
+            let config = load_theme_config_with(Some(root), None).unwrap();
+            assert_eq!(config.mode, ThemeMode::Light);
+            assert_eq!(config.editor.default_tool_color.as_deref(), Some("#aaaaaa"));
+            assert_eq!(config.editor.default_stroke_width, Some(4));
+
+            let modes = config.editor_modes.expect("expected editor mode defaults");
+            assert_eq!(modes.dark.default_tool_color.as_deref(), Some("#eeeeee"));
+            assert_eq!(modes.light.default_tool_color.as_deref(), Some("#111111"));
+            assert_eq!(modes.light.default_stroke_width, Some(2));
+        });
+    }
+
+    #[test]
     fn resolve_color_tokens_applies_overrides() {
         let overrides = ThemeColors {
+            common: ColorOverrides {
+                text_color: Some("#ABABAB".into()),
+                ..Default::default()
+            },
             dark: ColorOverrides {
                 canvas_background: Some("#000000".into()),
                 ..Default::default()
@@ -649,8 +807,8 @@ mod tests {
 
         let dark = resolve_color_tokens(ThemeMode::Dark, Some(&overrides));
         assert_eq!(dark.canvas_background, "#000000");
+        assert_eq!(dark.text_color, "#ABABAB");
         // Non-overridden fields keep defaults
-        assert_eq!(dark.text_color, "#E4E4E7");
         assert_eq!(dark.accent_text_color, "#09090B");
 
         let light = resolve_color_tokens(ThemeMode::Light, Some(&overrides));
@@ -671,6 +829,7 @@ mod tests {
     #[test]
     fn resolve_color_tokens_applies_all_override_fields() {
         let overrides = ThemeColors {
+            common: ColorOverrides::default(),
             dark: ColorOverrides {
                 focus_ring_color: Some("#AAAAAA".into()),
                 focus_ring_glow: Some("rgba(1, 2, 3, 0.4)".into()),
