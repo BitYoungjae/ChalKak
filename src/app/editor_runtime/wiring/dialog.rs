@@ -35,6 +35,18 @@ pub(in crate::app::editor_runtime) fn connect_editor_close_dialog(
     let style_tokens = context.style_tokens;
 
     context.editor_close_button.connect_clicked(move |_| {
+        if !matches!(shared_machine.borrow().state(), AppState::Editor) {
+            *status_log_for_render.borrow_mut() =
+                "editor close requested outside editor state; closing window directly".to_string();
+            editor_window_for_dialog.close();
+            return;
+        }
+
+        if !*editor_has_unsaved_changes.borrow() {
+            close_editor_button.emit_clicked();
+            return;
+        }
+
         let active_capture = match runtime_session.borrow().active_capture().cloned() {
             Some(artifact) => artifact,
             None => {
@@ -44,20 +56,10 @@ pub(in crate::app::editor_runtime) fn connect_editor_close_dialog(
             }
         };
 
-        if !matches!(shared_machine.borrow().state(), AppState::Editor) {
-            *status_log_for_render.borrow_mut() = "editor close requires editor state".to_string();
-            return;
-        }
-
         let Some(service) = storage_service.as_ref().clone() else {
             *status_log_for_render.borrow_mut() = "storage service unavailable".to_string();
             return;
         };
-
-        if !*editor_has_unsaved_changes.borrow() {
-            close_editor_button.emit_clicked();
-            return;
-        }
 
         if *editor_close_dialog_open.borrow() {
             return;
@@ -203,12 +205,23 @@ pub(in crate::app::editor_runtime) fn connect_editor_window_close_request(
     context
         .editor_window_instance
         .connect_close_request(move |_| {
-            if editor_close_guard.get()
-                || !matches!(shared_machine.borrow().state(), AppState::Editor)
-            {
+            if editor_close_guard.get() {
                 return gtk4::glib::Propagation::Proceed;
             }
+
+            let in_editor_state = matches!(shared_machine.borrow().state(), AppState::Editor);
+            if !in_editor_state {
+                return gtk4::glib::Propagation::Proceed;
+            }
+
             editor_close_button.emit_clicked();
-            gtk4::glib::Propagation::Stop
+
+            // If close handling transitioned out of Editor, allow this original
+            // close request to proceed so the first CMD+w actually closes.
+            if matches!(shared_machine.borrow().state(), AppState::Editor) {
+                gtk4::glib::Propagation::Stop
+            } else {
+                gtk4::glib::Propagation::Proceed
+            }
         });
 }
