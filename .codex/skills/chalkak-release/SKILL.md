@@ -10,6 +10,9 @@ Execute Chalkak release tasks with a safe sequence for Git tag creation, Arch ch
 ## Guardrails
 
 - Verify branch safety before tagging.
+- Run release only from `main`.
+- Abort unless both the current branch and the `origin` default branch are `main`.
+- Do not create tags or run release packaging from `develop`.
 - Refuse release if the working tree is dirty unless the user explicitly approves.
 - Use annotated tags only.
 - Never force-push tags or branches.
@@ -34,12 +37,15 @@ Execute Chalkak release tasks with a safe sequence for Git tag creation, Arch ch
 1. Verify branch and clean tree.
 
 ```bash
-git branch --show-current
-git remote show origin | sed -n '/HEAD branch/s/.*: //p'
+current_branch="$(git branch --show-current)"
+origin_default_branch="$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
+printf "current_branch=%s\norigin_default_branch=%s\n" "$current_branch" "$origin_default_branch"
 git status --short
 ```
 
-- If current branch is not the origin default branch (`main`/`master`), ask for confirmation before proceeding.
+- If `origin` default branch cannot be detected, stop and report repository configuration issue.
+- If `origin` default branch is not `main`, stop and report workflow misconfiguration.
+- If current branch is not `main`, stop immediately and report that release must run from `main`.
 - If the tree is dirty, ask whether to continue or stop.
 
 1. Resolve release version.
@@ -72,7 +78,7 @@ git ls-remote --tags origin "refs/tags/vX.Y.Z"
 1. Create and push release tag.
 
 ```bash
-git pull --ff-only origin "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
+git pull --ff-only origin main
 git tag -a "vX.Y.Z" -m "Release vX.Y.Z"
 git push origin "vX.Y.Z"
 ```
@@ -87,12 +93,12 @@ makepkg --printsrcinfo > .SRCINFO
 
 - If `updpkgsums` fails due to remote tag timing, retry after a short wait.
 
-1. Commit packaging update on default branch.
+1. Commit packaging update on `main`.
 
 ```bash
 git add PKGBUILD .SRCINFO
 git commit -m "chore: update AUR metadata for vX.Y.Z"
-git push origin "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
+git push origin main
 ```
 
 1. Ensure AUR remote exists.
@@ -123,10 +129,10 @@ git ls-remote aur refs/heads/master
 ```bash
 git fetch aur master:aur-pkg
 git checkout aur-pkg
-git checkout "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')" -- PKGBUILD .SRCINFO
+git checkout main -- PKGBUILD .SRCINFO
 git commit -m "Update to vX.Y.Z"
 git push aur aur-pkg:master
-git checkout "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
+git checkout main
 ```
 
 - If AUR master does not exist:
@@ -137,17 +143,17 @@ git rm -rf --cached . >/dev/null 2>&1 || true
 git add PKGBUILD .SRCINFO
 git commit -m "Initial AUR package for chalkak vX.Y.Z"
 git push aur aur-pkg:master
-git checkout "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
+git checkout main
 ```
 
 If `aur-pkg` exists locally:
 
 ```bash
 git checkout aur-pkg
-git checkout "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')" -- PKGBUILD .SRCINFO
+git checkout main -- PKGBUILD .SRCINFO
 git commit -m "Update to vX.Y.Z"
 git push aur aur-pkg:master
-git checkout "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
+git checkout main
 ```
 
 1. Report release result.
@@ -161,6 +167,7 @@ git checkout "$(git remote show origin | sed -n '/HEAD branch/s/.*: //p')"
 ## Error Handling
 
 - Tag already exists: abort and notify user.
+- `origin` default branch missing/not `main`: report workflow misconfiguration and stop before tagging.
 - Missing tools: show install command and stop.
 - `updpkgsums` failure: retry, then ask user whether to proceed manually.
 - AUR authentication failure: report SSH/key issue and stop AUR push.
