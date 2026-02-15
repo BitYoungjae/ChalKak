@@ -17,6 +17,7 @@ pub(super) struct EditorRenderContext {
     pub(super) default_tool_color_override: Option<(u8, u8, u8)>,
     pub(super) default_text_size_override: Option<u8>,
     pub(super) default_stroke_width_override: Option<u8>,
+    pub(super) editor_tool_option_presets: EditorToolOptionPresets,
     pub(super) editor_navigation_bindings: Rc<crate::input::EditorNavigationBindings>,
     pub(super) status_log_for_render: Rc<RefCell<String>>,
     pub(super) editor_input_mode: Rc<RefCell<editor::EditorInputMode>>,
@@ -48,7 +49,7 @@ struct EditorCanvasDrawDeps {
 struct InitializedEditorRuntime {
     editor_navigation_bindings: Rc<crate::input::EditorNavigationBindings>,
     editor_tools: Rc<RefCell<editor::EditorTools>>,
-    stroke_color_palette: StrokeColorPalette,
+    tool_option_presets: EditorToolOptionPresets,
     editor_undo_stack: Rc<RefCell<Vec<Vec<ToolObject>>>>,
     editor_redo_stack: Rc<RefCell<Vec<Vec<ToolObject>>>>,
     active_editor_tool: Rc<Cell<ToolKind>>,
@@ -102,11 +103,11 @@ fn initialize_editor_runtime_state(
     editor_window_instance: &ApplicationWindow,
     editor_navigation_bindings: &Rc<crate::input::EditorNavigationBindings>,
     editor_input_mode: &Rc<RefCell<editor::EditorInputMode>>,
-    theme_mode: crate::theme::ThemeMode,
+    editor_tool_option_presets: &EditorToolOptionPresets,
 ) -> InitializedEditorRuntime {
     let editor_navigation_bindings = editor_navigation_bindings.clone();
     let editor_tools = Rc::new(RefCell::new(editor::EditorTools::new()));
-    let stroke_color_palette = stroke_color_palette_for_theme(theme_mode);
+    let tool_option_presets = editor_tool_option_presets.clone();
     let editor_undo_stack = Rc::new(RefCell::new(Vec::<Vec<ToolObject>>::new()));
     let editor_redo_stack = Rc::new(RefCell::new(Vec::<Vec<ToolObject>>::new()));
     let active_editor_tool = Rc::new(Cell::new(ToolKind::Select));
@@ -147,7 +148,7 @@ fn initialize_editor_runtime_state(
     InitializedEditorRuntime {
         editor_navigation_bindings,
         editor_tools,
-        stroke_color_palette,
+        tool_option_presets,
         editor_undo_stack,
         editor_redo_stack,
         active_editor_tool,
@@ -287,10 +288,29 @@ fn connect_editor_overlay_hover_controls(
     editor_overlay.add_controller(pointer);
 }
 
+const STROKE_PREVIEW_ENDPOINT_MARGIN: f64 = 4.5;
+const STROKE_PREVIEW_STROKE_PADDING: i32 = 2;
+
+fn stroke_preview_line_width(thickness: u8, preview_width: i32, preview_height: i32) -> f64 {
+    let requested = f64::from(thickness.max(1));
+    let vertical_limit = f64::from(
+        preview_height
+            .max(1)
+            .saturating_sub(STROKE_PREVIEW_STROKE_PADDING),
+    );
+    let cap_limit = (STROKE_PREVIEW_ENDPOINT_MARGIN * 2.0).max(1.0);
+    let width_limit = f64::from(preview_width.max(1));
+    requested
+        .min(vertical_limit.max(1.0))
+        .min(cap_limit)
+        .min(width_limit)
+        .max(1.0)
+}
+
 #[allow(clippy::too_many_arguments)]
 fn apply_editor_default_tool_settings(
     editor_tools: &Rc<RefCell<editor::EditorTools>>,
-    stroke_color_palette: StrokeColorPalette,
+    tool_option_presets: &EditorToolOptionPresets,
     default_tool_color_override: Option<(u8, u8, u8)>,
     default_text_size_override: Option<u8>,
     default_stroke_width_override: Option<u8>,
@@ -299,13 +319,21 @@ fn apply_editor_default_tool_settings(
     editor_image_base_height: i32,
 ) {
     let default_text_size = default_text_size_override.unwrap_or_else(|| {
-        adaptive_text_size_for_image(editor_image_base_width, editor_image_base_height)
+        adaptive_text_size_for_image_with_presets(
+            editor_image_base_width,
+            editor_image_base_height,
+            tool_option_presets.text_size_presets(),
+        )
     });
     let default_stroke_size = default_stroke_width_override.unwrap_or_else(|| {
-        adaptive_stroke_size_for_image(editor_image_base_width, editor_image_base_height)
+        adaptive_stroke_size_for_image_with_presets(
+            editor_image_base_width,
+            editor_image_base_height,
+            tool_option_presets.adaptive_stroke_width_presets(),
+        )
     });
-    let (default_stroke_r, default_stroke_g, default_stroke_b) =
-        default_tool_color_override.unwrap_or_else(|| stroke_color_palette.default_color());
+    let (default_stroke_r, default_stroke_g, default_stroke_b) = default_tool_color_override
+        .unwrap_or_else(|| tool_option_presets.stroke_color_palette().default_color());
     let mut tools = editor_tools.borrow_mut();
     tools.set_text_size(default_text_size);
     tools.set_shared_stroke_color(default_stroke_r, default_stroke_g, default_stroke_b);
@@ -428,6 +456,7 @@ pub(super) fn render_editor_state(
     let default_tool_color_override = context.default_tool_color_override;
     let default_text_size_override = context.default_text_size_override;
     let default_stroke_width_override = context.default_stroke_width_override;
+    let editor_tool_option_presets = context.editor_tool_option_presets.clone();
     let editor_navigation_bindings = &context.editor_navigation_bindings;
     let status_log_for_render = &context.status_log_for_render;
     let editor_input_mode = &context.editor_input_mode;
@@ -470,7 +499,7 @@ pub(super) fn render_editor_state(
             let InitializedEditorRuntime {
                 editor_navigation_bindings,
                 editor_tools,
-                stroke_color_palette,
+                tool_option_presets,
                 editor_undo_stack,
                 editor_redo_stack,
                 active_editor_tool,
@@ -491,7 +520,7 @@ pub(super) fn render_editor_state(
                 &editor_window_instance,
                 editor_navigation_bindings,
                 editor_input_mode,
-                theme_mode,
+                &editor_tool_option_presets,
             );
 
             let editor_overlay = Overlay::new();
@@ -544,7 +573,7 @@ pub(super) fn render_editor_state(
             );
             apply_editor_default_tool_settings(
                 &editor_tools,
-                stroke_color_palette,
+                &tool_option_presets,
                 default_tool_color_override,
                 default_text_size_override,
                 default_stroke_width_override,
@@ -1044,6 +1073,9 @@ pub(super) fn render_editor_state(
                     (236_u8, 238_u8, 244_u8)
                 }
             };
+            let stroke_color_palette = tool_option_presets.stroke_color_palette().clone();
+            let stroke_width_presets = tool_option_presets.stroke_width_presets().to_vec();
+            let text_size_presets = tool_option_presets.text_size_presets().to_vec();
 
             let tool_options_header = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
             tool_options_header.add_css_class("editor-options-header");
@@ -1069,7 +1101,7 @@ pub(super) fn render_editor_state(
                 ));
                 collapsed_thickness.set(nearest_preset_u8(
                     f64::from(arrow_options.thickness),
-                    &STROKE_SIZE_BUTTON_PRESETS,
+                    &stroke_width_presets,
                 ));
             }
 
@@ -1138,10 +1170,14 @@ pub(super) fn render_editor_state(
                         f64::from(line_g) / 255.0,
                         f64::from(line_b) / 255.0,
                     );
-                    context.set_line_width(f64::from(collapsed_thickness.get().max(1)));
+                    context.set_line_width(stroke_preview_line_width(
+                        collapsed_thickness.get(),
+                        width,
+                        height,
+                    ));
                     context.set_line_cap(gtk4::cairo::LineCap::Round);
-                    context.move_to(4.5, y);
-                    context.line_to(f64::from(width) - 4.5, y);
+                    context.move_to(STROKE_PREVIEW_ENDPOINT_MARGIN, y);
+                    context.line_to(f64::from(width) - STROKE_PREVIEW_ENDPOINT_MARGIN, y);
                     let _ = context.stroke();
                     context.restore().ok();
                 });
@@ -1151,7 +1187,7 @@ pub(super) fn render_editor_state(
 
             let collapsed_text_size = {
                 let text_size = editor_tools.borrow().text_options().size;
-                nearest_preset_u8(f64::from(text_size), &TEXT_SIZE_PRESETS)
+                nearest_preset_u8(f64::from(text_size), &text_size_presets)
             };
             let collapsed_text_size_chip =
                 Button::with_label(collapsed_text_size.to_string().as_str());
@@ -1194,6 +1230,8 @@ pub(super) fn render_editor_state(
                 let collapsed_thickness = collapsed_thickness.clone();
                 let collapsed_thickness_preview = collapsed_thickness_preview.clone();
                 let collapsed_text_size_chip = collapsed_text_size_chip.clone();
+                let stroke_width_presets = stroke_width_presets.clone();
+                let text_size_presets = text_size_presets.clone();
                 move || {
                     let Ok(tools) = editor_tools.try_borrow() else {
                         return;
@@ -1207,11 +1245,11 @@ pub(super) fn render_editor_state(
                     collapsed_color_swatch.queue_draw();
                     collapsed_thickness.set(nearest_preset_u8(
                         f64::from(arrow_options.thickness),
-                        &STROKE_SIZE_BUTTON_PRESETS,
+                        &stroke_width_presets,
                     ));
                     collapsed_thickness_preview.queue_draw();
                     let text_size =
-                        nearest_preset_u8(f64::from(tools.text_options().size), &TEXT_SIZE_PRESETS);
+                        nearest_preset_u8(f64::from(tools.text_options().size), &text_size_presets);
                     collapsed_text_size_chip.set_label(text_size.to_string().as_str());
                 }
             });
@@ -1231,10 +1269,10 @@ pub(super) fn render_editor_state(
                     preset.rgb() == (options.color_r, options.color_g, options.color_b)
                 })
             };
-            for (index, preset) in stroke_color_palette.presets().iter().copied().enumerate() {
+            for (index, preset) in stroke_color_palette.presets().iter().cloned().enumerate() {
                 let chip = Button::new();
                 chip.set_focus_on_click(false);
-                chip.set_tooltip_text(Some(preset.label));
+                chip.set_tooltip_text(Some(preset.label.as_str()));
                 chip.add_css_class("flat");
                 chip.add_css_class("stroke-chip-button");
                 chip.set_size_request(30, 30);
@@ -1242,7 +1280,7 @@ pub(super) fn render_editor_state(
                 swatch.set_content_width(18);
                 swatch.set_content_height(18);
                 swatch.set_can_target(false);
-                let (r, g, b) = preset.rgb();
+                let (preset_r, preset_g, preset_b) = preset.rgb();
                 swatch.set_draw_func(move |_, context, width, height| {
                     let radius = (f64::from(width.min(height)) / 2.0) - 1.2;
                     let center_x = f64::from(width) / 2.0;
@@ -1256,9 +1294,9 @@ pub(super) fn render_editor_state(
                         std::f64::consts::TAU,
                     );
                     context.set_source_rgb(
-                        f64::from(r) / 255.0,
-                        f64::from(g) / 255.0,
-                        f64::from(b) / 255.0,
+                        f64::from(preset_r) / 255.0,
+                        f64::from(preset_g) / 255.0,
+                        f64::from(preset_b) / 255.0,
                     );
                     let _ = context.fill_preserve();
                     context.set_source_rgba(1.0, 1.0, 1.0, 0.35);
@@ -1282,15 +1320,12 @@ pub(super) fn render_editor_state(
                             candidate_button.remove_css_class("stroke-chip-active");
                         }
                     }
-                    let Some((r, g, b)) = stroke_color_palette.color_for_index(index) else {
-                        return;
-                    };
                     {
                         let mut tools = editor_tools.borrow_mut();
-                        tools.set_shared_stroke_color(r, g, b);
+                        tools.set_shared_stroke_color(preset_r, preset_g, preset_b);
                     }
                     *status_log_for_render.borrow_mut() =
-                        format!("stroke color preset: {r},{g},{b}");
+                        format!("stroke color preset: {preset_r},{preset_g},{preset_b}");
                     editor_canvas.queue_draw();
                     (refresh_collapsed_option_chips.as_ref())();
                 });
@@ -1315,9 +1350,9 @@ pub(super) fn render_editor_state(
             let thickness_chip_buttons = Rc::new(RefCell::new(Vec::<(u8, Button)>::new()));
             let initial_thickness = {
                 let options = editor_tools.borrow().arrow_options();
-                nearest_preset_u8(f64::from(options.thickness), &STROKE_SIZE_BUTTON_PRESETS)
+                nearest_preset_u8(f64::from(options.thickness), &stroke_width_presets)
             };
-            for thickness in STROKE_SIZE_BUTTON_PRESETS {
+            for thickness in stroke_width_presets.iter().copied() {
                 let chip = Button::new();
                 chip.set_focus_on_click(false);
                 chip.set_tooltip_text(Some(format!("Thickness {thickness}").as_str()));
@@ -1337,10 +1372,10 @@ pub(super) fn render_editor_state(
                         f64::from(line_g) / 255.0,
                         f64::from(line_b) / 255.0,
                     );
-                    context.set_line_width(f64::from(thickness.max(1)));
+                    context.set_line_width(stroke_preview_line_width(thickness, width, height));
                     context.set_line_cap(gtk4::cairo::LineCap::Round);
-                    context.move_to(4.5, y);
-                    context.line_to(f64::from(width) - 4.5, y);
+                    context.move_to(STROKE_PREVIEW_ENDPOINT_MARGIN, y);
+                    context.line_to(f64::from(width) - STROKE_PREVIEW_ENDPOINT_MARGIN, y);
                     let _ = context.stroke();
                     context.restore().ok();
                 });
@@ -1394,9 +1429,9 @@ pub(super) fn render_editor_state(
             let text_size_chip_buttons = Rc::new(RefCell::new(Vec::<(u8, Button)>::new()));
             let initial_text_size = {
                 let options = editor_tools.borrow().text_options();
-                nearest_preset_u8(f64::from(options.size), &TEXT_SIZE_PRESETS)
+                nearest_preset_u8(f64::from(options.size), &text_size_presets)
             };
-            for text_size in TEXT_SIZE_PRESETS {
+            for text_size in text_size_presets.iter().copied() {
                 let chip = Button::with_label(text_size.to_string().as_str());
                 chip.set_focus_on_click(false);
                 chip.set_tooltip_text(Some(format!("Text size {text_size}").as_str()));
@@ -1822,5 +1857,17 @@ mod tests {
             resolve_editor_tool_fallback_shortcut(ShortcutKey::Escape),
             None
         );
+    }
+
+    #[test]
+    fn stroke_preview_line_width_clamps_large_thickness_to_chip_bounds() {
+        let clamped = stroke_preview_line_width(64, 18, 18);
+        assert!((clamped - 9.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn stroke_preview_line_width_keeps_minimum_visible_width() {
+        let clamped = stroke_preview_line_width(0, 18, 18);
+        assert!((clamped - 1.0).abs() < f64::EPSILON);
     }
 }

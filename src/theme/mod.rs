@@ -69,6 +69,12 @@ pub struct EditorDefaults {
     pub default_text_size: Option<u8>,
     #[serde(default)]
     pub default_stroke_width: Option<u8>,
+    #[serde(default)]
+    pub tool_color_palette: Option<Vec<String>>,
+    #[serde(default)]
+    pub stroke_width_presets: Option<Vec<i64>>,
+    #[serde(default)]
+    pub text_size_presets: Option<Vec<i64>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -247,6 +253,9 @@ mod tests {
             assert!(config.editor.default_tool_color.is_none());
             assert!(config.editor.default_text_size.is_none());
             assert!(config.editor.default_stroke_width.is_none());
+            assert!(config.editor.tool_color_palette.is_none());
+            assert!(config.editor.stroke_width_presets.is_none());
+            assert!(config.editor.text_size_presets.is_none());
         });
     }
 
@@ -278,7 +287,10 @@ mod tests {
                         "rectangle_border_radius": 14,
                         "default_tool_color": "#12ab34",
                         "default_text_size": 24,
-                        "default_stroke_width": 8
+                        "default_stroke_width": 8,
+                        "tool_color_palette": ["#12ab34", "#55cc88"],
+                        "stroke_width_presets": [2, 6, 10],
+                        "text_size_presets": [14, 20, 28]
                     }
                 }"##,
             )
@@ -291,6 +303,12 @@ mod tests {
             assert_eq!(config.editor.default_tool_color.as_deref(), Some("#12ab34"));
             assert_eq!(config.editor.default_text_size, Some(24));
             assert_eq!(config.editor.default_stroke_width, Some(8));
+            assert_eq!(
+                config.editor.tool_color_palette,
+                Some(vec!["#12ab34".to_string(), "#55cc88".to_string()])
+            );
+            assert_eq!(config.editor.stroke_width_presets, Some(vec![2, 6, 10]));
+            assert_eq!(config.editor.text_size_presets, Some(vec![14, 20, 28]));
         });
     }
 
@@ -350,7 +368,10 @@ mod tests {
                     "rectangle_border_radius": 16,
                     "default_tool_color": "#ff00aa",
                     "default_text_size": 32,
-                    "default_stroke_width": 12
+                    "default_stroke_width": 12,
+                    "tool_color_palette": ["#ff00aa", "#00ffaa"],
+                    "stroke_width_presets": [3, 7, 11],
+                    "text_size_presets": [12, 18, 26]
                 }
             }"##;
             fs::write(&path, json).unwrap();
@@ -361,6 +382,34 @@ mod tests {
             assert_eq!(config.editor.default_tool_color.as_deref(), Some("#ff00aa"));
             assert_eq!(config.editor.default_text_size, Some(32));
             assert_eq!(config.editor.default_stroke_width, Some(12));
+            assert_eq!(
+                config.editor.tool_color_palette,
+                Some(vec!["#ff00aa".to_string(), "#00ffaa".to_string()])
+            );
+            assert_eq!(config.editor.stroke_width_presets, Some(vec![3, 7, 11]));
+            assert_eq!(config.editor.text_size_presets, Some(vec![12, 18, 26]));
+        });
+    }
+
+    #[test]
+    fn theme_config_accepts_wide_integer_preset_values() {
+        with_temp_root(|root| {
+            let path = theme_config_path_with(Some(root), None).unwrap();
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            let json = r##"{
+                "mode": "dark",
+                "editor": {
+                    "stroke_width_presets": [2, 512, -1],
+                    "text_size_presets": [14, 999, -3]
+                }
+            }"##;
+            fs::write(&path, json).unwrap();
+
+            let config = load_theme_config_with(Some(root), None).unwrap();
+            assert_eq!(config.editor.stroke_width_presets, Some(vec![2, 512, -1]));
+            assert_eq!(config.editor.text_size_presets, Some(vec![14, 999, -3]));
         });
     }
 
@@ -445,6 +494,9 @@ mod tests {
             assert!(config.editor.default_tool_color.is_none());
             assert!(config.editor.default_text_size.is_none());
             assert!(config.editor.default_stroke_width.is_none());
+            assert!(config.editor.tool_color_palette.is_none());
+            assert!(config.editor.stroke_width_presets.is_none());
+            assert!(config.editor.text_size_presets.is_none());
         });
     }
 }

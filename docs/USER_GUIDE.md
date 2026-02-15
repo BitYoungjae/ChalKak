@@ -229,7 +229,10 @@ Extended example:
     "rectangle_border_radius": 10,
     "default_tool_color": "#ff6b6b",
     "default_text_size": 18,
-    "default_stroke_width": 3
+    "default_stroke_width": 3,
+    "tool_color_palette": ["#ff6b6b", "#ffd166", "#3a86ff", "#06d6a0"],
+    "stroke_width_presets": [2, 4, 8, 12],
+    "text_size_presets": [14, 18, 24, 32]
   }
 }
 ```
@@ -239,6 +242,10 @@ Notes:
 - `mode` values: `system`, `light`, `dark`.
 - `colors.light` and `colors.dark` can be partial.
 - Missing values are filled from built-in defaults.
+- `editor.tool_color_palette` accepts a list of hex colors in strict `#RRGGBB` format for option chips (`RRGGBB` without `#` is ignored).
+- `editor.stroke_width_presets` and `editor.text_size_presets` drive popup option chip lists.
+- Each preset list accepts up to 6 items; extras are ignored.
+- Preset order is preserved; duplicates or out-of-range values are ignored.
 
 ### 9.2 `keybindings.json`
 

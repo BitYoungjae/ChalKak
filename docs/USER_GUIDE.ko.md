@@ -229,7 +229,10 @@ cargo run -- --launchpad
     "rectangle_border_radius": 10,
     "default_tool_color": "#ff6b6b",
     "default_text_size": 18,
-    "default_stroke_width": 3
+    "default_stroke_width": 3,
+    "tool_color_palette": ["#ff6b6b", "#ffd166", "#3a86ff", "#06d6a0"],
+    "stroke_width_presets": [2, 4, 8, 12],
+    "text_size_presets": [14, 18, 24, 32]
   }
 }
 ```
@@ -239,6 +242,10 @@ cargo run -- --launchpad
 - `mode` 값: `system`, `light`, `dark`
 - `colors.light`, `colors.dark`는 필요한 항목만 부분 지정 가능
 - 누락된 값은 기본 테마 값으로 보완됨
+- `editor.tool_color_palette`는 옵션 칩용 HEX 컬러를 엄격한 `#RRGGBB` 형식으로 받음 (`#` 없는 `RRGGBB`는 무시됨)
+- `editor.stroke_width_presets`, `editor.text_size_presets`는 팝업 옵션 칩 목록을 제어함
+- 각 preset 목록은 최대 6개까지만 반영되고 초과 항목은 무시됨
+- preset 순서는 유지되며, 중복/범위 밖 값은 무시됨
 
 ### 9.2 `keybindings.json`
 
