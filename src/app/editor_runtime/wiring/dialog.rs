@@ -114,7 +114,8 @@ fn open_editor_unsaved_close_dialog(
                 let Some(source_pixbuf) = editor_source_pixbuf.as_ref() else {
                     *status_log_for_render.borrow_mut() =
                         "editor source image unavailable".to_string();
-                    editor_toast_runtime.show("Source image unavailable", style_tokens.toast_duration_ms);
+                    editor_toast_runtime
+                        .show("Source image unavailable", style_tokens.toast_duration_ms);
                     *editor_close_dialog_open.borrow_mut() = false;
                     dialog.close();
                     return;
@@ -140,7 +141,8 @@ fn open_editor_unsaved_close_dialog(
                 Ok(()) => {
                     runtime_session.borrow_mut().remove_capture(&capture_id);
                     *editor_has_unsaved_changes.borrow_mut() = false;
-                    *status_log_for_render.borrow_mut() = format!("discarded unsaved capture {capture_id}");
+                    *status_log_for_render.borrow_mut() =
+                        format!("discarded unsaved capture {capture_id}");
                     editor_toast_runtime.show(
                         format!("Discarded {capture_id}"),
                         style_tokens.toast_duration_ms,
@@ -184,8 +186,7 @@ fn handle_editor_close_request(
         if trigger_editor_close_transition(runtime) {
             return EditorCloseOutcome::AllowWindowClose;
         }
-        *runtime.status_log_for_render.borrow_mut() =
-            "editor close transition blocked".to_string();
+        *runtime.status_log_for_render.borrow_mut() = "editor close transition blocked".to_string();
         return EditorCloseOutcome::KeepWindowOpen;
     }
 
