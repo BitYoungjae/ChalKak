@@ -101,6 +101,12 @@ fn system_theme_mode_from_settings(settings: &gtk4::Settings) -> Option<ThemeMod
         }
     }
 
+    if let Some(theme_name) = settings.gtk_theme_name() {
+        if let Some(mode) = mode_from_theme_name(theme_name.as_str()) {
+            return Some(mode);
+        }
+    }
+
     #[allow(deprecated)]
     {
         Some(if settings.is_gtk_application_prefer_dark_theme() {
@@ -109,6 +115,20 @@ fn system_theme_mode_from_settings(settings: &gtk4::Settings) -> Option<ThemeMod
             ThemeMode::Light
         })
     }
+}
+
+fn mode_from_theme_name(theme_name: &str) -> Option<ThemeMode> {
+    let normalized = theme_name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return None;
+    }
+    if normalized.contains("dark") {
+        return Some(ThemeMode::Dark);
+    }
+    if normalized.contains("light") {
+        return Some(ThemeMode::Light);
+    }
+    None
 }
 
 pub(super) fn resolve_theme_runtime(
@@ -689,5 +709,13 @@ mod tests {
             runtime.editor_theme_overrides.default_tool_color,
             Some((0xEE, 0xEE, 0xEE))
         );
+    }
+
+    #[test]
+    fn mode_from_theme_name_detects_dark_and_light_keywords() {
+        assert_eq!(mode_from_theme_name("Adwaita-dark"), Some(ThemeMode::Dark));
+        assert_eq!(mode_from_theme_name("MyLightTheme"), Some(ThemeMode::Light));
+        assert_eq!(mode_from_theme_name("Adwaita"), None);
+        assert_eq!(mode_from_theme_name(""), None);
     }
 }
