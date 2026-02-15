@@ -19,8 +19,7 @@
 - [ ] Evidence/logs/screenshots attached where possible
 
 # Checklist
-- [ ] Acceptance criteria in `docs/quality/test-plan.md` are still met.
-- [ ] Relevant specs updated (`docs/specs/*`) if behavior changed.
-- [ ] Runtime dependency considerations unchanged (`grim`, `slurp`, `wl-clipboard`, `gtk4-layer-shell`).
-- [ ] Task and handoff docs are accurate (`docs/operations/task-board.md`, `docs/operations/handoff.md`).
+- [ ] User docs are updated when behavior changed (`docs/USER_GUIDE.md`, `docs/USER_GUIDE.ko.md`).
+- [ ] Project docs are updated when workflow/policy changed (`README.md`, `AGENTS.md`).
+- [ ] Runtime dependency considerations unchanged (`hyprland`, `grim`, `slurp`, `wl-clipboard`, `gtk4`).
 - [ ] No known regressions or data-safety risks introduced.
