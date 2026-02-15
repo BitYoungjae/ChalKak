@@ -13,6 +13,8 @@ pub(super) struct EditorRenderContext {
     pub(super) runtime_session: Rc<RefCell<RuntimeSession>>,
     pub(super) style_tokens: StyleTokens,
     pub(super) theme_mode: crate::theme::ThemeMode,
+    pub(super) editor_selection_palette: EditorSelectionPalette,
+    pub(super) text_input_palette: EditorTextInputPalette,
     pub(super) rectangle_border_radius_override: Option<u16>,
     pub(super) default_tool_color_override: Option<(u8, u8, u8)>,
     pub(super) default_text_size_override: Option<u8>,
@@ -41,6 +43,8 @@ struct EditorCanvasDrawDeps {
     tool_drag_preview: Rc<RefCell<Option<ToolDragPreview>>>,
     selected_object_ids: Rc<RefCell<Vec<u64>>>,
     pending_crop: Rc<RefCell<Option<CropElement>>>,
+    editor_selection_palette: EditorSelectionPalette,
+    text_input_palette: EditorTextInputPalette,
     editor_input_mode: Rc<RefCell<editor::EditorInputMode>>,
     text_preedit_state: Rc<RefCell<TextPreeditState>>,
     text_im_context: Rc<gtk4::IMMulticontext>,
@@ -357,6 +361,8 @@ fn configure_editor_canvas_draw(
         tool_drag_preview,
         selected_object_ids,
         pending_crop,
+        editor_selection_palette,
+        text_input_palette,
         editor_input_mode,
         text_preedit_state,
         text_im_context,
@@ -384,6 +390,8 @@ fn configure_editor_canvas_draw(
                 image_bounds: ImageBounds::new(pixbuf.width(), pixbuf.height()),
                 show_crop_mask: true,
                 selected_object_ids: selected_object_ids.borrow().as_slice(),
+                selection_palette: editor_selection_palette,
+                text_input_palette,
                 source_pixbuf: Some(&pixbuf),
                 active_text_id: tools.active_text_id(),
                 active_text_preedit: Some(&preedit_state),
@@ -431,7 +439,14 @@ fn configure_editor_canvas_draw(
             context.restore().ok();
         }
         if let Some(preview) = tool_drag_preview.borrow().as_ref().copied() {
-            draw_drag_preview_overlay(context, &preview, &tools, pixbuf.width(), pixbuf.height());
+            draw_drag_preview_overlay(
+                context,
+                &preview,
+                &tools,
+                pixbuf.width(),
+                pixbuf.height(),
+                editor_selection_palette,
+            );
         }
         context.restore().ok();
     });
@@ -452,6 +467,8 @@ pub(super) fn render_editor_state(
     let runtime_session = context.runtime_session.clone();
     let style_tokens = context.style_tokens;
     let theme_mode = context.theme_mode;
+    let editor_selection_palette = context.editor_selection_palette;
+    let text_input_palette = context.text_input_palette;
     let rectangle_border_radius_override = context.rectangle_border_radius_override;
     let default_tool_color_override = context.default_tool_color_override;
     let default_text_size_override = context.default_text_size_override;
@@ -596,6 +613,8 @@ pub(super) fn render_editor_state(
                     tool_drag_preview: tool_drag_preview.clone(),
                     selected_object_ids: selected_object_ids.clone(),
                     pending_crop: pending_crop.clone(),
+                    editor_selection_palette,
+                    text_input_palette,
                     editor_input_mode: editor_input_mode.clone(),
                     text_preedit_state: text_preedit_state.clone(),
                     text_im_context: text_im_context.clone(),
@@ -953,38 +972,38 @@ pub(super) fn render_editor_state(
                 );
             }
             let viewport_fit_button = icon_button(
-                "zoom-fit-best-symbolic",
+                "scan-symbolic",
                 "Fit to window once (Shift+1)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
 
             let editor_undo_button = icon_button(
-                "edit-undo-symbolic",
+                "undo-2-symbolic",
                 "Undo (Ctrl+Z)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_redo_button = icon_button(
-                "edit-redo-symbolic",
+                "redo-2-symbolic",
                 "Redo (Ctrl+Shift+Z)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_save_button = icon_button(
-                "media-floppy-symbolic",
+                "save-symbolic",
                 "Save (Ctrl+S)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_copy_button = icon_button(
-                "edit-copy-symbolic",
+                "copy-symbolic",
                 "Copy (Ctrl+C)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_close_button = icon_button(
-                "window-close-symbolic",
+                "x-symbolic",
                 "Close editor",
                 style_tokens.control_size as i32,
                 &["editor-action-button", "editor-close-button"],
@@ -1200,7 +1219,7 @@ pub(super) fn render_editor_state(
             collapsed_text_size_chip.set_size_request(34, 30);
             tool_options_collapsed_row.append(&collapsed_text_size_chip);
 
-            let tool_options_toggle = Button::from_icon_name("pan-down-symbolic");
+            let tool_options_toggle = Button::from_icon_name("chevron-down-symbolic");
             tool_options_toggle.set_focus_on_click(false);
             tool_options_toggle.set_size_request(30, 30);
             tool_options_toggle.set_hexpand(false);
@@ -1488,14 +1507,14 @@ pub(super) fn render_editor_state(
                     tool_options_collapsed_row.set_visible(collapsed);
                     if collapsed {
                         tool_options_bar.add_css_class("editor-options-collapsed");
-                        tool_options_toggle_for_click.set_icon_name("pan-up-symbolic");
+                        tool_options_toggle_for_click.set_icon_name("chevron-up-symbolic");
                         tool_options_toggle_for_click
                             .set_tooltip_text(Some("Expand tool options (O)"));
                         *status_log_for_render.borrow_mut() =
                             "editor tool options collapsed".to_string();
                     } else {
                         tool_options_bar.remove_css_class("editor-options-collapsed");
-                        tool_options_toggle_for_click.set_icon_name("pan-down-symbolic");
+                        tool_options_toggle_for_click.set_icon_name("chevron-down-symbolic");
                         tool_options_toggle_for_click
                             .set_tooltip_text(Some("Collapse tool options (O)"));
                         *status_log_for_render.borrow_mut() =
@@ -1674,7 +1693,7 @@ pub(super) fn render_editor_state(
                 connect_editor_output_button(
                     &editor_copy_button,
                     &output_action_runtime,
-                    EditorAction::Copy,
+                    EditorAction::CopyFileReference,
                     "copy",
                 );
             }
@@ -1737,8 +1756,19 @@ pub(super) fn render_editor_state(
             {
                 connect_editor_window_close_request(EditorWindowCloseRequestContext {
                     editor_window_instance: editor_window_instance.clone(),
-                    editor_close_button: editor_close_button.clone(),
+                    runtime_session: runtime_session.clone(),
                     shared_machine: shared_machine.clone(),
+                    storage_service: storage_service.clone(),
+                    status_log_for_render: status_log_for_render.clone(),
+                    close_editor_button: close_editor_button.clone(),
+                    editor_has_unsaved_changes: editor_has_unsaved_changes.clone(),
+                    editor_close_dialog_open: editor_close_dialog_open.clone(),
+                    editor_window_for_dialog: editor_window_instance.clone(),
+                    editor_toast_runtime: editor_toast_runtime.clone(),
+                    editor_tools: editor_tools.clone(),
+                    pending_crop_for_close: pending_crop.clone(),
+                    editor_source_pixbuf: editor_source_pixbuf.clone(),
+                    style_tokens,
                     editor_close_guard: editor_close_guard.clone(),
                 });
             }

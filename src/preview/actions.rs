@@ -8,6 +8,7 @@ use crate::storage::{CaptureStorage, StorageError};
 pub enum PreviewAction {
     Save,
     Copy,
+    CopyFileReference,
     Edit,
     Delete,
     Close,
@@ -17,6 +18,7 @@ pub enum PreviewAction {
 pub enum PreviewEvent {
     Save { capture_id: String },
     Copy { capture_id: String },
+    CopyFileReference { capture_id: String },
     Edit { capture_id: String },
     Delete { capture_id: String },
     Close { capture_id: String },
@@ -69,6 +71,16 @@ pub fn execute_preview_action<S: CaptureStorage, C: ClipboardBackend>(
                 })?;
             Ok(PreviewEvent::Copy { capture_id })
         }
+        PreviewAction::CopyFileReference => {
+            clipboard
+                .copy_file_reference(&artifact.temp_path)
+                .map_err(|err| PreviewActionError::ClipboardError {
+                    operation: "copy",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                })?;
+            Ok(PreviewEvent::CopyFileReference { capture_id })
+        }
         PreviewAction::Edit => Ok(PreviewEvent::Edit { capture_id }),
         PreviewAction::Delete => {
             storage
@@ -97,11 +109,19 @@ mod tests {
     #[derive(Default)]
     struct FakeClipboard {
         copied_paths: RefCell<Vec<PathBuf>>,
+        copied_file_references: RefCell<Vec<PathBuf>>,
     }
 
     impl ClipboardBackend for FakeClipboard {
         fn copy_png_file(&self, path: &Path) -> crate::clipboard::ClipboardResult<()> {
             self.copied_paths.borrow_mut().push(path.to_path_buf());
+            Ok(())
+        }
+
+        fn copy_file_reference(&self, path: &Path) -> crate::clipboard::ClipboardResult<()> {
+            self.copied_file_references
+                .borrow_mut()
+                .push(path.to_path_buf());
             Ok(())
         }
     }
@@ -184,6 +204,35 @@ mod tests {
             clipboard.copied_paths.borrow().as_slice(),
             &[PathBuf::from("/tmp/test.png")]
         );
+        assert!(clipboard.copied_file_references.borrow().is_empty());
+        assert!(storage.save_requests.borrow().is_empty());
+    }
+
+    #[test]
+    fn preview_action_copy_file_reference_calls_clipboard() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("capture-copy-file-ref");
+
+        let event = execute_preview_action(
+            &current,
+            PreviewAction::CopyFileReference,
+            &storage,
+            &clipboard,
+        )
+        .expect("copy file reference should succeed");
+
+        assert_eq!(
+            event,
+            PreviewEvent::CopyFileReference {
+                capture_id: "capture-copy-file-ref".to_string()
+            }
+        );
+        assert_eq!(
+            clipboard.copied_file_references.borrow().as_slice(),
+            &[PathBuf::from("/tmp/test.png")]
+        );
+        assert!(clipboard.copied_paths.borrow().is_empty());
         assert!(storage.save_requests.borrow().is_empty());
     }
 
@@ -238,5 +287,6 @@ mod tests {
         );
         assert!(storage.save_requests.borrow().is_empty());
         assert!(clipboard.copied_paths.borrow().is_empty());
+        assert!(clipboard.copied_file_references.borrow().is_empty());
     }
 }

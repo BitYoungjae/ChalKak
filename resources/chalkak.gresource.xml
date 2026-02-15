@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+  <gresource prefix="/com/github/bityoungjae/chalkak/icons">
+    <file>hicolor/index.theme</file>
+    <file>hicolor/scalable/actions/arrow-up-right-symbolic.svg</file>
+    <file>hicolor/scalable/actions/move-up-right-symbolic.svg</file>
+    <file>hicolor/scalable/actions/bot-symbolic.svg</file>
+    <file>hicolor/scalable/actions/case-sensitive-symbolic.svg</file>
+    <file>hicolor/scalable/actions/text-cursor-input-symbolic.svg</file>
+    <file>hicolor/scalable/actions/chevron-down-symbolic.svg</file>
+    <file>hicolor/scalable/actions/chevron-up-symbolic.svg</file>
+    <file>hicolor/scalable/actions/copy-symbolic.svg</file>
+    <file>hicolor/scalable/actions/crop-symbolic.svg</file>
+    <file>hicolor/scalable/actions/eye-off-symbolic.svg</file>
+    <file>hicolor/scalable/actions/hand-symbolic.svg</file>
+    <file>hicolor/scalable/actions/mouse-pointer-symbolic.svg</file>
+    <file>hicolor/scalable/actions/pencil-symbolic.svg</file>
+    <file>hicolor/scalable/actions/pin-off-symbolic.svg</file>
+    <file>hicolor/scalable/actions/pin-symbolic.svg</file>
+    <file>hicolor/scalable/actions/rectangle-horizontal-symbolic.svg</file>
+    <file>hicolor/scalable/actions/redo-2-symbolic.svg</file>
+    <file>hicolor/scalable/actions/save-symbolic.svg</file>
+    <file>hicolor/scalable/actions/scan-symbolic.svg</file>
+    <file>hicolor/scalable/actions/undo-2-symbolic.svg</file>
+    <file>hicolor/scalable/actions/x-symbolic.svg</file>
+  </gresource>
+</gresources>

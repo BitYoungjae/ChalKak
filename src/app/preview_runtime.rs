@@ -247,6 +247,7 @@ fn preview_shortcut_target(action: ShortcutAction) -> Option<PreviewShortcutTarg
     match action {
         ShortcutAction::PreviewSave => Some(PreviewShortcutTarget::Save),
         ShortcutAction::PreviewCopy => Some(PreviewShortcutTarget::Copy),
+        ShortcutAction::PreviewCopyFileReference => Some(PreviewShortcutTarget::Copy),
         ShortcutAction::PreviewEdit => Some(PreviewShortcutTarget::Edit),
         ShortcutAction::PreviewDelete => Some(PreviewShortcutTarget::Delete),
         ShortcutAction::PreviewClose => Some(PreviewShortcutTarget::Close),
@@ -323,7 +324,7 @@ fn build_preview_controls(
     top_controls_wrap.set_hexpand(true);
 
     let preview_pin_toggle = icon_toggle_button(
-        "view-pin-symbolic",
+        "pin-off-symbolic",
         "Pin preview window",
         context.style_tokens.control_size as i32,
         &["preview-pin-toggle", "preview-round-button"],
@@ -334,14 +335,14 @@ fn build_preview_controls(
     top_center_actions.add_css_class("preview-action-group");
 
     let preview_copy_button = icon_button(
-        "edit-copy-symbolic",
-        "Copy image to clipboard",
+        "copy-symbolic",
+        "Copy",
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
     );
 
     let preview_save_button = icon_button(
-        "media-floppy-symbolic",
+        "save-symbolic",
         "Save image",
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
@@ -359,7 +360,7 @@ fn build_preview_controls(
     top_center_actions.append(&preview_edit_button);
 
     let preview_close_button = icon_button(
-        "window-close-symbolic",
+        "x-symbolic",
         "Close preview",
         context.style_tokens.control_size as i32,
         &[
@@ -670,6 +671,10 @@ mod tests {
         );
         assert_eq!(
             preview_shortcut_target(ShortcutAction::PreviewCopy),
+            Some(PreviewShortcutTarget::Copy)
+        );
+        assert_eq!(
+            preview_shortcut_target(ShortcutAction::PreviewCopyFileReference),
             Some(PreviewShortcutTarget::Copy)
         );
         assert_eq!(

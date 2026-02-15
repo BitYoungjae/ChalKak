@@ -1,17 +1,25 @@
 use crate::input::{load_editor_navigation_bindings, EditorNavigationBindings};
 use crate::storage::prune_stale_temp_files;
-use crate::theme::{apply_theme, load_theme_config, EditorDefaults, ThemeConfig, ThemeMode};
+use crate::theme::{
+    load_theme_config, resolve_editor_defaults, EditorDefaults, ThemeConfig, ThemeMode,
+};
 use crate::ui::{tokens_for, ColorTokens, StyleTokens};
+use gtk4::prelude::ObjectExt;
 
 use super::adaptive::{EditorToolOptionPresets, StrokeColorPreset};
+use super::editor_popup::{EditorSelectionPalette, EditorTextInputPalette, RgbaColor};
 use super::runtime_support::StartupConfig;
 
 pub(super) struct AppBootstrap {
     pub(super) startup_config: StartupConfig,
-    pub(super) theme_mode: ThemeMode,
+    pub(super) theme_config: ThemeConfig,
+    pub(super) editor_navigation_bindings: EditorNavigationBindings,
+}
+
+pub(super) struct ResolvedThemeRuntime {
     pub(super) style_tokens: StyleTokens,
     pub(super) color_tokens: ColorTokens,
-    pub(super) editor_navigation_bindings: EditorNavigationBindings,
+    pub(super) text_input_palette: EditorTextInputPalette,
     pub(super) editor_theme_overrides: EditorThemeOverrides,
     pub(super) editor_tool_option_presets: EditorToolOptionPresets,
 }
@@ -19,6 +27,7 @@ pub(super) struct AppBootstrap {
 #[derive(Debug, Clone, Default)]
 pub(super) struct EditorThemeOverrides {
     pub(super) rectangle_border_radius: Option<u16>,
+    pub(super) selection_palette: EditorSelectionPalette,
     pub(super) default_tool_color: Option<(u8, u8, u8)>,
     pub(super) default_text_size: Option<u8>,
     pub(super) default_stroke_width: Option<u8>,
@@ -38,16 +47,7 @@ pub(super) fn bootstrap_app_runtime() -> AppBootstrap {
     prune_stale_capture_temp_files();
 
     let theme_config = load_or_default_theme_config();
-    let theme_mode = apply_theme(theme_config.mode);
-    let editor_theme_overrides = editor_theme_overrides_from(&theme_config.editor);
-    let editor_tool_option_presets = EditorToolOptionPresets::with_overrides(
-        theme_mode,
-        editor_theme_overrides.tool_color_palette.clone(),
-        editor_theme_overrides.stroke_width_presets.clone(),
-        editor_theme_overrides.text_size_presets.clone(),
-    );
-    let (style_tokens, color_tokens) = tokens_for(theme_mode, theme_config.colors.as_ref());
-    tracing::info!(theme_mode = ?theme_mode, "loaded theme config");
+    tracing::info!(mode = ?theme_config.mode, "loaded theme config");
 
     let editor_navigation_bindings = load_editor_navigation_bindings().unwrap_or_else(|err| {
         tracing::warn!(?err, "failed to load keybinding config; using defaults");
@@ -65,10 +65,105 @@ pub(super) fn bootstrap_app_runtime() -> AppBootstrap {
 
     AppBootstrap {
         startup_config,
-        theme_mode,
+        theme_config,
+        editor_navigation_bindings,
+    }
+}
+
+pub(super) fn resolve_runtime_theme_mode(
+    mode: ThemeMode,
+    settings: Option<&gtk4::Settings>,
+) -> ThemeMode {
+    match mode {
+        ThemeMode::Light => ThemeMode::Light,
+        ThemeMode::Dark => ThemeMode::Dark,
+        ThemeMode::System => settings
+            .and_then(system_theme_mode_from_settings)
+            .unwrap_or(ThemeMode::Dark),
+    }
+}
+
+fn system_theme_mode_from_settings(settings: &gtk4::Settings) -> Option<ThemeMode> {
+    if settings
+        .list_properties()
+        .iter()
+        .any(|prop| prop.name() == "gtk-interface-color-scheme")
+    {
+        let color_scheme = settings.property_value("gtk-interface-color-scheme");
+        if let Ok(raw_scheme) = color_scheme.get::<i32>() {
+            return match raw_scheme {
+                // GTK_INTERFACE_COLOR_SCHEME_FORCE_LIGHT
+                3 => Some(ThemeMode::Light),
+                // GTK_INTERFACE_COLOR_SCHEME_FORCE_DARK
+                2 => Some(ThemeMode::Dark),
+                // DEFAULT or PREFER_* keep fallback path
+                _ => None,
+            };
+        }
+    }
+
+    if let Some(theme_name) = settings.gtk_theme_name() {
+        if let Some(mode) = mode_from_theme_name(theme_name.as_str()) {
+            return Some(mode);
+        }
+    }
+
+    #[allow(deprecated)]
+    {
+        Some(if settings.is_gtk_application_prefer_dark_theme() {
+            ThemeMode::Dark
+        } else {
+            ThemeMode::Light
+        })
+    }
+}
+
+fn mode_from_theme_name(theme_name: &str) -> Option<ThemeMode> {
+    let normalized = theme_name.trim().to_ascii_lowercase();
+    if normalized.is_empty() {
+        return None;
+    }
+    if normalized.contains("dark") {
+        return Some(ThemeMode::Dark);
+    }
+    if normalized.contains("light") {
+        return Some(ThemeMode::Light);
+    }
+    None
+}
+
+pub(super) fn resolve_theme_runtime(
+    theme_config: &ThemeConfig,
+    mode: ThemeMode,
+) -> ResolvedThemeRuntime {
+    let effective_editor_defaults = resolve_editor_defaults(
+        mode,
+        &theme_config.editor,
+        theme_config.editor_modes.as_ref(),
+    );
+    let editor_theme_overrides = editor_theme_overrides_from(&effective_editor_defaults, mode);
+    let editor_tool_option_presets = EditorToolOptionPresets::with_overrides(
+        mode,
+        editor_theme_overrides.tool_color_palette.clone(),
+        editor_theme_overrides.stroke_width_presets.clone(),
+        editor_theme_overrides.text_size_presets.clone(),
+    );
+    let (style_tokens, color_tokens) = tokens_for(mode, theme_config.colors.as_ref());
+    let text_input_palette = text_input_palette_from_focus_ring_color(
+        &color_tokens.focus_ring_color,
+    )
+    .unwrap_or_else(|| {
+        tracing::warn!(
+            value = color_tokens.focus_ring_color.as_str(),
+            "invalid focus_ring_color for editor text input accents; expected #RRGGBB"
+        );
+        EditorTextInputPalette::default()
+    });
+
+    ResolvedThemeRuntime {
         style_tokens,
         color_tokens,
-        editor_navigation_bindings,
+        text_input_palette,
         editor_theme_overrides,
         editor_tool_option_presets,
     }
@@ -100,11 +195,34 @@ fn load_or_default_theme_config() -> ThemeConfig {
             mode: ThemeMode::System,
             colors: None,
             editor: EditorDefaults::default(),
+            editor_modes: None,
         }
     })
 }
 
-fn editor_theme_overrides_from(defaults: &EditorDefaults) -> EditorThemeOverrides {
+fn editor_theme_overrides_from(defaults: &EditorDefaults, mode: ThemeMode) -> EditorThemeOverrides {
+    let mut selection_palette = EditorSelectionPalette::for_theme_mode(mode);
+    apply_selection_color_override(
+        "editor.selection_drag_fill_color",
+        defaults.selection_drag_fill_color.as_deref(),
+        &mut selection_palette.drag_fill,
+    );
+    apply_selection_color_override(
+        "editor.selection_drag_stroke_color",
+        defaults.selection_drag_stroke_color.as_deref(),
+        &mut selection_palette.drag_stroke,
+    );
+    apply_selection_color_override(
+        "editor.selection_outline_color",
+        defaults.selection_outline_color.as_deref(),
+        &mut selection_palette.selected_outline,
+    );
+    apply_selection_color_override(
+        "editor.selection_handle_color",
+        defaults.selection_handle_color.as_deref(),
+        &mut selection_palette.resize_handle_fill,
+    );
+
     let default_tool_color = defaults
         .default_tool_color
         .as_deref()
@@ -138,6 +256,7 @@ fn editor_theme_overrides_from(defaults: &EditorDefaults) -> EditorThemeOverride
 
     EditorThemeOverrides {
         rectangle_border_radius: defaults.rectangle_border_radius,
+        selection_palette,
         default_tool_color,
         default_text_size: defaults.default_text_size,
         default_stroke_width: defaults.default_stroke_width,
@@ -160,12 +279,56 @@ fn parse_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
     Some((red, green, blue))
 }
 
+fn text_input_palette_from_focus_ring_color(value: &str) -> Option<EditorTextInputPalette> {
+    parse_hex_rgb(value)
+        .map(|(red, green, blue)| EditorTextInputPalette::from_rgb(red, green, blue))
+}
+
 fn parse_hash_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
     let hex = value.trim();
     if !hex.starts_with('#') {
         return None;
     }
     parse_hex_rgb(hex)
+}
+
+fn parse_hash_hex_rgba(value: &str) -> Option<RgbaColor> {
+    let hex = value.trim();
+    if !hex.starts_with('#') {
+        return None;
+    }
+    let digits = &hex[1..];
+    let parse_pair = |index: usize| u8::from_str_radix(&digits[index..index + 2], 16).ok();
+    match digits.len() {
+        6 => Some(RgbaColor::new(
+            parse_pair(0)?,
+            parse_pair(2)?,
+            parse_pair(4)?,
+            0xFF,
+        )),
+        8 => Some(RgbaColor::new(
+            parse_pair(0)?,
+            parse_pair(2)?,
+            parse_pair(4)?,
+            parse_pair(6)?,
+        )),
+        _ => None,
+    }
+}
+
+fn apply_selection_color_override(field: &'static str, raw: Option<&str>, target: &mut RgbaColor) {
+    let Some(value) = raw else {
+        return;
+    };
+    let Some(parsed) = parse_hash_hex_rgba(value) else {
+        tracing::warn!(
+            field = field,
+            value = value,
+            "invalid selection color override; expected #RRGGBB or #RRGGBBAA"
+        );
+        return;
+    };
+    *target = parsed;
 }
 
 fn parse_color_palette_presets(values: &[String]) -> Option<Vec<StrokeColorPreset>> {
@@ -287,15 +450,76 @@ mod tests {
     }
 
     #[test]
+    fn parse_hash_hex_rgba_accepts_six_or_eight_digit_hex() {
+        assert_eq!(
+            parse_hash_hex_rgba("#2B63FF"),
+            Some(RgbaColor::new(0x2B, 0x63, 0xFF, 0xFF))
+        );
+        assert_eq!(
+            parse_hash_hex_rgba("#2B63FFE0"),
+            Some(RgbaColor::new(0x2B, 0x63, 0xFF, 0xE0))
+        );
+    }
+
+    #[test]
+    fn parse_hash_hex_rgba_rejects_invalid_values() {
+        assert_eq!(parse_hash_hex_rgba("2B63FF"), None);
+        assert_eq!(parse_hash_hex_rgba("#2B63F"), None);
+        assert_eq!(parse_hash_hex_rgba("#GGGGGG"), None);
+    }
+
+    #[test]
+    fn text_input_palette_from_focus_ring_color_parses_hex() {
+        let palette =
+            text_input_palette_from_focus_ring_color("#18181B").expect("expected palette");
+        assert_eq!(
+            palette.preedit_underline,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0xEB)
+        );
+        assert_eq!(palette.caret, RgbaColor::new(0x18, 0x18, 0x1B, 0xF2));
+        assert!(text_input_palette_from_focus_ring_color("rgba(255,255,255,1)").is_none());
+    }
+
+    #[test]
     fn editor_theme_overrides_parse_default_tool_color() {
         let defaults = EditorDefaults {
             default_tool_color: Some("#101112".to_string()),
             ..EditorDefaults::default()
         };
 
-        let overrides = editor_theme_overrides_from(&defaults);
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
         assert_eq!(overrides.default_tool_color, Some((0x10, 0x11, 0x12)));
+    }
+
+    #[test]
+    fn editor_theme_overrides_parse_selection_colors() {
+        let defaults = EditorDefaults {
+            selection_drag_fill_color: Some("#2B63FF1F".to_string()),
+            selection_drag_stroke_color: Some("#2B63FFE0".to_string()),
+            selection_outline_color: Some("#2B63FFE6".to_string()),
+            selection_handle_color: Some("#2B63FFF2".to_string()),
+            ..EditorDefaults::default()
+        };
+
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
+
+        assert_eq!(
+            overrides.selection_palette.drag_fill,
+            RgbaColor::new(0x2B, 0x63, 0xFF, 0x1F)
+        );
+        assert_eq!(
+            overrides.selection_palette.drag_stroke,
+            RgbaColor::new(0x2B, 0x63, 0xFF, 0xE0)
+        );
+        assert_eq!(
+            overrides.selection_palette.selected_outline,
+            RgbaColor::new(0x2B, 0x63, 0xFF, 0xE6)
+        );
+        assert_eq!(
+            overrides.selection_palette.resize_handle_fill,
+            RgbaColor::new(0x2B, 0x63, 0xFF, 0xF2)
+        );
     }
 
     #[test]
@@ -307,7 +531,7 @@ mod tests {
             ..EditorDefaults::default()
         };
 
-        let overrides = editor_theme_overrides_from(&defaults);
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
         let palette = overrides.tool_color_palette.unwrap();
         let colors = palette
@@ -333,7 +557,7 @@ mod tests {
             ..EditorDefaults::default()
         };
 
-        let overrides = editor_theme_overrides_from(&defaults);
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
         let palette = overrides.tool_color_palette.unwrap();
         assert_eq!(palette.len(), 1);
@@ -359,7 +583,7 @@ mod tests {
             ..EditorDefaults::default()
         };
 
-        let overrides = editor_theme_overrides_from(&defaults);
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
         let palette = overrides.tool_color_palette.unwrap();
         assert_eq!(palette.len(), 6);
@@ -392,8 +616,135 @@ mod tests {
             ..EditorDefaults::default()
         };
 
-        let overrides = editor_theme_overrides_from(&defaults);
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
         assert_eq!(overrides.stroke_width_presets, Some(vec![2]));
         assert_eq!(overrides.text_size_presets, Some(vec![14]));
+    }
+
+    #[test]
+    fn editor_theme_overrides_default_selection_palette_follows_mode() {
+        let light = editor_theme_overrides_from(&EditorDefaults::default(), ThemeMode::Light);
+        let dark = editor_theme_overrides_from(&EditorDefaults::default(), ThemeMode::Dark);
+        let system = editor_theme_overrides_from(&EditorDefaults::default(), ThemeMode::System);
+
+        assert_eq!(
+            light.selection_palette.drag_fill,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0x1A)
+        );
+        assert_eq!(
+            dark.selection_palette.drag_fill,
+            RgbaColor::new(0xE4, 0xE4, 0xE7, 0x1F)
+        );
+        assert_eq!(system.selection_palette, dark.selection_palette);
+    }
+
+    #[test]
+    fn editor_theme_overrides_selection_colors_override_mode_defaults() {
+        let defaults = EditorDefaults {
+            selection_drag_fill_color: Some("#00010203".to_string()),
+            selection_drag_stroke_color: Some("#04050607".to_string()),
+            selection_outline_color: Some("#08090A0B".to_string()),
+            selection_handle_color: Some("#0C0D0E0F".to_string()),
+            ..EditorDefaults::default()
+        };
+
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Light);
+        assert_eq!(
+            overrides.selection_palette.drag_fill,
+            RgbaColor::new(0x00, 0x01, 0x02, 0x03)
+        );
+        assert_eq!(
+            overrides.selection_palette.drag_stroke,
+            RgbaColor::new(0x04, 0x05, 0x06, 0x07)
+        );
+        assert_eq!(
+            overrides.selection_palette.selected_outline,
+            RgbaColor::new(0x08, 0x09, 0x0A, 0x0B)
+        );
+        assert_eq!(
+            overrides.selection_palette.resize_handle_fill,
+            RgbaColor::new(0x0C, 0x0D, 0x0E, 0x0F)
+        );
+    }
+
+    #[test]
+    fn editor_theme_overrides_invalid_selection_colors_keep_mode_defaults() {
+        let defaults = EditorDefaults {
+            selection_drag_fill_color: Some("invalid".to_string()),
+            selection_drag_stroke_color: Some("#zzzzzz".to_string()),
+            selection_outline_color: Some("#12345".to_string()),
+            selection_handle_color: Some("#123456789".to_string()),
+            ..EditorDefaults::default()
+        };
+        let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Light);
+        assert_eq!(
+            overrides.selection_palette.drag_fill,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0x1A)
+        );
+        assert_eq!(
+            overrides.selection_palette.drag_stroke,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0xC4)
+        );
+        assert_eq!(
+            overrides.selection_palette.selected_outline,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0xD9)
+        );
+        assert_eq!(
+            overrides.selection_palette.resize_handle_fill,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0xE6)
+        );
+    }
+
+    #[test]
+    fn resolve_runtime_theme_mode_preserves_explicit_modes() {
+        assert_eq!(
+            resolve_runtime_theme_mode(ThemeMode::Light, None),
+            ThemeMode::Light
+        );
+        assert_eq!(
+            resolve_runtime_theme_mode(ThemeMode::Dark, None),
+            ThemeMode::Dark
+        );
+    }
+
+    #[test]
+    fn resolve_runtime_theme_mode_system_without_settings_defaults_dark() {
+        assert_eq!(
+            resolve_runtime_theme_mode(ThemeMode::System, None),
+            ThemeMode::Dark
+        );
+    }
+
+    #[test]
+    fn resolve_theme_runtime_uses_mode_specific_editor_defaults() {
+        let config = ThemeConfig {
+            mode: ThemeMode::System,
+            colors: None,
+            editor: EditorDefaults {
+                default_tool_color: Some("#111111".to_string()),
+                ..EditorDefaults::default()
+            },
+            editor_modes: Some(crate::theme::EditorModeDefaults {
+                dark: EditorDefaults {
+                    default_tool_color: Some("#EEEEEE".to_string()),
+                    ..EditorDefaults::default()
+                },
+                light: EditorDefaults::default(),
+            }),
+        };
+
+        let runtime = resolve_theme_runtime(&config, ThemeMode::Dark);
+        assert_eq!(
+            runtime.editor_theme_overrides.default_tool_color,
+            Some((0xEE, 0xEE, 0xEE))
+        );
+    }
+
+    #[test]
+    fn mode_from_theme_name_detects_dark_and_light_keywords() {
+        assert_eq!(mode_from_theme_name("Adwaita-dark"), Some(ThemeMode::Dark));
+        assert_eq!(mode_from_theme_name("MyLightTheme"), Some(ThemeMode::Light));
+        assert_eq!(mode_from_theme_name("Adwaita"), None);
+        assert_eq!(mode_from_theme_name(""), None);
     }
 }

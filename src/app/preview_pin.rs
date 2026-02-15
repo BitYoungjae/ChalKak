@@ -9,25 +9,8 @@ use gtk4::ToggleButton;
 use super::hypr::{current_window_pin_state, request_window_pin};
 
 const PIN_SYNC_POLL_INTERVAL: Duration = Duration::from_millis(24);
-const PIN_ICON_UNPINNED: &str = "view-pin-symbolic";
-const PIN_ICON_PINNED_CANDIDATES: [&str; 4] = [
-    "view-pinned-symbolic",
-    "view-pin-filled-symbolic",
-    "pin-symbolic",
-    PIN_ICON_UNPINNED,
-];
-
-fn resolve_pinned_icon_name() -> &'static str {
-    if let Some(display) = gtk4::gdk::Display::default() {
-        let theme = gtk4::IconTheme::for_display(&display);
-        for icon_name in PIN_ICON_PINNED_CANDIDATES {
-            if theme.has_icon(icon_name) {
-                return icon_name;
-            }
-        }
-    }
-    PIN_ICON_UNPINNED
-}
+const PIN_ICON_UNPINNED: &str = "pin-off-symbolic";
+const PIN_ICON_PINNED: &str = "pin-symbolic";
 
 fn apply_preview_pin_toggle_state(
     toggle: &ToggleButton,
@@ -92,7 +75,7 @@ fn request_preview_pin_state(
 
 pub(super) fn setup_preview_pin_toggle(toggle: &ToggleButton, preview_title: &str) {
     let pin_toggle_syncing = Rc::new(Cell::new(false));
-    let pinned_icon_name = Rc::new(resolve_pinned_icon_name().to_string());
+    let pinned_icon_name = Rc::new(PIN_ICON_PINNED.to_string());
     let pin_request_seq = Rc::new(Cell::new(0_u64));
     toggle.set_icon_name(PIN_ICON_UNPINNED);
 

@@ -1,0 +1,12 @@
+[Icon Theme]
+Name=ChalKak Lucide
+Comment=Lucide icons bundled for ChalKak runtime
+Inherits=hicolor
+Directories=scalable/actions
+
+[scalable/actions]
+Size=16
+Type=Scalable
+MinSize=8
+MaxSize=512
+Context=Actions

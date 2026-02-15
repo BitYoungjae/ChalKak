@@ -5,7 +5,7 @@ use crate::editor::{self, ToolObject};
 use gtk4::prelude::*;
 use gtk4::DrawingArea;
 
-use super::{RectangleHandle, ResizableObjectKind, TextCaretLayout};
+use super::{RectangleHandle, ResizableObjectKind, RgbaColor, TextCaretLayout};
 
 pub(in crate::app) fn clamp_tool_point(
     mut point: ToolPoint,
@@ -595,10 +595,12 @@ pub(in crate::app) fn draw_resize_handles_for_bounds(
     y: i32,
     width: u32,
     height: u32,
+    color: RgbaColor,
 ) {
     for (_, corner) in corner_points_for_bounds(x, y, width, height) {
+        let (red, green, blue, alpha) = color.to_cairo_rgba();
         context.save().ok();
-        context.set_source_rgba(0.17, 0.39, 1.0, 0.95);
+        context.set_source_rgba(red, green, blue, alpha);
         context.rectangle(
             f64::from(corner.x.saturating_sub(4)),
             f64::from(corner.y.saturating_sub(4)),
