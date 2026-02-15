@@ -85,13 +85,67 @@ pub struct EditorDefaults {
     pub text_size_presets: Option<Vec<i64>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+impl EditorDefaults {
+    fn merged_with(&self, overrides: &EditorDefaults) -> EditorDefaults {
+        EditorDefaults {
+            rectangle_border_radius: overrides
+                .rectangle_border_radius
+                .or(self.rectangle_border_radius),
+            selection_drag_fill_color: overrides
+                .selection_drag_fill_color
+                .clone()
+                .or_else(|| self.selection_drag_fill_color.clone()),
+            selection_drag_stroke_color: overrides
+                .selection_drag_stroke_color
+                .clone()
+                .or_else(|| self.selection_drag_stroke_color.clone()),
+            selection_outline_color: overrides
+                .selection_outline_color
+                .clone()
+                .or_else(|| self.selection_outline_color.clone()),
+            selection_handle_color: overrides
+                .selection_handle_color
+                .clone()
+                .or_else(|| self.selection_handle_color.clone()),
+            default_tool_color: overrides
+                .default_tool_color
+                .clone()
+                .or_else(|| self.default_tool_color.clone()),
+            default_text_size: overrides.default_text_size.or(self.default_text_size),
+            default_stroke_width: overrides.default_stroke_width.or(self.default_stroke_width),
+            tool_color_palette: overrides
+                .tool_color_palette
+                .clone()
+                .or_else(|| self.tool_color_palette.clone()),
+            stroke_width_presets: overrides
+                .stroke_width_presets
+                .clone()
+                .or_else(|| self.stroke_width_presets.clone()),
+            text_size_presets: overrides
+                .text_size_presets
+                .clone()
+                .or_else(|| self.text_size_presets.clone()),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EditorModeDefaults {
+    #[serde(default)]
+    pub dark: EditorDefaults,
+    #[serde(default)]
+    pub light: EditorDefaults,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeConfig {
     pub mode: ThemeMode,
     #[serde(default)]
     pub colors: Option<ThemeColors>,
     #[serde(default)]
     pub editor: EditorDefaults,
+    #[serde(default)]
+    pub editor_modes: Option<EditorModeDefaults>,
 }
 
 /// Convert a requested mode into the active mode used by UI.
@@ -114,6 +168,21 @@ pub fn resolve_color_tokens(mode: ThemeMode, overrides: Option<&ThemeColors>) ->
     }
 
     tokens
+}
+
+pub fn resolve_editor_defaults(
+    mode: ThemeMode,
+    defaults: &EditorDefaults,
+    mode_overrides: Option<&EditorModeDefaults>,
+) -> EditorDefaults {
+    let Some(mode_overrides) = mode_overrides else {
+        return defaults.clone();
+    };
+    let overrides = match mode {
+        ThemeMode::Light => &mode_overrides.light,
+        ThemeMode::Dark | ThemeMode::System => &mode_overrides.dark,
+    };
+    defaults.merged_with(overrides)
 }
 
 fn apply_overrides(tokens: &mut ColorTokens, overrides: &ColorOverrides) {
@@ -158,6 +227,7 @@ fn load_theme_config_with(
             mode: ThemeMode::System,
             colors: None,
             editor: EditorDefaults::default(),
+            editor_modes: None,
         });
     }
 
@@ -203,13 +273,16 @@ fn save_theme_preference_with(
     };
     let existing_colors = existing_config.as_ref().and_then(|c| c.colors.clone());
     let existing_editor = existing_config
-        .map(|c| c.editor)
+        .as_ref()
+        .map(|c| c.editor.clone())
         .unwrap_or_else(EditorDefaults::default);
+    let existing_editor_modes = existing_config.and_then(|c| c.editor_modes);
 
     let config = ThemeConfig {
         mode,
         colors: existing_colors,
         editor: existing_editor,
+        editor_modes: existing_editor_modes,
     };
     let serialized = serde_json::to_string_pretty(&config)?;
     fs::write(&path, serialized).map_err(|source| ThemeError::WriteConfig {
@@ -268,6 +341,7 @@ mod tests {
             assert!(config.editor.tool_color_palette.is_none());
             assert!(config.editor.stroke_width_presets.is_none());
             assert!(config.editor.text_size_presets.is_none());
+            assert!(config.editor_modes.is_none());
         });
     }
 
@@ -341,6 +415,7 @@ mod tests {
             );
             assert_eq!(config.editor.stroke_width_presets, Some(vec![2, 6, 10]));
             assert_eq!(config.editor.text_size_presets, Some(vec![14, 20, 28]));
+            assert!(config.editor_modes.is_none());
         });
     }
 
@@ -440,6 +515,7 @@ mod tests {
             );
             assert_eq!(config.editor.stroke_width_presets, Some(vec![3, 7, 11]));
             assert_eq!(config.editor.text_size_presets, Some(vec![12, 18, 26]));
+            assert!(config.editor_modes.is_none());
         });
     }
 
@@ -462,6 +538,99 @@ mod tests {
             let config = load_theme_config_with(Some(root), None).unwrap();
             assert_eq!(config.editor.stroke_width_presets, Some(vec![2, 512, -1]));
             assert_eq!(config.editor.text_size_presets, Some(vec![14, 999, -3]));
+            assert!(config.editor_modes.is_none());
+        });
+    }
+
+    #[test]
+    fn theme_config_parses_editor_mode_defaults() {
+        with_temp_root(|root| {
+            let path = theme_config_path_with(Some(root), None).unwrap();
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            let json = r##"{
+                "mode": "dark",
+                "editor": {
+                    "default_tool_color": "#111111",
+                    "default_stroke_width": 4
+                },
+                "editor_modes": {
+                    "dark": {
+                        "default_tool_color": "#eeeeee"
+                    },
+                    "light": {
+                        "default_tool_color": "#222222",
+                        "default_stroke_width": 3
+                    }
+                }
+            }"##;
+            fs::write(&path, json).unwrap();
+
+            let config = load_theme_config_with(Some(root), None).unwrap();
+            assert_eq!(config.mode, ThemeMode::Dark);
+            let modes = config.editor_modes.expect("expected editor mode defaults");
+            assert_eq!(modes.dark.default_tool_color.as_deref(), Some("#eeeeee"));
+            assert_eq!(modes.light.default_tool_color.as_deref(), Some("#222222"));
+            assert_eq!(modes.light.default_stroke_width, Some(3));
+        });
+    }
+
+    #[test]
+    fn resolve_editor_defaults_applies_mode_specific_overrides() {
+        let shared = EditorDefaults {
+            default_tool_color: Some("#111111".to_string()),
+            default_stroke_width: Some(4),
+            ..EditorDefaults::default()
+        };
+        let modes = EditorModeDefaults {
+            dark: EditorDefaults {
+                default_tool_color: Some("#eeeeee".to_string()),
+                ..EditorDefaults::default()
+            },
+            light: EditorDefaults {
+                default_stroke_width: Some(2),
+                ..EditorDefaults::default()
+            },
+        };
+
+        let dark = resolve_editor_defaults(ThemeMode::Dark, &shared, Some(&modes));
+        assert_eq!(dark.default_tool_color.as_deref(), Some("#eeeeee"));
+        assert_eq!(dark.default_stroke_width, Some(4));
+
+        let light = resolve_editor_defaults(ThemeMode::Light, &shared, Some(&modes));
+        assert_eq!(light.default_tool_color.as_deref(), Some("#111111"));
+        assert_eq!(light.default_stroke_width, Some(2));
+
+        let system = resolve_editor_defaults(ThemeMode::System, &shared, Some(&modes));
+        assert_eq!(system.default_tool_color.as_deref(), Some("#eeeeee"));
+        assert_eq!(system.default_stroke_width, Some(4));
+    }
+
+    #[test]
+    fn theme_persistence_save_keeps_editor_mode_defaults() {
+        with_temp_root(|root| {
+            let path = theme_config_path_with(Some(root), None).unwrap();
+            if let Some(parent) = path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(
+                &path,
+                r##"{
+                    "mode": "dark",
+                    "editor_modes": {
+                        "dark": { "default_tool_color": "#eeeeee" },
+                        "light": { "default_tool_color": "#111111" }
+                    }
+                }"##,
+            )
+            .unwrap();
+
+            save_theme_preference_with(ThemeMode::Light, Some(root), None).unwrap();
+            let config = load_theme_config_with(Some(root), None).unwrap();
+            let modes = config.editor_modes.expect("expected editor mode defaults");
+            assert_eq!(modes.dark.default_tool_color.as_deref(), Some("#eeeeee"));
+            assert_eq!(modes.light.default_tool_color.as_deref(), Some("#111111"));
         });
     }
 
@@ -553,6 +722,7 @@ mod tests {
             assert!(config.editor.tool_color_palette.is_none());
             assert!(config.editor.stroke_width_presets.is_none());
             assert!(config.editor.text_size_presets.is_none());
+            assert!(config.editor_modes.is_none());
         });
     }
 }

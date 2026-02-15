@@ -863,17 +863,8 @@ impl App {
     pub fn start(&mut self) -> AppResult<()> {
         let bootstrap = bootstrap_app_runtime();
         let startup_config = bootstrap.startup_config;
-        let theme_mode = bootstrap.theme_mode;
-        let style_tokens = bootstrap.style_tokens;
-        let color_tokens = bootstrap.color_tokens;
+        let theme_config = bootstrap.theme_config;
         let editor_navigation_bindings = bootstrap.editor_navigation_bindings;
-        let rectangle_border_radius_override =
-            bootstrap.editor_theme_overrides.rectangle_border_radius;
-        let editor_selection_palette = bootstrap.editor_theme_overrides.selection_palette;
-        let default_tool_color_override = bootstrap.editor_theme_overrides.default_tool_color;
-        let default_text_size_override = bootstrap.editor_theme_overrides.default_text_size;
-        let default_stroke_width_override = bootstrap.editor_theme_overrides.default_stroke_width;
-        let editor_tool_option_presets = bootstrap.editor_tool_option_presets;
 
         tracing::info!(event = "start", from = ?self.machine.state());
         let _ = self.machine.transition(AppEvent::Start)?;
@@ -929,7 +920,34 @@ impl App {
                     <gtk4::Application as gtk4::gio::prelude::ApplicationExtManual>::hold(app);
                 headless_hold_guard.borrow_mut().replace(hold_guard);
             }
-            let motion_enabled = gtk4::Settings::default()
+            let gtk_settings = gtk4::Settings::default();
+            let theme_mode = resolve_runtime_theme_mode(theme_config.mode, gtk_settings.as_ref());
+            let resolved_theme_runtime = resolve_theme_runtime(&theme_config, theme_mode);
+            let style_tokens = resolved_theme_runtime.style_tokens;
+            let color_tokens = resolved_theme_runtime.color_tokens;
+            let rectangle_border_radius_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .rectangle_border_radius;
+            let editor_selection_palette = resolved_theme_runtime
+                .editor_theme_overrides
+                .selection_palette;
+            let default_tool_color_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .default_tool_color;
+            let default_text_size_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .default_text_size;
+            let default_stroke_width_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .default_stroke_width;
+            let editor_tool_option_presets = resolved_theme_runtime.editor_tool_option_presets;
+            tracing::info!(
+                requested_mode = ?theme_config.mode,
+                resolved_mode = ?theme_mode,
+                "resolved runtime theme mode"
+            );
+            let motion_enabled = gtk_settings
+                .as_ref()
                 .map(|settings| settings.is_gtk_enable_animations())
                 .unwrap_or(true);
             let motion_hover_ms = if motion_enabled {
