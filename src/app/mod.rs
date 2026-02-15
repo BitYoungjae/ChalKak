@@ -842,6 +842,7 @@ impl App {
         let default_tool_color_override = bootstrap.editor_theme_overrides.default_tool_color;
         let default_text_size_override = bootstrap.editor_theme_overrides.default_text_size;
         let default_stroke_width_override = bootstrap.editor_theme_overrides.default_stroke_width;
+        let editor_tool_option_presets = bootstrap.editor_tool_option_presets;
 
         tracing::info!(event = "start", from = ?self.machine.state());
         let _ = self.machine.transition(AppEvent::Start)?;
@@ -955,6 +956,7 @@ impl App {
                 default_tool_color_override,
                 default_text_size_override,
                 default_stroke_width_override,
+                editor_tool_option_presets: editor_tool_option_presets.clone(),
                 editor_navigation_bindings: editor_navigation_bindings.clone(),
                 status_log_for_render: status_log_for_activate.clone(),
                 editor_input_mode: editor_input_mode.clone(),

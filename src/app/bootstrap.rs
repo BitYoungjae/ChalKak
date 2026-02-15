@@ -3,6 +3,7 @@ use crate::storage::prune_stale_temp_files;
 use crate::theme::{apply_theme, load_theme_config, EditorDefaults, ThemeConfig, ThemeMode};
 use crate::ui::{tokens_for, ColorTokens, StyleTokens};
 
+use super::adaptive::{EditorToolOptionPresets, StrokeColorPreset};
 use super::runtime_support::StartupConfig;
 
 pub(super) struct AppBootstrap {
@@ -12,23 +13,39 @@ pub(super) struct AppBootstrap {
     pub(super) color_tokens: ColorTokens,
     pub(super) editor_navigation_bindings: EditorNavigationBindings,
     pub(super) editor_theme_overrides: EditorThemeOverrides,
+    pub(super) editor_tool_option_presets: EditorToolOptionPresets,
 }
 
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Default)]
 pub(super) struct EditorThemeOverrides {
     pub(super) rectangle_border_radius: Option<u16>,
     pub(super) default_tool_color: Option<(u8, u8, u8)>,
     pub(super) default_text_size: Option<u8>,
     pub(super) default_stroke_width: Option<u8>,
+    pub(super) tool_color_palette: Option<Vec<StrokeColorPreset>>,
+    pub(super) stroke_width_presets: Option<Vec<u8>>,
+    pub(super) text_size_presets: Option<Vec<u8>>,
 }
+
+const MIN_STROKE_WIDTH_PRESET: u8 = 1;
+const MAX_STROKE_WIDTH_PRESET: u8 = 64;
+const MIN_TEXT_SIZE_PRESET: u8 = 8;
+const MAX_TEXT_SIZE_PRESET: u8 = 160;
+const MAX_TOOL_OPTION_PRESET_COUNT: usize = 6;
 
 pub(super) fn bootstrap_app_runtime() -> AppBootstrap {
     let startup_config = StartupConfig::from_args();
     prune_stale_capture_temp_files();
 
     let theme_config = load_or_default_theme_config();
-    let editor_theme_overrides = editor_theme_overrides_from(&theme_config.editor);
     let theme_mode = apply_theme(theme_config.mode);
+    let editor_theme_overrides = editor_theme_overrides_from(&theme_config.editor);
+    let editor_tool_option_presets = EditorToolOptionPresets::with_overrides(
+        theme_mode,
+        editor_theme_overrides.tool_color_palette.clone(),
+        editor_theme_overrides.stroke_width_presets.clone(),
+        editor_theme_overrides.text_size_presets.clone(),
+    );
     let (style_tokens, color_tokens) = tokens_for(theme_mode, theme_config.colors.as_ref());
     tracing::info!(theme_mode = ?theme_mode, "loaded theme config");
 
@@ -53,6 +70,7 @@ pub(super) fn bootstrap_app_runtime() -> AppBootstrap {
         color_tokens,
         editor_navigation_bindings,
         editor_theme_overrides,
+        editor_tool_option_presets,
     }
 }
 
@@ -97,12 +115,35 @@ fn editor_theme_overrides_from(defaults: &EditorDefaults) -> EditorThemeOverride
             "invalid editor.default_tool_color value in theme config; expected #RRGGBB"
         );
     }
+    let tool_color_palette = defaults
+        .tool_color_palette
+        .as_deref()
+        .and_then(parse_color_palette_presets);
+    let stroke_width_presets = defaults.stroke_width_presets.as_deref().and_then(|values| {
+        parse_numeric_presets(
+            "editor.stroke_width_presets",
+            values,
+            MIN_STROKE_WIDTH_PRESET,
+            MAX_STROKE_WIDTH_PRESET,
+        )
+    });
+    let text_size_presets = defaults.text_size_presets.as_deref().and_then(|values| {
+        parse_numeric_presets(
+            "editor.text_size_presets",
+            values,
+            MIN_TEXT_SIZE_PRESET,
+            MAX_TEXT_SIZE_PRESET,
+        )
+    });
 
     EditorThemeOverrides {
         rectangle_border_radius: defaults.rectangle_border_radius,
         default_tool_color,
         default_text_size: defaults.default_text_size,
         default_stroke_width: defaults.default_stroke_width,
+        tool_color_palette,
+        stroke_width_presets,
+        text_size_presets,
     }
 }
 
@@ -117,6 +158,109 @@ fn parse_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
     let green = u8::from_str_radix(&hex[2..4], 16).ok()?;
     let blue = u8::from_str_radix(&hex[4..6], 16).ok()?;
     Some((red, green, blue))
+}
+
+fn parse_hash_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
+    let hex = value.trim();
+    if !hex.starts_with('#') {
+        return None;
+    }
+    parse_hex_rgb(hex)
+}
+
+fn parse_color_palette_presets(values: &[String]) -> Option<Vec<StrokeColorPreset>> {
+    if values.is_empty() {
+        tracing::warn!("editor.tool_color_palette is empty; ignoring override");
+        return None;
+    }
+
+    let mut parsed: Vec<StrokeColorPreset> = Vec::with_capacity(values.len());
+    let mut truncated = false;
+    for value in values {
+        if parsed.len() >= MAX_TOOL_OPTION_PRESET_COUNT {
+            truncated = true;
+            break;
+        }
+        let Some((red, green, blue)) = parse_hash_hex_rgb(value) else {
+            tracing::warn!(
+                value = value.as_str(),
+                "invalid editor.tool_color_palette entry; expected #RRGGBB"
+            );
+            continue;
+        };
+        if parsed
+            .iter()
+            .any(|preset| preset.rgb() == (red, green, blue))
+        {
+            continue;
+        }
+        parsed.push(StrokeColorPreset::new(
+            format!("#{red:02X}{green:02X}{blue:02X}"),
+            red,
+            green,
+            blue,
+        ));
+    }
+    if truncated {
+        tracing::warn!(
+            max = MAX_TOOL_OPTION_PRESET_COUNT,
+            "editor.tool_color_palette supports up to `max` presets; extra entries were ignored"
+        );
+    }
+
+    if parsed.is_empty() {
+        tracing::warn!("no valid colors in editor.tool_color_palette; ignoring override");
+        return None;
+    }
+    Some(parsed)
+}
+
+fn parse_numeric_presets(field: &'static str, values: &[i64], min: u8, max: u8) -> Option<Vec<u8>> {
+    if values.is_empty() {
+        tracing::warn!(field = field, "empty preset list; ignoring override");
+        return None;
+    }
+
+    let mut parsed = Vec::with_capacity(values.len());
+    let mut truncated = false;
+    let min_bound = i64::from(min);
+    let max_bound = i64::from(max);
+    for value in values {
+        if *value < min_bound || *value > max_bound {
+            tracing::warn!(
+                field = field,
+                value = *value,
+                min = min,
+                max = max,
+                "preset value out of supported range; ignoring entry"
+            );
+            continue;
+        }
+        let value = *value as u8;
+        if !parsed.contains(&value) {
+            if parsed.len() >= MAX_TOOL_OPTION_PRESET_COUNT {
+                truncated = true;
+                break;
+            }
+            parsed.push(value);
+        }
+    }
+    if truncated {
+        tracing::warn!(
+            field = field,
+            max = MAX_TOOL_OPTION_PRESET_COUNT,
+            "preset list supports up to `max` items; extra entries were ignored"
+        );
+    }
+
+    if parsed.is_empty() {
+        tracing::warn!(
+            field = field,
+            "no valid preset values found; ignoring override"
+        );
+        return None;
+    }
+    Some(parsed)
 }
 
 #[cfg(test)]
@@ -137,6 +281,12 @@ mod tests {
     }
 
     #[test]
+    fn parse_hash_hex_rgb_requires_hash_prefix() {
+        assert_eq!(parse_hash_hex_rgb("#12ab34"), Some((0x12, 0xab, 0x34)));
+        assert_eq!(parse_hash_hex_rgb("12ab34"), None);
+    }
+
+    #[test]
     fn editor_theme_overrides_parse_default_tool_color() {
         let defaults = EditorDefaults {
             default_tool_color: Some("#101112".to_string()),
@@ -146,5 +296,104 @@ mod tests {
         let overrides = editor_theme_overrides_from(&defaults);
 
         assert_eq!(overrides.default_tool_color, Some((0x10, 0x11, 0x12)));
+    }
+
+    #[test]
+    fn editor_theme_overrides_parse_tool_option_presets() {
+        let defaults = EditorDefaults {
+            tool_color_palette: Some(vec!["#101112".to_string(), "#AABBCC".to_string()]),
+            stroke_width_presets: Some(vec![2, 6, 10]),
+            text_size_presets: Some(vec![14, 20, 28]),
+            ..EditorDefaults::default()
+        };
+
+        let overrides = editor_theme_overrides_from(&defaults);
+
+        let palette = overrides.tool_color_palette.unwrap();
+        let colors = palette
+            .iter()
+            .map(StrokeColorPreset::rgb)
+            .collect::<Vec<_>>();
+        assert_eq!(colors, vec![(0x10, 0x11, 0x12), (0xAA, 0xBB, 0xCC)]);
+        assert_eq!(overrides.stroke_width_presets, Some(vec![2, 6, 10]));
+        assert_eq!(overrides.text_size_presets, Some(vec![14, 20, 28]));
+    }
+
+    #[test]
+    fn editor_theme_overrides_filter_invalid_tool_option_presets() {
+        let defaults = EditorDefaults {
+            tool_color_palette: Some(vec![
+                "#invalid".to_string(),
+                "#223344".to_string(),
+                "123456".to_string(),
+                "#223344".to_string(),
+            ]),
+            stroke_width_presets: Some(vec![0, 4, 4, 200]),
+            text_size_presets: Some(vec![0, 16, 16, 200]),
+            ..EditorDefaults::default()
+        };
+
+        let overrides = editor_theme_overrides_from(&defaults);
+
+        let palette = overrides.tool_color_palette.unwrap();
+        assert_eq!(palette.len(), 1);
+        assert_eq!(palette[0].rgb(), (0x22, 0x33, 0x44));
+        assert_eq!(overrides.stroke_width_presets, Some(vec![4]));
+        assert_eq!(overrides.text_size_presets, Some(vec![16]));
+    }
+
+    #[test]
+    fn editor_theme_overrides_limit_tool_option_presets_to_six_items() {
+        let defaults = EditorDefaults {
+            tool_color_palette: Some(vec![
+                "#111111".to_string(),
+                "#222222".to_string(),
+                "#333333".to_string(),
+                "#444444".to_string(),
+                "#555555".to_string(),
+                "#666666".to_string(),
+                "#777777".to_string(),
+            ]),
+            stroke_width_presets: Some(vec![1, 2, 3, 4, 5, 6, 7]),
+            text_size_presets: Some(vec![10, 12, 14, 16, 18, 20, 22]),
+            ..EditorDefaults::default()
+        };
+
+        let overrides = editor_theme_overrides_from(&defaults);
+
+        let palette = overrides.tool_color_palette.unwrap();
+        assert_eq!(palette.len(), 6);
+        assert_eq!(
+            palette
+                .iter()
+                .map(StrokeColorPreset::rgb)
+                .collect::<Vec<_>>(),
+            vec![
+                (0x11, 0x11, 0x11),
+                (0x22, 0x22, 0x22),
+                (0x33, 0x33, 0x33),
+                (0x44, 0x44, 0x44),
+                (0x55, 0x55, 0x55),
+                (0x66, 0x66, 0x66),
+            ]
+        );
+        assert_eq!(overrides.stroke_width_presets, Some(vec![1, 2, 3, 4, 5, 6]));
+        assert_eq!(
+            overrides.text_size_presets,
+            Some(vec![10, 12, 14, 16, 18, 20])
+        );
+    }
+
+    #[test]
+    fn editor_theme_overrides_ignore_wide_out_of_range_numeric_presets() {
+        let defaults = EditorDefaults {
+            stroke_width_presets: Some(vec![2, 512, -1]),
+            text_size_presets: Some(vec![14, 999, -3]),
+            ..EditorDefaults::default()
+        };
+
+        let overrides = editor_theme_overrides_from(&defaults);
+        assert_eq!(overrides.stroke_width_presets, Some(vec![2]));
+        assert_eq!(overrides.text_size_presets, Some(vec![14]));
     }
 }
