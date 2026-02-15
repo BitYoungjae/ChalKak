@@ -9,8 +9,8 @@ use image::{imageops, RgbaImage};
 use super::{
     draw_resize_handles_for_bounds, is_object_selected, normalize_tool_box, object_bounds,
     objects_in_draw_order, text_baseline_y, text_line_height, text_lines_for_render,
-    ArrowDrawStyle, BlurRenderCache, BlurRenderEntry, BlurRenderKey, TextCaretLayout,
-    ToolDragPreview, ToolRenderContext,
+    ArrowDrawStyle, BlurRenderCache, BlurRenderEntry, BlurRenderKey, EditorSelectionPalette,
+    RgbaColor, TextCaretLayout, ToolDragPreview, ToolRenderContext,
 };
 
 impl BlurRenderCache {
@@ -183,6 +183,11 @@ pub(in crate::app) fn set_source_rgb_u8(
         f64::from(b) / 255.0,
         alpha.clamp(0.0, 1.0),
     );
+}
+
+fn set_source_rgba_color(context: &gtk4::cairo::Context, color: RgbaColor) {
+    let (red, green, blue, alpha) = color.to_cairo_rgba();
+    context.set_source_rgba(red, green, blue, alpha);
 }
 
 pub(in crate::app) fn draw_arrow_segment(
@@ -807,7 +812,7 @@ pub(in crate::app) fn draw_editor_tool_objects(
         if is_selected {
             if let Some((x, y, width, height)) = object_bounds(object) {
                 context.save().ok();
-                context.set_source_rgba(0.17, 0.39, 1.0, 0.9);
+                set_source_rgba_color(context, render.selection_palette.selected_outline);
                 context.set_line_width(1.5);
                 context.set_dash(&[4.0, 3.0], 0.0);
                 context.rectangle(
@@ -827,6 +832,7 @@ pub(in crate::app) fn draw_editor_tool_objects(
                         rectangle.y,
                         rectangle.width,
                         rectangle.height,
+                        render.selection_palette.resize_handle_fill,
                     );
                 }
                 ToolObject::Blur(blur) => {
@@ -836,6 +842,7 @@ pub(in crate::app) fn draw_editor_tool_objects(
                         blur.region.y,
                         blur.region.width,
                         blur.region.height,
+                        render.selection_palette.resize_handle_fill,
                     );
                 }
                 ToolObject::Crop(crop) => {
@@ -845,6 +852,7 @@ pub(in crate::app) fn draw_editor_tool_objects(
                         crop.y,
                         crop.width,
                         crop.height,
+                        render.selection_palette.resize_handle_fill,
                     );
                 }
                 _ => {}
@@ -886,13 +894,14 @@ pub(in crate::app) fn draw_drag_preview_overlay(
     tools: &editor::EditorTools,
     image_width: i32,
     image_height: i32,
+    selection_palette: EditorSelectionPalette,
 ) {
     match preview.tool {
         ToolKind::Select => {
             if let Some((x, y, width, height)) = normalize_tool_box(preview.start, preview.current)
             {
                 context.save().ok();
-                context.set_source_rgba(0.17, 0.39, 1.0, 0.12);
+                set_source_rgba_color(context, selection_palette.drag_fill);
                 context.rectangle(
                     f64::from(x),
                     f64::from(y),
@@ -900,7 +909,7 @@ pub(in crate::app) fn draw_drag_preview_overlay(
                     f64::from(height),
                 );
                 let _ = context.fill();
-                context.set_source_rgba(0.17, 0.39, 1.0, 0.88);
+                set_source_rgba_color(context, selection_palette.drag_stroke);
                 context.set_line_width(1.0);
                 context.set_dash(&[4.0, 3.0], 0.0);
                 context.rectangle(

@@ -64,6 +64,14 @@ pub struct EditorDefaults {
     #[serde(default)]
     pub rectangle_border_radius: Option<u16>,
     #[serde(default)]
+    pub selection_drag_fill_color: Option<String>,
+    #[serde(default)]
+    pub selection_drag_stroke_color: Option<String>,
+    #[serde(default)]
+    pub selection_outline_color: Option<String>,
+    #[serde(default)]
+    pub selection_handle_color: Option<String>,
+    #[serde(default)]
     pub default_tool_color: Option<String>,
     #[serde(default)]
     pub default_text_size: Option<u8>,
@@ -250,6 +258,10 @@ mod tests {
             assert_eq!(config.mode, ThemeMode::System);
             assert!(config.colors.is_none());
             assert!(config.editor.rectangle_border_radius.is_none());
+            assert!(config.editor.selection_drag_fill_color.is_none());
+            assert!(config.editor.selection_drag_stroke_color.is_none());
+            assert!(config.editor.selection_outline_color.is_none());
+            assert!(config.editor.selection_handle_color.is_none());
             assert!(config.editor.default_tool_color.is_none());
             assert!(config.editor.default_text_size.is_none());
             assert!(config.editor.default_stroke_width.is_none());
@@ -285,6 +297,10 @@ mod tests {
                     "mode": "dark",
                     "editor": {
                         "rectangle_border_radius": 14,
+                        "selection_drag_fill_color": "#2B63FF1F",
+                        "selection_drag_stroke_color": "#2B63FFE0",
+                        "selection_outline_color": "#2B63FFE6",
+                        "selection_handle_color": "#2B63FFF2",
                         "default_tool_color": "#12ab34",
                         "default_text_size": 24,
                         "default_stroke_width": 8,
@@ -300,6 +316,22 @@ mod tests {
             let config = load_theme_config_with(Some(root), None).unwrap();
             assert_eq!(config.mode, ThemeMode::Light);
             assert_eq!(config.editor.rectangle_border_radius, Some(14));
+            assert_eq!(
+                config.editor.selection_drag_fill_color.as_deref(),
+                Some("#2B63FF1F")
+            );
+            assert_eq!(
+                config.editor.selection_drag_stroke_color.as_deref(),
+                Some("#2B63FFE0")
+            );
+            assert_eq!(
+                config.editor.selection_outline_color.as_deref(),
+                Some("#2B63FFE6")
+            );
+            assert_eq!(
+                config.editor.selection_handle_color.as_deref(),
+                Some("#2B63FFF2")
+            );
             assert_eq!(config.editor.default_tool_color.as_deref(), Some("#12ab34"));
             assert_eq!(config.editor.default_text_size, Some(24));
             assert_eq!(config.editor.default_stroke_width, Some(8));
@@ -366,6 +398,10 @@ mod tests {
                 "mode": "dark",
                 "editor": {
                     "rectangle_border_radius": 16,
+                    "selection_drag_fill_color": "#2B63FF1F",
+                    "selection_drag_stroke_color": "#2B63FFE0",
+                    "selection_outline_color": "#2B63FFE6",
+                    "selection_handle_color": "#2B63FFF2",
                     "default_tool_color": "#ff00aa",
                     "default_text_size": 32,
                     "default_stroke_width": 12,
@@ -379,6 +415,22 @@ mod tests {
             let config = load_theme_config_with(Some(root), None).unwrap();
             assert_eq!(config.mode, ThemeMode::Dark);
             assert_eq!(config.editor.rectangle_border_radius, Some(16));
+            assert_eq!(
+                config.editor.selection_drag_fill_color.as_deref(),
+                Some("#2B63FF1F")
+            );
+            assert_eq!(
+                config.editor.selection_drag_stroke_color.as_deref(),
+                Some("#2B63FFE0")
+            );
+            assert_eq!(
+                config.editor.selection_outline_color.as_deref(),
+                Some("#2B63FFE6")
+            );
+            assert_eq!(
+                config.editor.selection_handle_color.as_deref(),
+                Some("#2B63FFF2")
+            );
             assert_eq!(config.editor.default_tool_color.as_deref(), Some("#ff00aa"));
             assert_eq!(config.editor.default_text_size, Some(32));
             assert_eq!(config.editor.default_stroke_width, Some(12));
@@ -491,6 +543,10 @@ mod tests {
             assert_eq!(config.mode, ThemeMode::Light);
             assert!(config.colors.is_none());
             assert!(config.editor.rectangle_border_radius.is_none());
+            assert!(config.editor.selection_drag_fill_color.is_none());
+            assert!(config.editor.selection_drag_stroke_color.is_none());
+            assert!(config.editor.selection_outline_color.is_none());
+            assert!(config.editor.selection_handle_color.is_none());
             assert!(config.editor.default_tool_color.is_none());
             assert!(config.editor.default_text_size.is_none());
             assert!(config.editor.default_stroke_width.is_none());

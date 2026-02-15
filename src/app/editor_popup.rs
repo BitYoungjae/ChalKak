@@ -6,6 +6,7 @@ use crate::capture;
 use crate::editor::tools::{CropElement, ImageBounds, ToolPoint};
 use crate::editor::{self, EditorAction, ToolKind};
 use crate::storage::StorageService;
+use crate::theme::ThemeMode;
 
 use super::ToastRuntime;
 
@@ -116,10 +117,72 @@ pub(super) struct ArrowDrawStyle {
     pub(super) head_size: u8,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct RgbaColor {
+    pub(super) red: u8,
+    pub(super) green: u8,
+    pub(super) blue: u8,
+    pub(super) alpha: u8,
+}
+
+impl RgbaColor {
+    pub(super) const fn new(red: u8, green: u8, blue: u8, alpha: u8) -> Self {
+        Self {
+            red,
+            green,
+            blue,
+            alpha,
+        }
+    }
+
+    pub(super) fn to_cairo_rgba(self) -> (f64, f64, f64, f64) {
+        (
+            f64::from(self.red) / 255.0,
+            f64::from(self.green) / 255.0,
+            f64::from(self.blue) / 255.0,
+            f64::from(self.alpha) / 255.0,
+        )
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct EditorSelectionPalette {
+    pub(super) drag_fill: RgbaColor,
+    pub(super) drag_stroke: RgbaColor,
+    pub(super) selected_outline: RgbaColor,
+    pub(super) resize_handle_fill: RgbaColor,
+}
+
+impl Default for EditorSelectionPalette {
+    fn default() -> Self {
+        Self::for_theme_mode(ThemeMode::Dark)
+    }
+}
+
+impl EditorSelectionPalette {
+    pub(super) const fn for_theme_mode(mode: ThemeMode) -> Self {
+        match mode {
+            ThemeMode::Light => Self {
+                drag_fill: RgbaColor::new(0x18, 0x18, 0x1B, 0x1A),
+                drag_stroke: RgbaColor::new(0x18, 0x18, 0x1B, 0xC4),
+                selected_outline: RgbaColor::new(0x18, 0x18, 0x1B, 0xD9),
+                resize_handle_fill: RgbaColor::new(0x18, 0x18, 0x1B, 0xE6),
+            },
+            ThemeMode::Dark | ThemeMode::System => Self {
+                drag_fill: RgbaColor::new(0xE4, 0xE4, 0xE7, 0x1F),
+                drag_stroke: RgbaColor::new(0xE4, 0xE4, 0xE7, 0xDE),
+                selected_outline: RgbaColor::new(0xE4, 0xE4, 0xE7, 0xE6),
+                resize_handle_fill: RgbaColor::new(0xF4, 0xF4, 0xF5, 0xF2),
+            },
+        }
+    }
+}
+
 pub(super) struct ToolRenderContext<'a> {
     pub(super) image_bounds: ImageBounds,
     pub(super) show_crop_mask: bool,
     pub(super) selected_object_ids: &'a [u64],
+    pub(super) selection_palette: EditorSelectionPalette,
     pub(super) source_pixbuf: Option<&'a gtk4::gdk_pixbuf::Pixbuf>,
     pub(super) active_text_id: Option<u64>,
     pub(super) active_text_preedit: Option<&'a TextPreeditState>,

@@ -227,6 +227,10 @@ Extended example:
   },
   "editor": {
     "rectangle_border_radius": 10,
+    "selection_drag_fill_color": "#2B63FF1F",
+    "selection_drag_stroke_color": "#2B63FFE0",
+    "selection_outline_color": "#2B63FFE6",
+    "selection_handle_color": "#2B63FFF2",
     "default_tool_color": "#ff6b6b",
     "default_text_size": 18,
     "default_stroke_width": 3,
@@ -243,6 +247,9 @@ Notes:
 - `colors.light` and `colors.dark` can be partial.
 - Missing values are filled from built-in defaults.
 - `editor.tool_color_palette` accepts a list of hex colors in strict `#RRGGBB` format for option chips (`RRGGBB` without `#` is ignored).
+- Selection visuals in the editor can be customized with `editor.selection_drag_fill_color`, `editor.selection_drag_stroke_color`, `editor.selection_outline_color`, and `editor.selection_handle_color`.
+- Selection color fields accept strict `#RRGGBB` or `#RRGGBBAA` format.
+- Built-in defaults for selection visuals are mode-aware: light mode uses deep neutral graphite tones, while dark/system mode uses bright neutral zinc tones.
 - `editor.stroke_width_presets` and `editor.text_size_presets` drive popup option chip lists.
 - Each preset list accepts up to 6 items; extras are ignored.
 - Preset order is preserved; duplicates or out-of-range values are ignored.

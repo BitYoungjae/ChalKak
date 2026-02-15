@@ -869,6 +869,7 @@ impl App {
         let editor_navigation_bindings = bootstrap.editor_navigation_bindings;
         let rectangle_border_radius_override =
             bootstrap.editor_theme_overrides.rectangle_border_radius;
+        let editor_selection_palette = bootstrap.editor_theme_overrides.selection_palette;
         let default_tool_color_override = bootstrap.editor_theme_overrides.default_tool_color;
         let default_text_size_override = bootstrap.editor_theme_overrides.default_text_size;
         let default_stroke_width_override = bootstrap.editor_theme_overrides.default_stroke_width;
@@ -983,6 +984,7 @@ impl App {
                 runtime_session: runtime_session_for_activate.clone(),
                 style_tokens,
                 theme_mode,
+                editor_selection_palette,
                 rectangle_border_radius_override,
                 default_tool_color_override,
                 default_text_size_override,

@@ -4,7 +4,9 @@ use std::path::Path;
 use crate::clipboard::WlCopyBackend;
 use crate::editor::{self, EditorAction, EditorEvent};
 
-use super::{draw_editor_tool_objects, EditorOutputActionContext, ToolRenderContext};
+use super::{
+    draw_editor_tool_objects, EditorOutputActionContext, EditorSelectionPalette, ToolRenderContext,
+};
 
 pub(in crate::app) fn render_editor_output_png(
     source_pixbuf: &gtk4::gdk_pixbuf::Pixbuf,
@@ -32,6 +34,7 @@ pub(in crate::app) fn render_editor_output_png(
             image_bounds: editor::tools::ImageBounds::new(image_width, image_height),
             show_crop_mask: false,
             selected_object_ids: &[],
+            selection_palette: EditorSelectionPalette::default(),
             source_pixbuf: Some(source_pixbuf),
             active_text_id: None,
             active_text_preedit: None,

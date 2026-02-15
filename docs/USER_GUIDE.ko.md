@@ -227,6 +227,10 @@ cargo run -- --launchpad
   },
   "editor": {
     "rectangle_border_radius": 10,
+    "selection_drag_fill_color": "#2B63FF1F",
+    "selection_drag_stroke_color": "#2B63FFE0",
+    "selection_outline_color": "#2B63FFE6",
+    "selection_handle_color": "#2B63FFF2",
     "default_tool_color": "#ff6b6b",
     "default_text_size": 18,
     "default_stroke_width": 3,
@@ -243,6 +247,9 @@ cargo run -- --launchpad
 - `colors.light`, `colors.dark`는 필요한 항목만 부분 지정 가능
 - 누락된 값은 기본 테마 값으로 보완됨
 - `editor.tool_color_palette`는 옵션 칩용 HEX 컬러를 엄격한 `#RRGGBB` 형식으로 받음 (`#` 없는 `RRGGBB`는 무시됨)
+- 에디터 선택 UI 색상은 `editor.selection_drag_fill_color`, `editor.selection_drag_stroke_color`, `editor.selection_outline_color`, `editor.selection_handle_color`로 조정 가능
+- 선택 색상 필드는 `#RRGGBB` 또는 `#RRGGBBAA` 형식만 허용
+- 선택 UI 기본값은 모드별로 다르게 적용됨: 라이트 모드는 진한 뉴트럴(그래파이트), 다크/시스템 모드는 밝은 뉴트럴(징크) 톤
 - `editor.stroke_width_presets`, `editor.text_size_presets`는 팝업 옵션 칩 목록을 제어함
 - 각 preset 목록은 최대 6개까지만 반영되고 초과 항목은 무시됨
 - preset 순서는 유지되며, 중복/범위 밖 값은 무시됨

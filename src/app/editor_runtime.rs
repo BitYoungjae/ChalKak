@@ -13,6 +13,7 @@ pub(super) struct EditorRenderContext {
     pub(super) runtime_session: Rc<RefCell<RuntimeSession>>,
     pub(super) style_tokens: StyleTokens,
     pub(super) theme_mode: crate::theme::ThemeMode,
+    pub(super) editor_selection_palette: EditorSelectionPalette,
     pub(super) rectangle_border_radius_override: Option<u16>,
     pub(super) default_tool_color_override: Option<(u8, u8, u8)>,
     pub(super) default_text_size_override: Option<u8>,
@@ -41,6 +42,7 @@ struct EditorCanvasDrawDeps {
     tool_drag_preview: Rc<RefCell<Option<ToolDragPreview>>>,
     selected_object_ids: Rc<RefCell<Vec<u64>>>,
     pending_crop: Rc<RefCell<Option<CropElement>>>,
+    editor_selection_palette: EditorSelectionPalette,
     editor_input_mode: Rc<RefCell<editor::EditorInputMode>>,
     text_preedit_state: Rc<RefCell<TextPreeditState>>,
     text_im_context: Rc<gtk4::IMMulticontext>,
@@ -357,6 +359,7 @@ fn configure_editor_canvas_draw(
         tool_drag_preview,
         selected_object_ids,
         pending_crop,
+        editor_selection_palette,
         editor_input_mode,
         text_preedit_state,
         text_im_context,
@@ -384,6 +387,7 @@ fn configure_editor_canvas_draw(
                 image_bounds: ImageBounds::new(pixbuf.width(), pixbuf.height()),
                 show_crop_mask: true,
                 selected_object_ids: selected_object_ids.borrow().as_slice(),
+                selection_palette: editor_selection_palette,
                 source_pixbuf: Some(&pixbuf),
                 active_text_id: tools.active_text_id(),
                 active_text_preedit: Some(&preedit_state),
@@ -431,7 +435,14 @@ fn configure_editor_canvas_draw(
             context.restore().ok();
         }
         if let Some(preview) = tool_drag_preview.borrow().as_ref().copied() {
-            draw_drag_preview_overlay(context, &preview, &tools, pixbuf.width(), pixbuf.height());
+            draw_drag_preview_overlay(
+                context,
+                &preview,
+                &tools,
+                pixbuf.width(),
+                pixbuf.height(),
+                editor_selection_palette,
+            );
         }
         context.restore().ok();
     });
@@ -452,6 +463,7 @@ pub(super) fn render_editor_state(
     let runtime_session = context.runtime_session.clone();
     let style_tokens = context.style_tokens;
     let theme_mode = context.theme_mode;
+    let editor_selection_palette = context.editor_selection_palette;
     let rectangle_border_radius_override = context.rectangle_border_radius_override;
     let default_tool_color_override = context.default_tool_color_override;
     let default_text_size_override = context.default_text_size_override;
@@ -596,6 +608,7 @@ pub(super) fn render_editor_state(
                     tool_drag_preview: tool_drag_preview.clone(),
                     selected_object_ids: selected_object_ids.clone(),
                     pending_crop: pending_crop.clone(),
+                    editor_selection_palette,
                     editor_input_mode: editor_input_mode.clone(),
                     text_preedit_state: text_preedit_state.clone(),
                     text_im_context: text_im_context.clone(),
