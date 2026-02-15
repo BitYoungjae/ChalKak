@@ -1,0 +1,45 @@
+name: ci-fast
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-test-fmt:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libgtk-4-dev pkg-config
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cargo check
+        run: cargo check --locked
+
+      - name: Cargo test
+        run: cargo test --locked
+
+      - name: Cargo fmt check
+        run: cargo fmt --check

@@ -1,0 +1,31 @@
+name: security-audit
+
+on:
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - Cargo.toml
+      - Cargo.lock
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Run cargo audit
+        run: cargo audit

@@ -1,0 +1,52 @@
+name: codeql
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  schedule:
+    - cron: "29 3 * * 1"
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [rust, actions]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install system dependencies
+        if: matrix.language == 'rust'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libgtk-4-dev pkg-config
+
+      - name: Install Rust toolchain
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        if: matrix.language == 'rust'
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: /language:${{ matrix.language }}
