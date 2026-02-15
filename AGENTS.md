@@ -30,6 +30,15 @@
 - Follow `.github/PULL_REQUEST_TEMPLATE.md`: include summary, change checklist, explicit test plan (`cargo check`, `cargo test`, `cargo fmt --check`), and logs/screenshots when UI changes.
 - Note runtime dependency impacts in PRs (`grim`, `slurp`, `wl-clipboard`, `gtk4-layer-shell`).
 
+## Git Workflow
+- `main` must stay release-ready; merge only tested release changes.
+- `develop` is the integration branch for the next release cycle.
+- Create feature work on `feature/*` branches from `develop`.
+- Merge `feature/*` into `develop` with **squash merge** to keep history concise.
+- Promote releases by merging `develop` into `main` at release time.
+- Create a version tag (for example `v0.2.0`) immediately after merging to `main`.
+- For urgent production fixes, branch from `main` as `hotfix/*`, merge to `main` first, then back-merge the same fix into `develop`.
+
 ## Configuration & Runtime Notes
 - User config files live at `$XDG_CONFIG_HOME/chalkak/` (fallback `$HOME/.config/chalkak/`), including `theme.json` and `keybindings.json`.
 - Temporary captures are created under `$XDG_RUNTIME_DIR/chalkak/`; preserve cleanup behavior when changing storage/capture code.
