@@ -18,16 +18,25 @@ jobs:
         with:
           script: |
             try {
-              const { data } = await github.rest.repos.get(context.repo);
-              const status =
-                data.security_and_analysis?.dependency_graph?.status ?? "disabled";
-              core.info(`dependency_graph status: ${status}`);
-              core.setOutput("enabled", status === "enabled" ? "true" : "false");
-            } catch (error) {
-              core.warning(
-                `Unable to read dependency graph status: ${error.message}`
+              const pr = context.payload.pull_request;
+              const basehead = `${pr.base.sha}...${pr.head.sha}`;
+
+              await github.request(
+                "GET /repos/{owner}/{repo}/dependency-graph/compare/{basehead}",
+                { ...context.repo, basehead }
               );
-              core.setOutput("enabled", "false");
+
+              core.info("dependency graph compare endpoint is available");
+              core.setOutput("enabled", "true");
+            } catch (error) {
+              if (error.status === 403 || error.status === 404) {
+                core.warning(
+                  `Dependency graph compare endpoint unavailable (${error.status}).`
+                );
+                core.setOutput("enabled", "false");
+              } else {
+                throw error;
+              }
             }
 
       - name: Dependency review
