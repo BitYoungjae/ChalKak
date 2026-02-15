@@ -3,8 +3,10 @@
   <gresource prefix="/com/github/bityoungjae/chalkak/icons">
     <file>hicolor/index.theme</file>
     <file>hicolor/scalable/actions/arrow-up-right-symbolic.svg</file>
+    <file>hicolor/scalable/actions/move-up-right-symbolic.svg</file>
     <file>hicolor/scalable/actions/bot-symbolic.svg</file>
     <file>hicolor/scalable/actions/case-sensitive-symbolic.svg</file>
+    <file>hicolor/scalable/actions/text-cursor-input-symbolic.svg</file>
     <file>hicolor/scalable/actions/chevron-down-symbolic.svg</file>
     <file>hicolor/scalable/actions/chevron-up-symbolic.svg</file>
     <file>hicolor/scalable/actions/copy-symbolic.svg</file>

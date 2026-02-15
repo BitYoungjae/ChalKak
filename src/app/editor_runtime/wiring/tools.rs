@@ -17,14 +17,14 @@ pub(in crate::app::editor_runtime) const EDITOR_TOOLBAR_ENTRIES: [(ToolKind, &st
     (ToolKind::Pan, "hand-symbolic", "Pan (H)"),
     (ToolKind::Blur, "eye-off-symbolic", "Blur (B)"),
     (ToolKind::Pen, EDITOR_PEN_ICON_NAME, "Pen (P)"),
-    (ToolKind::Arrow, "arrow-up-right-symbolic", "Arrow (A)"),
+    (ToolKind::Arrow, "move-up-right-symbolic", "Arrow (A)"),
     (
         ToolKind::Rectangle,
         "rectangle-horizontal-symbolic",
         "Rectangle (R)",
     ),
     (ToolKind::Crop, "crop-symbolic", "Crop (C)"),
-    (ToolKind::Text, "case-sensitive-symbolic", "Text (T)"),
+    (ToolKind::Text, "text-cursor-input-symbolic", "Text (T)"),
 ];
 
 pub(in crate::app::editor_runtime) fn connect_tool_button_selection(
