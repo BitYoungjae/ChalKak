@@ -178,11 +178,36 @@ impl EditorSelectionPalette {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct EditorTextInputPalette {
+    pub(super) preedit_underline: RgbaColor,
+    pub(super) caret: RgbaColor,
+}
+
+impl Default for EditorTextInputPalette {
+    fn default() -> Self {
+        Self {
+            preedit_underline: RgbaColor::new(0x1F, 0x57, 0xEB, 0xEB),
+            caret: RgbaColor::new(0x24, 0x61, 0xFF, 0xF2),
+        }
+    }
+}
+
+impl EditorTextInputPalette {
+    pub(super) const fn from_rgb(red: u8, green: u8, blue: u8) -> Self {
+        Self {
+            preedit_underline: RgbaColor::new(red, green, blue, 0xEB),
+            caret: RgbaColor::new(red, green, blue, 0xF2),
+        }
+    }
+}
+
 pub(super) struct ToolRenderContext<'a> {
     pub(super) image_bounds: ImageBounds,
     pub(super) show_crop_mask: bool,
     pub(super) selected_object_ids: &'a [u64],
     pub(super) selection_palette: EditorSelectionPalette,
+    pub(super) text_input_palette: EditorTextInputPalette,
     pub(super) source_pixbuf: Option<&'a gtk4::gdk_pixbuf::Pixbuf>,
     pub(super) active_text_id: Option<u64>,
     pub(super) active_text_preedit: Option<&'a TextPreeditState>,

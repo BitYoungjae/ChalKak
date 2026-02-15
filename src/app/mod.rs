@@ -925,6 +925,7 @@ impl App {
             let resolved_theme_runtime = resolve_theme_runtime(&theme_config, theme_mode);
             let style_tokens = resolved_theme_runtime.style_tokens;
             let color_tokens = resolved_theme_runtime.color_tokens;
+            let text_input_palette = resolved_theme_runtime.text_input_palette;
             let rectangle_border_radius_override = resolved_theme_runtime
                 .editor_theme_overrides
                 .rectangle_border_radius;
@@ -1003,6 +1004,7 @@ impl App {
                 style_tokens,
                 theme_mode,
                 editor_selection_palette,
+                text_input_palette,
                 rectangle_border_radius_override,
                 default_tool_color_override,
                 default_text_size_override,

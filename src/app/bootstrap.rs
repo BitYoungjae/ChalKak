@@ -7,7 +7,7 @@ use crate::ui::{tokens_for, ColorTokens, StyleTokens};
 use gtk4::prelude::ObjectExt;
 
 use super::adaptive::{EditorToolOptionPresets, StrokeColorPreset};
-use super::editor_popup::{EditorSelectionPalette, RgbaColor};
+use super::editor_popup::{EditorSelectionPalette, EditorTextInputPalette, RgbaColor};
 use super::runtime_support::StartupConfig;
 
 pub(super) struct AppBootstrap {
@@ -19,6 +19,7 @@ pub(super) struct AppBootstrap {
 pub(super) struct ResolvedThemeRuntime {
     pub(super) style_tokens: StyleTokens,
     pub(super) color_tokens: ColorTokens,
+    pub(super) text_input_palette: EditorTextInputPalette,
     pub(super) editor_theme_overrides: EditorThemeOverrides,
     pub(super) editor_tool_option_presets: EditorToolOptionPresets,
 }
@@ -148,10 +149,21 @@ pub(super) fn resolve_theme_runtime(
         editor_theme_overrides.text_size_presets.clone(),
     );
     let (style_tokens, color_tokens) = tokens_for(mode, theme_config.colors.as_ref());
+    let text_input_palette = text_input_palette_from_focus_ring_color(
+        &color_tokens.focus_ring_color,
+    )
+    .unwrap_or_else(|| {
+        tracing::warn!(
+            value = color_tokens.focus_ring_color.as_str(),
+            "invalid focus_ring_color for editor text input accents; expected #RRGGBB"
+        );
+        EditorTextInputPalette::default()
+    });
 
     ResolvedThemeRuntime {
         style_tokens,
         color_tokens,
+        text_input_palette,
         editor_theme_overrides,
         editor_tool_option_presets,
     }
@@ -265,6 +277,11 @@ fn parse_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
     let green = u8::from_str_radix(&hex[2..4], 16).ok()?;
     let blue = u8::from_str_radix(&hex[4..6], 16).ok()?;
     Some((red, green, blue))
+}
+
+fn text_input_palette_from_focus_ring_color(value: &str) -> Option<EditorTextInputPalette> {
+    parse_hex_rgb(value)
+        .map(|(red, green, blue)| EditorTextInputPalette::from_rgb(red, green, blue))
 }
 
 fn parse_hash_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
@@ -449,6 +466,18 @@ mod tests {
         assert_eq!(parse_hash_hex_rgba("2B63FF"), None);
         assert_eq!(parse_hash_hex_rgba("#2B63F"), None);
         assert_eq!(parse_hash_hex_rgba("#GGGGGG"), None);
+    }
+
+    #[test]
+    fn text_input_palette_from_focus_ring_color_parses_hex() {
+        let palette =
+            text_input_palette_from_focus_ring_color("#18181B").expect("expected palette");
+        assert_eq!(
+            palette.preedit_underline,
+            RgbaColor::new(0x18, 0x18, 0x1B, 0xEB)
+        );
+        assert_eq!(palette.caret, RgbaColor::new(0x18, 0x18, 0x1B, 0xF2));
+        assert!(text_input_palette_from_focus_ring_color("rgba(255,255,255,1)").is_none());
     }
 
     #[test]

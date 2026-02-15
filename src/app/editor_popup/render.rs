@@ -790,7 +790,7 @@ pub(in crate::app) fn draw_editor_tool_objects(
                         let preedit_start_x = caret.preedit_start_x.unwrap_or(caret.caret_x);
                         let preedit_end_x = caret.preedit_end_x.unwrap_or(preedit_start_x);
                         context.save().ok();
-                        context.set_source_rgba(0.12, 0.34, 0.92, 0.92);
+                        set_source_rgba_color(context, render.text_input_palette.preedit_underline);
                         context.set_line_width(1.0);
                         context.move_to(preedit_start_x, caret.baseline_y + 2.0);
                         context.line_to(preedit_end_x, caret.baseline_y + 2.0);
@@ -799,7 +799,7 @@ pub(in crate::app) fn draw_editor_tool_objects(
                     }
 
                     context.save().ok();
-                    context.set_source_rgba(0.14, 0.38, 1.0, 0.95);
+                    set_source_rgba_color(context, render.text_input_palette.caret);
                     context.set_line_width(1.4);
                     context.move_to(caret.caret_x, caret.caret_top);
                     context.line_to(caret.caret_x, caret.caret_bottom);

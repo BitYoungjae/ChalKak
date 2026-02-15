@@ -5,7 +5,8 @@ use crate::clipboard::WlCopyBackend;
 use crate::editor::{self, EditorAction, EditorEvent};
 
 use super::{
-    draw_editor_tool_objects, EditorOutputActionContext, EditorSelectionPalette, ToolRenderContext,
+    draw_editor_tool_objects, EditorOutputActionContext, EditorSelectionPalette,
+    EditorTextInputPalette, ToolRenderContext,
 };
 
 pub(in crate::app) fn render_editor_output_png(
@@ -35,6 +36,7 @@ pub(in crate::app) fn render_editor_output_png(
             show_crop_mask: false,
             selected_object_ids: &[],
             selection_palette: EditorSelectionPalette::default(),
+            text_input_palette: EditorTextInputPalette::default(),
             source_pixbuf: Some(source_pixbuf),
             active_text_id: None,
             active_text_preedit: None,
