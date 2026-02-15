@@ -1756,8 +1756,19 @@ pub(super) fn render_editor_state(
             {
                 connect_editor_window_close_request(EditorWindowCloseRequestContext {
                     editor_window_instance: editor_window_instance.clone(),
-                    editor_close_button: editor_close_button.clone(),
+                    runtime_session: runtime_session.clone(),
                     shared_machine: shared_machine.clone(),
+                    storage_service: storage_service.clone(),
+                    status_log_for_render: status_log_for_render.clone(),
+                    close_editor_button: close_editor_button.clone(),
+                    editor_has_unsaved_changes: editor_has_unsaved_changes.clone(),
+                    editor_close_dialog_open: editor_close_dialog_open.clone(),
+                    editor_window_for_dialog: editor_window_instance.clone(),
+                    editor_toast_runtime: editor_toast_runtime.clone(),
+                    editor_tools: editor_tools.clone(),
+                    pending_crop_for_close: pending_crop.clone(),
+                    editor_source_pixbuf: editor_source_pixbuf.clone(),
+                    style_tokens,
                     editor_close_guard: editor_close_guard.clone(),
                 });
             }
