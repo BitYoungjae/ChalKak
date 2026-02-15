@@ -64,6 +64,7 @@ pub struct EditorInputMode {
 pub enum EditorAction {
     Save,
     Copy,
+    CopyFileReference,
     CloseRequested,
 }
 
@@ -71,6 +72,7 @@ pub enum EditorAction {
 pub enum EditorEvent {
     Save { capture_id: String },
     Copy { capture_id: String },
+    CopyFileReference { capture_id: String },
     CloseRequested { capture_id: String },
 }
 
@@ -365,6 +367,16 @@ pub fn execute_editor_action<S: CaptureStorage, C: ClipboardBackend>(
                 })?;
             Ok(EditorEvent::Copy { capture_id })
         }
+        EditorAction::CopyFileReference => {
+            clipboard
+                .copy_file_reference(&artifact.temp_path)
+                .map_err(|err| EditorActionError::ClipboardError {
+                    operation: "copy",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                })?;
+            Ok(EditorEvent::CopyFileReference { capture_id })
+        }
         EditorAction::CloseRequested => Ok(EditorEvent::CloseRequested { capture_id }),
     }
 }
@@ -533,6 +545,10 @@ mod tests {
         fn copy_png_file(&self, _path: &std::path::Path) -> ClipboardResult<()> {
             Ok(())
         }
+
+        fn copy_file_reference(&self, _path: &std::path::Path) -> ClipboardResult<()> {
+            Ok(())
+        }
     }
 
     fn test_artifact(capture_id: &str) -> CaptureArtifact {
@@ -572,6 +588,24 @@ mod tests {
         assert_eq!(
             event,
             EditorEvent::Copy {
+                capture_id: "one".to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn editor_execute_action_copy_file_reference_maps_to_event() {
+        let artifact = test_artifact("one");
+        let event = execute_editor_action(
+            &artifact,
+            EditorAction::CopyFileReference,
+            &MockStorage,
+            &MockClipboard,
+        )
+        .unwrap();
+        assert_eq!(
+            event,
+            EditorEvent::CopyFileReference {
                 capture_id: "one".to_string()
             }
         );

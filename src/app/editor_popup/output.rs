@@ -4,7 +4,10 @@ use std::path::Path;
 use crate::clipboard::WlCopyBackend;
 use crate::editor::{self, EditorAction, EditorEvent};
 
-use super::{draw_editor_tool_objects, EditorOutputActionContext, ToolRenderContext};
+use super::{
+    draw_editor_tool_objects, EditorOutputActionContext, EditorSelectionPalette,
+    EditorTextInputPalette, ToolRenderContext,
+};
 
 pub(in crate::app) fn render_editor_output_png(
     source_pixbuf: &gtk4::gdk_pixbuf::Pixbuf,
@@ -32,6 +35,8 @@ pub(in crate::app) fn render_editor_output_png(
             image_bounds: editor::tools::ImageBounds::new(image_width, image_height),
             show_crop_mask: false,
             selected_object_ids: &[],
+            selection_palette: EditorSelectionPalette::default(),
+            text_input_palette: EditorTextInputPalette::default(),
             source_pixbuf: Some(source_pixbuf),
             active_text_id: None,
             active_text_preedit: None,
@@ -90,6 +95,7 @@ fn action_metadata(action: EditorAction) -> Option<(&'static str, &'static str)>
     match action {
         EditorAction::Save => Some(("save", "Save")),
         EditorAction::Copy => Some(("copy", "Copy")),
+        EditorAction::CopyFileReference => Some(("copy", "Copy")),
         EditorAction::CloseRequested => None,
     }
 }
@@ -141,6 +147,14 @@ pub(in crate::app) fn execute_editor_output_action(ctx: EditorOutputActionContex
             true
         }
         Ok(EditorEvent::Copy { capture_id }) if ctx.action == EditorAction::Copy => {
+            *ctx.status_log.borrow_mut() = format!("editor copied capture {capture_id}");
+            ctx.editor_toast
+                .show(format!("Copied {capture_id}"), ctx.toast_duration_ms);
+            true
+        }
+        Ok(EditorEvent::CopyFileReference { capture_id })
+            if ctx.action == EditorAction::CopyFileReference =>
+        {
             *ctx.status_log.borrow_mut() = format!("editor copied capture {capture_id}");
             ctx.editor_toast
                 .show(format!("Copied {capture_id}"), ctx.toast_duration_ms);

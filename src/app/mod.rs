@@ -1,6 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Once;
 use std::time::Duration;
 
 use crate::capture;
@@ -57,7 +58,8 @@ use self::preview_runtime::*;
 use self::runtime_support::*;
 
 const UI_TICK_INTERVAL: Duration = Duration::from_millis(100);
-const EDITOR_PEN_ICON_NAME: &str = "edit-symbolic";
+const EDITOR_PEN_ICON_NAME: &str = "pencil-symbolic";
+const LUCIDE_ICON_RESOURCE_PATH: &str = "/com/github/bityoungjae/chalkak/icons/hicolor";
 type ToolOptionsRefresh = Rc<dyn Fn(ToolKind)>;
 type ToolOptionsRefreshSlot = RefCell<Option<ToolOptionsRefresh>>;
 type SharedToolOptionsRefresh = Rc<ToolOptionsRefreshSlot>;
@@ -242,6 +244,31 @@ fn icon_button(
     }
     button.set_size_request(control_size, control_size);
     button
+}
+
+fn install_lucide_icon_theme() {
+    static ICON_THEME_SETUP: Once = Once::new();
+
+    ICON_THEME_SETUP.call_once(|| {
+        if let Err(err) = gtk4::gio::resources_register_include!("chalkak.gresource") {
+            tracing::error!(?err, "failed to register bundled Lucide icon resources");
+            return;
+        }
+
+        let Some(display) = gtk4::gdk::Display::default() else {
+            tracing::warn!("failed to initialize Lucide icon theme; no display available");
+            return;
+        };
+
+        let icon_theme = gtk4::IconTheme::for_display(&display);
+        icon_theme.add_resource_path(LUCIDE_ICON_RESOURCE_PATH);
+        tracing::debug!(
+            pin = icon_theme.has_icon("pin-symbolic"),
+            copy = icon_theme.has_icon("copy-symbolic"),
+            save = icon_theme.has_icon("save-symbolic"),
+            "registered bundled Lucide icon resource path"
+        );
+    });
 }
 
 fn icon_toggle_button(
@@ -755,9 +782,12 @@ fn connect_launchpad_default_buttons<R: Fn() + 'static>(
         let render = render.clone();
         launchpad.copy_button.connect_clicked(move |_| {
             let render = render.clone();
-            launchpad_actions.run_preview_action_async(PreviewAction::Copy, move || {
-                (render.as_ref())();
-            });
+            launchpad_actions.run_preview_action_async(
+                PreviewAction::CopyFileReference,
+                move || {
+                    (render.as_ref())();
+                },
+            );
         });
     }
     {
@@ -833,16 +863,8 @@ impl App {
     pub fn start(&mut self) -> AppResult<()> {
         let bootstrap = bootstrap_app_runtime();
         let startup_config = bootstrap.startup_config;
-        let theme_mode = bootstrap.theme_mode;
-        let style_tokens = bootstrap.style_tokens;
-        let color_tokens = bootstrap.color_tokens;
+        let theme_config = bootstrap.theme_config;
         let editor_navigation_bindings = bootstrap.editor_navigation_bindings;
-        let rectangle_border_radius_override =
-            bootstrap.editor_theme_overrides.rectangle_border_radius;
-        let default_tool_color_override = bootstrap.editor_theme_overrides.default_tool_color;
-        let default_text_size_override = bootstrap.editor_theme_overrides.default_text_size;
-        let default_stroke_width_override = bootstrap.editor_theme_overrides.default_stroke_width;
-        let editor_tool_option_presets = bootstrap.editor_tool_option_presets;
 
         tracing::info!(event = "start", from = ?self.machine.state());
         let _ = self.machine.transition(AppEvent::Start)?;
@@ -888,6 +910,7 @@ impl App {
                 tracing::debug!("ignoring duplicate gtk activate signal");
                 return;
             }
+            install_lucide_icon_theme();
             let headless_hold_guard =
                 Rc::new(RefCell::new(None::<gtk4::gio::ApplicationHoldGuard>));
             let startup_capture_completed = Rc::new(Cell::new(!headless_startup_capture));
@@ -897,7 +920,35 @@ impl App {
                     <gtk4::Application as gtk4::gio::prelude::ApplicationExtManual>::hold(app);
                 headless_hold_guard.borrow_mut().replace(hold_guard);
             }
-            let motion_enabled = gtk4::Settings::default()
+            let gtk_settings = gtk4::Settings::default();
+            let theme_mode = resolve_runtime_theme_mode(theme_config.mode, gtk_settings.as_ref());
+            let resolved_theme_runtime = resolve_theme_runtime(&theme_config, theme_mode);
+            let style_tokens = resolved_theme_runtime.style_tokens;
+            let color_tokens = resolved_theme_runtime.color_tokens;
+            let text_input_palette = resolved_theme_runtime.text_input_palette;
+            let rectangle_border_radius_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .rectangle_border_radius;
+            let editor_selection_palette = resolved_theme_runtime
+                .editor_theme_overrides
+                .selection_palette;
+            let default_tool_color_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .default_tool_color;
+            let default_text_size_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .default_text_size;
+            let default_stroke_width_override = resolved_theme_runtime
+                .editor_theme_overrides
+                .default_stroke_width;
+            let editor_tool_option_presets = resolved_theme_runtime.editor_tool_option_presets;
+            tracing::info!(
+                requested_mode = ?theme_config.mode,
+                resolved_mode = ?theme_mode,
+                "resolved runtime theme mode"
+            );
+            let motion_enabled = gtk_settings
+                .as_ref()
                 .map(|settings| settings.is_gtk_enable_animations())
                 .unwrap_or(true);
             let motion_hover_ms = if motion_enabled {
@@ -952,6 +1003,8 @@ impl App {
                 runtime_session: runtime_session_for_activate.clone(),
                 style_tokens,
                 theme_mode,
+                editor_selection_palette,
+                text_input_palette,
                 rectangle_border_radius_override,
                 default_tool_color_override,
                 default_text_size_override,

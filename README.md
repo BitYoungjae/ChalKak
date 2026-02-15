@@ -1,4 +1,8 @@
-# Chalkak
+# ChalKak
+
+<p align="center">
+  <img src="./assets/banner.jpeg" alt="ChalKak banner" width="100%" />
+</p>
 
 English | [한국어](README.ko.md)
 
@@ -6,7 +10,7 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 
 ## Demo Video
 
-<https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
+<https://github.com/user-attachments/assets/2d2ed794-f86e-4216-b5f1-7dcb513791d4>
 
 ## User Guides
 
@@ -15,12 +19,12 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 
 ## Name Origin
 
-`Chalkak` is inspired by the Korean onomatopoeia `찰칵!`, the camera shutter click sound.
+`ChalKak` is inspired by the Korean onomatopoeia `찰칵!`, the camera shutter click sound.
 
 ## Highlights
 
 - Capture modes: fullscreen, region, and window.
-- Preview stage before final action (save, copy, edit, delete).
+- Preview stage before final action (save, copy image, copy file reference, edit, delete).
 - Built-in editor tools: select, pan, blur, pen, arrow, rectangle, crop, text.
 - Keyboard-centric workflow across preview and editor.
 - Configurable theme and editor navigation keybindings.
@@ -44,15 +48,17 @@ Environment assumptions:
 
 ## Install
 
-### AUR (planned)
+### AUR
 
-This project is prepared for an AUR package named `chalkak`.
+This repository includes AUR packaging metadata for `chalkak` in `PKGBUILD` and `.SRCINFO`.
 
-When published, install with your AUR helper, for example:
+Install with your AUR helper, for example:
 
 ```bash
 yay -S chalkak
 ```
+
+If the published AUR package is behind the current crate release, use the source build path below.
 
 ### Build from source
 
@@ -64,11 +70,13 @@ cargo run
 
 ## Usage
 
-Basic launch:
+Launchpad UI:
 
 ```bash
-chalkak
+chalkak --launchpad
 ```
+
+Running `chalkak` with no flags starts and exits immediately.
 
 Startup flags:
 
@@ -81,15 +89,16 @@ Typical flow:
 
 1. Capture (`full`, `region`, `window`).
 2. Preview the capture.
-3. Save/copy/delete, or open editor.
-4. Annotate in editor, then save/copy.
+3. Save/copy image/copy file reference/delete, or open editor.
+4. Annotate in editor, then save/copy image/copy file reference.
 
 ## Keybindings
 
 Preview:
 
 - `s`: save
-- `c`: copy
+- `c`: copy image
+- `u`: copy file reference
 - `e`: open editor
 - `Delete`: delete capture
 - `Esc`: close preview
@@ -103,6 +112,8 @@ Editor:
 - `Delete` / `Backspace`: delete selection
 - `o`: toggle tool options panel
 - `Esc`: select tool, or close editor when already in select mode
+
+Preview and editor action buttons also support copying a file reference for the current image.
 
 Tool shortcuts:
 
@@ -142,6 +153,31 @@ Files:
 - `theme.json`
 - `keybindings.json`
 
+`theme.json` (summary):
+
+- `mode`: `system`, `light`, `dark`
+- `colors`: supports shared + per-mode overrides
+- `colors.common` + `colors.dark` + `colors.light`
+- `editor`: supports shared + per-mode overrides
+- `editor.common` + `editor.dark` + `editor.light`
+- all objects can be partial; missing fields fall back to built-in defaults
+- merge order:
+- `built-in defaults -> common -> current mode`
+- `system` follows runtime desktop preference and falls back to dark when unavailable
+- legacy schema is still supported:
+- shared flat `editor` + `editor_modes.dark/light`
+- if both legacy and new keys are present, precedence is:
+- `editor(flat) -> editor.common -> editor_modes.<mode> -> editor.<mode>`
+- editor preset constraints:
+- `stroke_width_presets`: `1..=64`
+- `text_size_presets`: `8..=160`
+- each preset list: up to 6 unique items
+
+For full examples and field-by-field details, see:
+
+- `docs/USER_GUIDE.md`
+- `docs/USER_GUIDE.ko.md`
+
 Temporary captures:
 
 - `$XDG_RUNTIME_DIR/`
@@ -179,7 +215,17 @@ Current module layout:
 
 ## AUR Packaging Notes (for maintainers)
 
-Suggested `PKGBUILD` dependency baseline:
+`PKGBUILD` and `.SRCINFO` are committed in this repository.
+
+When releasing a new version:
+
+1. Match `PKGBUILD` `pkgver` to `Cargo.toml` `version`.
+2. Reset `pkgrel=1` when `pkgver` changes.
+3. Update `source` to `.../archive/refs/tags/vX.Y.Z.tar.gz`.
+4. Refresh checksums with `updpkgsums`.
+5. Regenerate `.SRCINFO` with `makepkg --printsrcinfo > .SRCINFO`.
+
+Dependency baseline:
 
 - `depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')`
 - `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')`

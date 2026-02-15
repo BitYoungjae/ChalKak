@@ -279,6 +279,26 @@ impl LaunchpadActionExecutor {
             return;
         };
 
+        if requires_main_thread_preview_action(action) {
+            let result = preview::execute_preview_action(
+                &prepared.active_capture,
+                prepared.action,
+                &prepared.storage_service,
+                &WlCopyBackend,
+            );
+            let _ = apply_preview_action_result(
+                prepared.action,
+                &prepared.active_capture,
+                result,
+                &self.status_log,
+                &self.preview_windows,
+                &self.fallback_toast,
+                self.toast_duration_ms,
+            );
+            on_complete();
+            return;
+        }
+
         let worker_capture = prepared.active_capture.clone();
         let worker_action = prepared.action;
         let worker_storage = prepared.storage_service.clone();
@@ -392,6 +412,12 @@ impl PreviewActionLabels {
                 success_title: "Saved",
             },
             PreviewAction::Copy => Self {
+                operation: "copy",
+                title: "Copy",
+                past: "copied",
+                success_title: "Copied",
+            },
+            PreviewAction::CopyFileReference => Self {
                 operation: "copy",
                 title: "Copy",
                 past: "copied",
@@ -619,11 +645,19 @@ where
     });
 }
 
+fn requires_main_thread_preview_action(action: PreviewAction) -> bool {
+    matches!(action, PreviewAction::CopyFileReference)
+}
+
 fn matches_preview_action(action: PreviewAction, event: &PreviewEvent) -> bool {
     matches!(
         (action, event),
         (PreviewAction::Save, PreviewEvent::Save { .. })
             | (PreviewAction::Copy, PreviewEvent::Copy { .. })
+            | (
+                PreviewAction::CopyFileReference,
+                PreviewEvent::CopyFileReference { .. },
+            )
             | (PreviewAction::Edit, PreviewEvent::Edit { .. })
             | (PreviewAction::Delete, PreviewEvent::Delete { .. })
             | (PreviewAction::Close, PreviewEvent::Close { .. })
@@ -634,6 +668,7 @@ fn preview_event_capture_id(event: &PreviewEvent) -> &str {
     match event {
         PreviewEvent::Save { capture_id }
         | PreviewEvent::Copy { capture_id }
+        | PreviewEvent::CopyFileReference { capture_id }
         | PreviewEvent::Edit { capture_id }
         | PreviewEvent::Delete { capture_id }
         | PreviewEvent::Close { capture_id } => capture_id,
@@ -825,5 +860,15 @@ mod tests {
         assert_eq!(prepared.action, PreviewAction::Copy);
         assert_eq!(prepared.active_capture.capture_id, "one");
         assert!(capture_selection.borrow().is_none());
+    }
+
+    #[test]
+    fn copy_file_reference_requires_main_thread_execution() {
+        assert!(requires_main_thread_preview_action(
+            PreviewAction::CopyFileReference
+        ));
+        assert!(!requires_main_thread_preview_action(PreviewAction::Save));
+        assert!(!requires_main_thread_preview_action(PreviewAction::Copy));
+        assert!(!requires_main_thread_preview_action(PreviewAction::Delete));
     }
 }
