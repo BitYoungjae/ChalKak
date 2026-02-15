@@ -1,4 +1,4 @@
-# Chalkak
+# ChalKak
 
 English | [한국어](README.ko.md)
 
@@ -15,7 +15,7 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 
 ## Name Origin
 
-`Chalkak` is inspired by the Korean onomatopoeia `찰칵!`, the camera shutter click sound.
+`ChalKak` is inspired by the Korean onomatopoeia `찰칵!`, the camera shutter click sound.
 
 ## Highlights
 

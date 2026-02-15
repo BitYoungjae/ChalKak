@@ -1,4 +1,4 @@
-# Chalkak User Guide
+# ChalKak User Guide
 
 [한국어 가이드](USER_GUIDE.ko.md)
 
@@ -8,9 +8,9 @@ This guide is for general users who want a reliable screenshot workflow on Wayla
 
 <https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
 
-## 1. What Chalkak Is Best For
+## 1. What ChalKak Is Best For
 
-Chalkak is designed for a preview-first screenshot flow:
+ChalKak is designed for a preview-first screenshot flow:
 
 1. Capture the screen (full, region, or window).
 2. Check the result in Preview.
@@ -21,7 +21,7 @@ If you want quick screenshots with optional annotation and strong keyboard contr
 
 ## 2. Requirements
 
-Chalkak expects a Wayland + Hyprland session.
+ChalKak expects a Wayland + Hyprland session.
 
 Required runtime commands:
 
@@ -56,7 +56,7 @@ cd chalkak
 cargo run -- --launchpad
 ```
 
-`--` passes flags to Chalkak (not Cargo).
+`--` passes flags to ChalKak (not Cargo).
 
 ### Startup modes
 
@@ -270,9 +270,9 @@ Notes:
 - Do not set shortcut arrays to empty lists.
 - Key names are normalized, so common modifier aliases (`ctrl`, `control`, `cmd`, `super`) are accepted.
 
-## 10. Wire Chalkak to Hyprland Keybindings
+## 10. Wire ChalKak to Hyprland Keybindings
 
-For fast capture workflows on Omarchy/Hyprland, bind Chalkak commands directly in Hyprland.
+For fast capture workflows on Omarchy/Hyprland, bind ChalKak commands directly in Hyprland.
 
 ### 10.1 Check the binary path first
 
@@ -290,13 +290,13 @@ Your Hyprland binding must point to the currently valid path.
 Add this to `~/.config/hypr/bindings.conf`:
 
 ```conf
-# Chalkak screenshot bindings (Option = ALT)
+# ChalKak screenshot bindings (Option = ALT)
 unbind = ALT SHIFT, 2
 unbind = ALT SHIFT, 3
 unbind = ALT SHIFT, 4
-bindd = ALT SHIFT, 2, Chalkak region capture, exec, /usr/bin/chalkak --capture-region
-bindd = ALT SHIFT, 3, Chalkak window capture, exec, /usr/bin/chalkak --capture-window
-bindd = ALT SHIFT, 4, Chalkak full capture, exec, /usr/bin/chalkak --capture-full
+bindd = ALT SHIFT, 2, ChalKak region capture, exec, /usr/bin/chalkak --capture-region
+bindd = ALT SHIFT, 3, ChalKak window capture, exec, /usr/bin/chalkak --capture-window
+bindd = ALT SHIFT, 4, ChalKak full capture, exec, /usr/bin/chalkak --capture-full
 ```
 
 Notes:
@@ -308,10 +308,10 @@ Notes:
 
 ```bash
 hyprctl reload
-hyprctl binds -j | jq -r '.[] | select(.description|test("Chalkak")) | [.description,.arg] | @tsv'
+hyprctl binds -j | jq -r '.[] | select(.description|test("ChalKak")) | [.description,.arg] | @tsv'
 ```
 
-If you see `Chalkak ... capture` entries with the expected path, bindings are active.
+If you see `ChalKak ... capture` entries with the expected path, bindings are active.
 
 ### 10.4 Omarchy-specific note
 
@@ -331,7 +331,7 @@ Saved screenshots:
 
 - `$HOME/Pictures/`
 
-Chalkak creates these directories when needed.
+ChalKak creates these directories when needed.
 
 ## 12. Troubleshooting
 

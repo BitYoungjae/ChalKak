@@ -1,16 +1,16 @@
-# Chalkak 사용자 가이드
+# ChalKak 사용자 가이드
 
 [English Guide](USER_GUIDE.md)
 
-이 문서는 일반 사용자가 Wayland + Hyprland 환경에서 Chalkak을 안정적으로 사용하는 방법을 설명합니다.
+이 문서는 일반 사용자가 Wayland + Hyprland 환경에서 ChalKak을 안정적으로 사용하는 방법을 설명합니다.
 
 ## 데모 영상
 
 <https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
 
-## 1. Chalkak이 잘 맞는 사용 방식
+## 1. ChalKak이 잘 맞는 사용 방식
 
-Chalkak은 다음 흐름에 최적화되어 있습니다.
+ChalKak은 다음 흐름에 최적화되어 있습니다.
 
 1. 스크린샷 캡처(전체/영역/창).
 2. 미리보기에서 결과 확인.
@@ -21,7 +21,7 @@ Chalkak은 다음 흐름에 최적화되어 있습니다.
 
 ## 2. 실행 전 준비
 
-Chalkak은 Wayland + Hyprland 세션을 전제로 합니다.
+ChalKak은 Wayland + Hyprland 세션을 전제로 합니다.
 
 필수 런타임 명령:
 
@@ -56,7 +56,7 @@ cd chalkak
 cargo run -- --launchpad
 ```
 
-`--` 뒤의 인자는 Cargo가 아니라 Chalkak으로 전달됩니다.
+`--` 뒤의 인자는 Cargo가 아니라 ChalKak으로 전달됩니다.
 
 ### 시작 모드
 
@@ -270,9 +270,9 @@ cargo run -- --launchpad
 - 단축키 배열을 빈 리스트(`[]`)로 두면 오류가 발생함
 - 수정자 키 별칭(`ctrl`, `control`, `cmd`, `super`)은 정규화되어 인식됨
 
-## 10. Hyprland 키바인딩으로 Chalkak 연결하기
+## 10. Hyprland 키바인딩으로 ChalKak 연결하기
 
-Omarchy/Hyprland에서 자주 쓰는 캡처를 즉시 실행하려면 Hyprland 바인딩에 Chalkak 명령을 직접 연결하세요.
+Omarchy/Hyprland에서 자주 쓰는 캡처를 즉시 실행하려면 Hyprland 바인딩에 ChalKak 명령을 직접 연결하세요.
 
 ### 10.1 실행 파일 경로 확인
 
@@ -292,13 +292,13 @@ which chalkak
 `~/.config/hypr/bindings.conf`에 아래처럼 추가합니다.
 
 ```conf
-# Chalkak screenshot bindings (Option = ALT)
+# ChalKak screenshot bindings (Option = ALT)
 unbind = ALT SHIFT, 2
 unbind = ALT SHIFT, 3
 unbind = ALT SHIFT, 4
-bindd = ALT SHIFT, 2, Chalkak region capture, exec, /usr/bin/chalkak --capture-region
-bindd = ALT SHIFT, 3, Chalkak window capture, exec, /usr/bin/chalkak --capture-window
-bindd = ALT SHIFT, 4, Chalkak full capture, exec, /usr/bin/chalkak --capture-full
+bindd = ALT SHIFT, 2, ChalKak region capture, exec, /usr/bin/chalkak --capture-region
+bindd = ALT SHIFT, 3, ChalKak window capture, exec, /usr/bin/chalkak --capture-window
+bindd = ALT SHIFT, 4, ChalKak full capture, exec, /usr/bin/chalkak --capture-full
 ```
 
 메모:
@@ -310,10 +310,10 @@ bindd = ALT SHIFT, 4, Chalkak full capture, exec, /usr/bin/chalkak --capture-ful
 
 ```bash
 hyprctl reload
-hyprctl binds -j | jq -r '.[] | select(.description|test("Chalkak")) | [.description,.arg] | @tsv'
+hyprctl binds -j | jq -r '.[] | select(.description|test("ChalKak")) | [.description,.arg] | @tsv'
 ```
 
-출력에 `Chalkak ... capture` 항목과 실행 경로가 보이면 반영된 상태입니다.
+출력에 `ChalKak ... capture` 항목과 실행 경로가 보이면 반영된 상태입니다.
 
 ### 10.4 Omarchy 사용자 참고
 
@@ -333,7 +333,7 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 
 - `$HOME/Pictures/`
 
-필요 시 Chalkak이 디렉터리를 자동 생성합니다.
+필요 시 ChalKak이 디렉터리를 자동 생성합니다.
 
 ## 12. 문제 해결
 
