@@ -371,7 +371,7 @@ pub fn execute_editor_action<S: CaptureStorage, C: ClipboardBackend>(
             clipboard
                 .copy_file_reference(&artifact.temp_path)
                 .map_err(|err| EditorActionError::ClipboardError {
-                    operation: "copy file reference",
+                    operation: "copy",
                     capture_id: capture_id.clone(),
                     source: err,
                 })?;

@@ -418,10 +418,10 @@ impl PreviewActionLabels {
                 success_title: "Copied",
             },
             PreviewAction::CopyFileReference => Self {
-                operation: "copy file reference",
-                title: "Copy File URI",
-                past: "copied file URI for",
-                success_title: "Copied file URI",
+                operation: "copy",
+                title: "Copy",
+                past: "copied",
+                success_title: "Copied",
             },
             PreviewAction::Edit => Self {
                 operation: "edit",

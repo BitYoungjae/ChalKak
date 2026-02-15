@@ -59,7 +59,6 @@ use self::runtime_support::*;
 
 const UI_TICK_INTERVAL: Duration = Duration::from_millis(100);
 const EDITOR_PEN_ICON_NAME: &str = "pencil-symbolic";
-const AI_REFERENCE_ICON_NAME: &str = "bot-symbolic";
 const LUCIDE_ICON_RESOURCE_PATH: &str = "/com/github/bityoungjae/chalkak/icons/hicolor";
 type ToolOptionsRefresh = Rc<dyn Fn(ToolKind)>;
 type ToolOptionsRefreshSlot = RefCell<Option<ToolOptionsRefresh>>;
@@ -366,7 +365,6 @@ struct LaunchpadUi {
     close_editor_button: Button,
     save_button: Button,
     copy_button: Button,
-    copy_file_reference_button: Button,
     delete_button: Button,
 }
 
@@ -401,8 +399,6 @@ impl LaunchpadUi {
         self.save_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
         self.copy_button
-            .set_sensitive(matches!(state, AppState::Preview) && has_capture);
-        self.copy_file_reference_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
         self.delete_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
@@ -532,15 +528,12 @@ fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> Launch
     save_button.set_hexpand(true);
     let copy_button = Button::with_label("Copy");
     copy_button.set_hexpand(true);
-    let copy_file_reference_button = Button::with_label("Copy File URI");
-    copy_file_reference_button.set_hexpand(true);
     let delete_button = Button::with_label("Delete");
     delete_button.set_hexpand(true);
     delete_button.add_css_class("launchpad-danger-button");
     let action_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
     action_row.append(&save_button);
     action_row.append(&copy_button);
-    action_row.append(&copy_file_reference_button);
     action_row.append(&delete_button);
     let action_panel = launchpad_panel(style_tokens, "Capture Actions", &action_row);
 
@@ -589,7 +582,6 @@ fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> Launch
         close_editor_button,
         save_button,
         copy_button,
-        copy_file_reference_button,
         delete_button,
     }
 }
@@ -790,25 +782,13 @@ fn connect_launchpad_default_buttons<R: Fn() + 'static>(
         let render = render.clone();
         launchpad.copy_button.connect_clicked(move |_| {
             let render = render.clone();
-            launchpad_actions.run_preview_action_async(PreviewAction::Copy, move || {
-                (render.as_ref())();
-            });
+            launchpad_actions.run_preview_action_async(
+                PreviewAction::CopyFileReference,
+                move || {
+                    (render.as_ref())();
+                },
+            );
         });
-    }
-    {
-        let launchpad_actions = launchpad_actions.clone();
-        let render = render.clone();
-        launchpad
-            .copy_file_reference_button
-            .connect_clicked(move |_| {
-                let render = render.clone();
-                launchpad_actions.run_preview_action_async(
-                    PreviewAction::CopyFileReference,
-                    move || {
-                        (render.as_ref())();
-                    },
-                );
-            });
     }
     {
         let launchpad_actions = launchpad_actions.clone();
@@ -969,7 +949,6 @@ impl App {
             let close_editor_button = launchpad.close_editor_button.clone();
             let save_button = launchpad.save_button.clone();
             let copy_button = launchpad.copy_button.clone();
-            let copy_file_reference_button = launchpad.copy_file_reference_button.clone();
             let delete_button = launchpad.delete_button.clone();
 
             window.set_child(Some(&launchpad.root));
@@ -982,7 +961,6 @@ impl App {
                 status_log_for_activate.clone(),
                 save_button.clone(),
                 copy_button.clone(),
-                copy_file_reference_button.clone(),
                 open_editor_button.clone(),
                 close_preview_button.clone(),
                 delete_button.clone(),

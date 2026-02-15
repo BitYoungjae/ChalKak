@@ -75,7 +75,7 @@ pub fn execute_preview_action<S: CaptureStorage, C: ClipboardBackend>(
             clipboard
                 .copy_file_reference(&artifact.temp_path)
                 .map_err(|err| PreviewActionError::ClipboardError {
-                    operation: "copy file reference",
+                    operation: "copy",
                     capture_id: capture_id.clone(),
                     source: err,
                 })?;
