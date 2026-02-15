@@ -983,6 +983,12 @@ pub(super) fn render_editor_state(
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
+            let editor_copy_file_reference_button = icon_button(
+                AI_REFERENCE_ICON_NAME,
+                "Copy file URI reference",
+                style_tokens.control_size as i32,
+                &["editor-action-button"],
+            );
             let editor_close_button = icon_button(
                 "window-close-symbolic",
                 "Close editor",
@@ -1018,11 +1024,12 @@ pub(super) fn render_editor_state(
             // Tool selector group
             top_controls_left.append(&top_toolbar_row);
 
-            // File actions group (save/copy)
+            // File actions group (save/copy/copy file URI)
             let file_actions_group = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_4);
             file_actions_group.add_css_class("editor-action-group");
             file_actions_group.append(&editor_save_button);
             file_actions_group.append(&editor_copy_button);
+            file_actions_group.append(&editor_copy_file_reference_button);
             top_controls_left.append(&file_actions_group);
             let top_controls_left_revealer = Revealer::new();
             top_controls_left_revealer.set_transition_duration(motion_hover_ms);
@@ -1676,6 +1683,12 @@ pub(super) fn render_editor_state(
                     &output_action_runtime,
                     EditorAction::Copy,
                     "copy",
+                );
+                connect_editor_output_button(
+                    &editor_copy_file_reference_button,
+                    &output_action_runtime,
+                    EditorAction::CopyFileReference,
+                    "copy file reference",
                 );
             }
             {

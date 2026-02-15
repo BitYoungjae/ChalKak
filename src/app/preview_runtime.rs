@@ -23,7 +23,7 @@ use super::runtime_support::{
 };
 use super::{
     close_editor_if_open_and_clear, icon_button, icon_toggle_button, EditorRuntimeState,
-    EDITOR_PEN_ICON_NAME,
+    AI_REFERENCE_ICON_NAME, EDITOR_PEN_ICON_NAME,
 };
 
 #[derive(Clone)]
@@ -34,6 +34,7 @@ pub(super) struct PreviewRenderContext {
     status_log: Rc<RefCell<String>>,
     save_button: Button,
     copy_button: Button,
+    copy_file_reference_button: Button,
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
@@ -54,6 +55,7 @@ impl PreviewRenderContext {
         status_log: Rc<RefCell<String>>,
         save_button: Button,
         copy_button: Button,
+        copy_file_reference_button: Button,
         open_editor_button: Button,
         close_preview_button: Button,
         delete_button: Button,
@@ -71,6 +73,7 @@ impl PreviewRenderContext {
             status_log,
             save_button,
             copy_button,
+            copy_file_reference_button,
             open_editor_button,
             close_preview_button,
             delete_button,
@@ -229,6 +232,7 @@ fn connect_preview_action_bridges(
 struct PreviewLaunchpadButtons {
     save_button: Button,
     copy_button: Button,
+    copy_file_reference_button: Button,
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
@@ -238,6 +242,7 @@ struct PreviewLaunchpadButtons {
 enum PreviewShortcutTarget {
     Save,
     Copy,
+    CopyFileReference,
     Edit,
     Delete,
     Close,
@@ -247,6 +252,7 @@ fn preview_shortcut_target(action: ShortcutAction) -> Option<PreviewShortcutTarg
     match action {
         ShortcutAction::PreviewSave => Some(PreviewShortcutTarget::Save),
         ShortcutAction::PreviewCopy => Some(PreviewShortcutTarget::Copy),
+        ShortcutAction::PreviewCopyFileReference => Some(PreviewShortcutTarget::CopyFileReference),
         ShortcutAction::PreviewEdit => Some(PreviewShortcutTarget::Edit),
         ShortcutAction::PreviewDelete => Some(PreviewShortcutTarget::Delete),
         ShortcutAction::PreviewClose => Some(PreviewShortcutTarget::Close),
@@ -259,6 +265,7 @@ impl PreviewLaunchpadButtons {
         Self {
             save_button: context.save_button.clone(),
             copy_button: context.copy_button.clone(),
+            copy_file_reference_button: context.copy_file_reference_button.clone(),
             open_editor_button: context.open_editor_button.clone(),
             close_preview_button: context.close_preview_button.clone(),
             delete_button: context.delete_button.clone(),
@@ -269,6 +276,9 @@ impl PreviewLaunchpadButtons {
         match preview_shortcut_target(action) {
             Some(PreviewShortcutTarget::Save) => self.save_button.emit_clicked(),
             Some(PreviewShortcutTarget::Copy) => self.copy_button.emit_clicked(),
+            Some(PreviewShortcutTarget::CopyFileReference) => {
+                self.copy_file_reference_button.emit_clicked()
+            }
             Some(PreviewShortcutTarget::Edit) => self.open_editor_button.emit_clicked(),
             Some(PreviewShortcutTarget::Delete) => self.delete_button.emit_clicked(),
             Some(PreviewShortcutTarget::Close) => self.close_preview_button.emit_clicked(),
@@ -289,6 +299,7 @@ struct PreviewWindowBuild {
     toast_label: gtk4::Label,
     opacity_slider: Scale,
     copy_button: Button,
+    copy_file_reference_button: Button,
     save_button: Button,
     edit_button: Button,
     close_button: Button,
@@ -299,6 +310,7 @@ struct PreviewControlsBuild {
     controls_revealer: Revealer,
     opacity_slider: Scale,
     copy_button: Button,
+    copy_file_reference_button: Button,
     save_button: Button,
     edit_button: Button,
     close_button: Button,
@@ -339,6 +351,12 @@ fn build_preview_controls(
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
     );
+    let preview_copy_file_reference_button = icon_button(
+        AI_REFERENCE_ICON_NAME,
+        "Copy file URI reference",
+        context.style_tokens.control_size as i32,
+        &["preview-icon-button"],
+    );
 
     let preview_save_button = icon_button(
         "media-floppy-symbolic",
@@ -355,6 +373,7 @@ fn build_preview_controls(
     );
 
     top_center_actions.append(&preview_copy_button);
+    top_center_actions.append(&preview_copy_file_reference_button);
     top_center_actions.append(&preview_save_button);
     top_center_actions.append(&preview_edit_button);
 
@@ -417,6 +436,7 @@ fn build_preview_controls(
         controls_revealer,
         opacity_slider,
         copy_button: preview_copy_button,
+        copy_file_reference_button: preview_copy_file_reference_button,
         save_button: preview_save_button,
         edit_button: preview_edit_button,
         close_button: preview_close_button,
@@ -519,6 +539,7 @@ fn build_preview_window(
         toast_label: preview_toast_label,
         opacity_slider: preview_controls.opacity_slider,
         copy_button: preview_controls.copy_button,
+        copy_file_reference_button: preview_controls.copy_file_reference_button,
         save_button: preview_controls.save_button,
         edit_button: preview_controls.edit_button,
         close_button: preview_controls.close_button,
@@ -534,6 +555,10 @@ fn connect_preview_window_action_wiring(
         &[
             (&build.save_button, &context.save_button),
             (&build.copy_button, &context.copy_button),
+            (
+                &build.copy_file_reference_button,
+                &context.copy_file_reference_button,
+            ),
             (&build.edit_button, &context.open_editor_button),
             (&build.close_button, &context.close_preview_button),
         ],
@@ -671,6 +696,10 @@ mod tests {
         assert_eq!(
             preview_shortcut_target(ShortcutAction::PreviewCopy),
             Some(PreviewShortcutTarget::Copy)
+        );
+        assert_eq!(
+            preview_shortcut_target(ShortcutAction::PreviewCopyFileReference),
+            Some(PreviewShortcutTarget::CopyFileReference)
         );
         assert_eq!(
             preview_shortcut_target(ShortcutAction::PreviewEdit),

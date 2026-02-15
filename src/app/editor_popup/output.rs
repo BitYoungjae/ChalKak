@@ -90,6 +90,7 @@ fn action_metadata(action: EditorAction) -> Option<(&'static str, &'static str)>
     match action {
         EditorAction::Save => Some(("save", "Save")),
         EditorAction::Copy => Some(("copy", "Copy")),
+        EditorAction::CopyFileReference => Some(("copy file reference", "Copy File URI")),
         EditorAction::CloseRequested => None,
     }
 }
@@ -144,6 +145,17 @@ pub(in crate::app) fn execute_editor_output_action(ctx: EditorOutputActionContex
             *ctx.status_log.borrow_mut() = format!("editor copied capture {capture_id}");
             ctx.editor_toast
                 .show(format!("Copied {capture_id}"), ctx.toast_duration_ms);
+            true
+        }
+        Ok(EditorEvent::CopyFileReference { capture_id })
+            if ctx.action == EditorAction::CopyFileReference =>
+        {
+            *ctx.status_log.borrow_mut() =
+                format!("editor copied file URI for capture {capture_id}");
+            ctx.editor_toast.show(
+                format!("Copied file URI {capture_id}"),
+                ctx.toast_duration_ms,
+            );
             true
         }
         Ok(other) => {
