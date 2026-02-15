@@ -3,8 +3,20 @@ name: clippy
 on:
   pull_request:
     branches: [develop, main]
+    paths-ignore:
+      - 'README.md'
+      - 'README.ko.md'
+      - 'AGENTS.md'
+      - 'docs/**'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
   push:
     branches: [develop, main]
+    paths-ignore:
+      - 'README.md'
+      - 'README.ko.md'
+      - 'AGENTS.md'
+      - 'docs/**'
+      - '.github/PULL_REQUEST_TEMPLATE.md'
   workflow_dispatch:
 
 permissions:
