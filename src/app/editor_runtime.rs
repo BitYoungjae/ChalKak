@@ -32,6 +32,19 @@ mod wiring;
 
 use self::wiring::*;
 
+type EditorCursorRefresh = Rc<dyn Fn()>;
+type SharedEditorCursorRefreshImpl = Rc<RefCell<Option<EditorCursorRefresh>>>;
+
+struct EditorCanvasDrawDeps {
+    editor_tools: Rc<RefCell<editor::EditorTools>>,
+    tool_drag_preview: Rc<RefCell<Option<ToolDragPreview>>>,
+    selected_object_ids: Rc<RefCell<Vec<u64>>>,
+    pending_crop: Rc<RefCell<Option<CropElement>>>,
+    editor_input_mode: Rc<RefCell<editor::EditorInputMode>>,
+    text_preedit_state: Rc<RefCell<TextPreeditState>>,
+    text_im_context: Rc<gtk4::IMMulticontext>,
+}
+
 struct InitializedEditorRuntime {
     editor_navigation_bindings: Rc<crate::input::EditorNavigationBindings>,
     editor_tools: Rc<RefCell<editor::EditorTools>>,
@@ -49,8 +62,8 @@ struct InitializedEditorRuntime {
     refresh_tool_options: SharedToolOptionsRefresh,
     text_im_context: Rc<gtk4::IMMulticontext>,
     text_preedit_state: Rc<RefCell<TextPreeditState>>,
-    refresh_editor_cursor_impl: Rc<RefCell<Option<Rc<dyn Fn()>>>>,
-    refresh_editor_cursor: Rc<dyn Fn()>,
+    refresh_editor_cursor_impl: SharedEditorCursorRefreshImpl,
+    refresh_editor_cursor: EditorCursorRefresh,
     editor_tool_switch_context: EditorToolSwitchContext,
 }
 
@@ -109,8 +122,8 @@ fn initialize_editor_runtime_state(
     text_im_context.set_client_widget(Some(editor_window_instance));
     text_im_context.set_use_preedit(true);
     let text_preedit_state = Rc::new(RefCell::new(TextPreeditState::default()));
-    let refresh_editor_cursor_impl = Rc::new(RefCell::new(None::<Rc<dyn Fn()>>));
-    let refresh_editor_cursor: Rc<dyn Fn()> = {
+    let refresh_editor_cursor_impl: SharedEditorCursorRefreshImpl = Rc::new(RefCell::new(None));
+    let refresh_editor_cursor: EditorCursorRefresh = {
         let refresh_editor_cursor_impl = refresh_editor_cursor_impl.clone();
         Rc::new(move || {
             if let Some(refresh) = refresh_editor_cursor_impl.borrow().as_ref() {
@@ -306,24 +319,20 @@ fn apply_editor_default_tool_settings(
 fn configure_editor_canvas_draw(
     editor_canvas: &DrawingArea,
     editor_source_pixbuf: Option<gtk4::gdk_pixbuf::Pixbuf>,
-    editor_tools: &Rc<RefCell<editor::EditorTools>>,
-    tool_drag_preview: &Rc<RefCell<Option<ToolDragPreview>>>,
-    selected_object_ids: &Rc<RefCell<Vec<u64>>>,
-    pending_crop: &Rc<RefCell<Option<CropElement>>>,
-    editor_input_mode: &Rc<RefCell<editor::EditorInputMode>>,
-    text_preedit_state: &Rc<RefCell<TextPreeditState>>,
-    text_im_context: &Rc<gtk4::IMMulticontext>,
+    deps: EditorCanvasDrawDeps,
 ) {
     let Some(pixbuf) = editor_source_pixbuf else {
         return;
     };
-    let editor_tools = editor_tools.clone();
-    let tool_drag_preview = tool_drag_preview.clone();
-    let selected_object_ids = selected_object_ids.clone();
-    let pending_crop = pending_crop.clone();
-    let editor_input_mode = editor_input_mode.clone();
-    let text_preedit_state = text_preedit_state.clone();
-    let text_im_context = text_im_context.clone();
+    let EditorCanvasDrawDeps {
+        editor_tools,
+        tool_drag_preview,
+        selected_object_ids,
+        pending_crop,
+        editor_input_mode,
+        text_preedit_state,
+        text_im_context,
+    } = deps;
     let blur_render_cache = Rc::new(RefCell::new(BlurRenderCache::default()));
     let blur_render_cache_for_draw = blur_render_cache.clone();
     editor_canvas.set_draw_func(move |_, context, width, height| {
@@ -553,13 +562,15 @@ pub(super) fn render_editor_state(
             configure_editor_canvas_draw(
                 &editor_canvas,
                 editor_source_pixbuf.clone(),
-                &editor_tools,
-                &tool_drag_preview,
-                &selected_object_ids,
-                &pending_crop,
-                editor_input_mode,
-                &text_preedit_state,
-                &text_im_context,
+                EditorCanvasDrawDeps {
+                    editor_tools: editor_tools.clone(),
+                    tool_drag_preview: tool_drag_preview.clone(),
+                    selected_object_ids: selected_object_ids.clone(),
+                    pending_crop: pending_crop.clone(),
+                    editor_input_mode: editor_input_mode.clone(),
+                    text_preedit_state: text_preedit_state.clone(),
+                    text_im_context: text_im_context.clone(),
+                },
             );
             let editor_scroller = ScrolledWindow::new();
             editor_scroller.set_hexpand(true);

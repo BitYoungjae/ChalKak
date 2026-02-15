@@ -79,20 +79,13 @@ fn monitor_bounds_for_point(x: i32, y: i32) -> Option<preview::PreviewBounds> {
     fallback
 }
 
-fn intersection_area(
-    ax: i32,
-    ay: i32,
-    aw: i32,
-    ah: i32,
-    bx: i32,
-    by: i32,
-    bw: i32,
-    bh: i32,
-) -> i64 {
-    let left = ax.max(bx);
-    let right = ax.saturating_add(aw).min(bx.saturating_add(bw));
-    let top = ay.max(by);
-    let bottom = ay.saturating_add(ah).min(by.saturating_add(bh));
+fn intersection_area(a: preview::PreviewBounds, b: preview::PreviewBounds) -> i64 {
+    let left = a.x.max(b.x);
+    let right = a.x.saturating_add(a.width).min(b.x.saturating_add(b.width));
+    let top = a.y.max(b.y);
+    let bottom =
+        a.y.saturating_add(a.height)
+            .min(b.y.saturating_add(b.height));
     if right <= left || bottom <= top {
         return 0;
     }
@@ -125,36 +118,20 @@ fn clamp_window_geometry_to_bounds(
 ) -> Option<RuntimeWindowGeometry> {
     let width = window_geometry.width.max(1);
     let height = window_geometry.height.max(1);
+    let window_bounds = preview::PreviewBounds {
+        x: window_geometry.x,
+        y: window_geometry.y,
+        width,
+        height,
+    };
     let rect_center_x = window_geometry.x.saturating_add(width / 2);
     let rect_center_y = window_geometry.y.saturating_add(height / 2);
 
     let target_bounds = bounds
         .iter()
         .copied()
-        .max_by_key(|item| {
-            intersection_area(
-                window_geometry.x,
-                window_geometry.y,
-                width,
-                height,
-                item.x,
-                item.y,
-                item.width,
-                item.height,
-            )
-        })
-        .filter(|item| {
-            intersection_area(
-                window_geometry.x,
-                window_geometry.y,
-                width,
-                height,
-                item.x,
-                item.y,
-                item.width,
-                item.height,
-            ) > 0
-        })
+        .max_by_key(|item| intersection_area(window_bounds, *item))
+        .filter(|item| intersection_area(window_bounds, *item) > 0)
         .or_else(|| {
             bounds
                 .iter()
