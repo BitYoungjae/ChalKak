@@ -12,7 +12,32 @@ jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
+      - name: Check dependency graph status
+        id: dependency-graph
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              const { data } = await github.rest.repos.get(context.repo);
+              const status =
+                data.security_and_analysis?.dependency_graph?.status ?? "disabled";
+              core.info(`dependency_graph status: ${status}`);
+              core.setOutput("enabled", status === "enabled" ? "true" : "false");
+            } catch (error) {
+              core.warning(
+                `Unable to read dependency graph status: ${error.message}`
+              );
+              core.setOutput("enabled", "false");
+            }
+
       - name: Dependency review
+        if: steps.dependency-graph.outputs.enabled == 'true'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
+
+      - name: Dependency review skipped
+        if: steps.dependency-graph.outputs.enabled != 'true'
+        run: |
+          echo "::warning::Dependency graph is disabled or unavailable for this repository."
+          echo "::warning::Enable it in Settings > Security > Advanced Security > Dependency graph."
