@@ -10,7 +10,7 @@ Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보�
 
 ## 데모 영상
 
-<https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
+<https://github.com/user-attachments/assets/2d2ed794-f86e-4216-b5f1-7dcb513791d4>
 
 ## 사용자 가이드
 

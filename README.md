@@ -10,7 +10,7 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 
 ## Demo Video
 
-<https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
+<https://github.com/user-attachments/assets/2d2ed794-f86e-4216-b5f1-7dcb513791d4>
 
 ## User Guides
 
