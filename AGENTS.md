@@ -22,7 +22,7 @@
 ## Testing Guidelines
 - Add or update unit tests next to changed code with behavior-focused names (example: `capture_region_errors_when_selection_empty`).
 - Run `cargo test` locally before opening a PR.
-- For UI/runtime behavior changes, manually verify capture/peek flow, preview/editor interactions, keyboard navigation, and temp-file cleanup behavior.
+- For UI/runtime behavior changes, manually verify capture flow, preview/editor interactions, keyboard navigation, and temp-file cleanup behavior.
 
 ## Commit & Pull Request Guidelines
 - Git history uses concise gitmoji-style subjects (examples: `♻️ extract editor runtime module`, `🧩 add collapsible editor options panel`).

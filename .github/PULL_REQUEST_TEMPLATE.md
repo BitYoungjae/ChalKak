@@ -12,7 +12,7 @@
 - [ ] `cargo test`
 - [ ] `cargo fmt --check`
 - [ ] Manual verification (if behavior changed):
-  - [ ] Capture/peek flow
+  - [ ] Capture flow
   - [ ] Preview/editor behavior
   - [ ] Keyboard priority scenarios
   - [ ] Data lifecycle cleanup behavior
