@@ -953,32 +953,32 @@ pub(super) fn render_editor_state(
                 );
             }
             let viewport_fit_button = icon_button(
-                "zoom-fit-best-symbolic",
+                "scan-symbolic",
                 "Fit to window once (Shift+1)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
 
             let editor_undo_button = icon_button(
-                "edit-undo-symbolic",
+                "undo-2-symbolic",
                 "Undo (Ctrl+Z)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_redo_button = icon_button(
-                "edit-redo-symbolic",
+                "redo-2-symbolic",
                 "Redo (Ctrl+Shift+Z)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_save_button = icon_button(
-                "media-floppy-symbolic",
+                "save-symbolic",
                 "Save (Ctrl+S)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
             );
             let editor_copy_button = icon_button(
-                "edit-copy-symbolic",
+                "copy-symbolic",
                 "Copy (Ctrl+C)",
                 style_tokens.control_size as i32,
                 &["editor-action-button"],
@@ -990,7 +990,7 @@ pub(super) fn render_editor_state(
                 &["editor-action-button"],
             );
             let editor_close_button = icon_button(
-                "window-close-symbolic",
+                "x-symbolic",
                 "Close editor",
                 style_tokens.control_size as i32,
                 &["editor-action-button", "editor-close-button"],
@@ -1207,7 +1207,7 @@ pub(super) fn render_editor_state(
             collapsed_text_size_chip.set_size_request(34, 30);
             tool_options_collapsed_row.append(&collapsed_text_size_chip);
 
-            let tool_options_toggle = Button::from_icon_name("pan-down-symbolic");
+            let tool_options_toggle = Button::from_icon_name("chevron-down-symbolic");
             tool_options_toggle.set_focus_on_click(false);
             tool_options_toggle.set_size_request(30, 30);
             tool_options_toggle.set_hexpand(false);
@@ -1495,14 +1495,14 @@ pub(super) fn render_editor_state(
                     tool_options_collapsed_row.set_visible(collapsed);
                     if collapsed {
                         tool_options_bar.add_css_class("editor-options-collapsed");
-                        tool_options_toggle_for_click.set_icon_name("pan-up-symbolic");
+                        tool_options_toggle_for_click.set_icon_name("chevron-up-symbolic");
                         tool_options_toggle_for_click
                             .set_tooltip_text(Some("Expand tool options (O)"));
                         *status_log_for_render.borrow_mut() =
                             "editor tool options collapsed".to_string();
                     } else {
                         tool_options_bar.remove_css_class("editor-options-collapsed");
-                        tool_options_toggle_for_click.set_icon_name("pan-down-symbolic");
+                        tool_options_toggle_for_click.set_icon_name("chevron-down-symbolic");
                         tool_options_toggle_for_click
                             .set_tooltip_text(Some("Collapse tool options (O)"));
                         *status_log_for_render.borrow_mut() =

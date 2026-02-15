@@ -13,18 +13,18 @@ pub(in crate::app::editor_runtime) fn connect_editor_output_button(
 }
 
 pub(in crate::app::editor_runtime) const EDITOR_TOOLBAR_ENTRIES: [(ToolKind, &str, &str); 8] = [
-    (
-        ToolKind::Select,
-        "ui-cursor-location-symbolic",
-        "Select (V)",
-    ),
-    (ToolKind::Pan, "tool-pan-symbolic", "Pan (H)"),
-    (ToolKind::Blur, "eye-not-looking-symbolic", "Blur (B)"),
+    (ToolKind::Select, "mouse-pointer-symbolic", "Select (V)"),
+    (ToolKind::Pan, "hand-symbolic", "Pan (H)"),
+    (ToolKind::Blur, "eye-off-symbolic", "Blur (B)"),
     (ToolKind::Pen, EDITOR_PEN_ICON_NAME, "Pen (P)"),
-    (ToolKind::Arrow, "go-next-symbolic", "Arrow (A)"),
-    (ToolKind::Rectangle, "checkbox-symbolic", "Rectangle (R)"),
+    (ToolKind::Arrow, "arrow-up-right-symbolic", "Arrow (A)"),
+    (
+        ToolKind::Rectangle,
+        "rectangle-horizontal-symbolic",
+        "Rectangle (R)",
+    ),
     (ToolKind::Crop, "crop-symbolic", "Crop (C)"),
-    (ToolKind::Text, "insert-text-symbolic", "Text (T)"),
+    (ToolKind::Text, "case-sensitive-symbolic", "Text (T)"),
 ];
 
 pub(in crate::app::editor_runtime) fn connect_tool_button_selection(

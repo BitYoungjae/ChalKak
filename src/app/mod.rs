@@ -1,6 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::Once;
 use std::time::Duration;
 
 use crate::capture;
@@ -57,8 +58,9 @@ use self::preview_runtime::*;
 use self::runtime_support::*;
 
 const UI_TICK_INTERVAL: Duration = Duration::from_millis(100);
-const EDITOR_PEN_ICON_NAME: &str = "edit-symbolic";
-const AI_REFERENCE_ICON_NAME: &str = "applications-science-symbolic";
+const EDITOR_PEN_ICON_NAME: &str = "pencil-symbolic";
+const AI_REFERENCE_ICON_NAME: &str = "bot-symbolic";
+const LUCIDE_ICON_RESOURCE_PATH: &str = "/com/github/bityoungjae/chalkak/icons/hicolor";
 type ToolOptionsRefresh = Rc<dyn Fn(ToolKind)>;
 type ToolOptionsRefreshSlot = RefCell<Option<ToolOptionsRefresh>>;
 type SharedToolOptionsRefresh = Rc<ToolOptionsRefreshSlot>;
@@ -243,6 +245,31 @@ fn icon_button(
     }
     button.set_size_request(control_size, control_size);
     button
+}
+
+fn install_lucide_icon_theme() {
+    static ICON_THEME_SETUP: Once = Once::new();
+
+    ICON_THEME_SETUP.call_once(|| {
+        if let Err(err) = gtk4::gio::resources_register_include!("chalkak.gresource") {
+            tracing::error!(?err, "failed to register bundled Lucide icon resources");
+            return;
+        }
+
+        let Some(display) = gtk4::gdk::Display::default() else {
+            tracing::warn!("failed to initialize Lucide icon theme; no display available");
+            return;
+        };
+
+        let icon_theme = gtk4::IconTheme::for_display(&display);
+        icon_theme.add_resource_path(LUCIDE_ICON_RESOURCE_PATH);
+        tracing::debug!(
+            pin = icon_theme.has_icon("pin-symbolic"),
+            copy = icon_theme.has_icon("copy-symbolic"),
+            save = icon_theme.has_icon("save-symbolic"),
+            "registered bundled Lucide icon resource path"
+        );
+    });
 }
 
 fn icon_toggle_button(
@@ -911,6 +938,7 @@ impl App {
                 tracing::debug!("ignoring duplicate gtk activate signal");
                 return;
             }
+            install_lucide_icon_theme();
             let headless_hold_guard =
                 Rc::new(RefCell::new(None::<gtk4::gio::ApplicationHoldGuard>));
             let startup_capture_completed = Rc::new(Cell::new(!headless_startup_capture));

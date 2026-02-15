@@ -335,7 +335,7 @@ fn build_preview_controls(
     top_controls_wrap.set_hexpand(true);
 
     let preview_pin_toggle = icon_toggle_button(
-        "view-pin-symbolic",
+        "pin-off-symbolic",
         "Pin preview window",
         context.style_tokens.control_size as i32,
         &["preview-pin-toggle", "preview-round-button"],
@@ -346,7 +346,7 @@ fn build_preview_controls(
     top_center_actions.add_css_class("preview-action-group");
 
     let preview_copy_button = icon_button(
-        "edit-copy-symbolic",
+        "copy-symbolic",
         "Copy image to clipboard",
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
@@ -359,7 +359,7 @@ fn build_preview_controls(
     );
 
     let preview_save_button = icon_button(
-        "media-floppy-symbolic",
+        "save-symbolic",
         "Save image",
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
@@ -378,7 +378,7 @@ fn build_preview_controls(
     top_center_actions.append(&preview_edit_button);
 
     let preview_close_button = icon_button(
-        "window-close-symbolic",
+        "x-symbolic",
         "Close preview",
         context.style_tokens.control_size as i32,
         &[
