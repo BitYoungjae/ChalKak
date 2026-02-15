@@ -23,12 +23,12 @@ If you want quick screenshots with optional annotation and strong keyboard contr
 
 ChalKak expects a Wayland + Hyprland session.
 
-Required runtime commands:
+Runtime commands used by capture/clipboard features:
 
 - `hyprctl`
 - `grim`
 - `slurp`
-- `wl-copy` (from `wl-clipboard`)
+- `wl-copy` (from `wl-clipboard`, used by image-byte clipboard paths)
 
 Environment assumptions:
 
@@ -83,7 +83,7 @@ Use this path for your first run:
 2. Trigger a capture from launchpad or keybinding.
 3. In Preview, verify content and decide next action.
 4. Press `e` to open Editor if you need annotation.
-5. Save with `Ctrl+S` or copy with `Ctrl+C`.
+5. Save from Preview with `s`, or open Editor and then use `Ctrl+S` / `Ctrl+C`.
 
 ## 5. Preview Stage
 
@@ -92,7 +92,8 @@ Preview is where you confirm the capture before final output.
 Default preview keys:
 
 - `s`: save image to file.
-- `c`: copy image to clipboard.
+- `c`: copy to clipboard (`image/png` + file path/link; paste result depends on target app).
+- `u`: alias of `c`.
 - `e`: open Editor.
 - `Delete`: discard capture.
 - `Esc`: close preview.
@@ -104,7 +105,7 @@ Use Preview as a safety gate to avoid saving wrong shots.
 Default editor keys:
 
 - `Ctrl+S`: save output image.
-- `Ctrl+C`: copy output image.
+- `Ctrl+C`: copy to clipboard (`image/png` + file path/link; paste result depends on target app).
 - `Ctrl+Z`: undo.
 - `Ctrl+Shift+Z`: redo.
 - `Delete` / `Backspace`: delete selected object.
@@ -124,7 +125,7 @@ Tool shortcuts:
 
 Text editing keys:
 
-- `Enter`: newline
+- `Enter` / `Shift+Enter`: newline
 - `Ctrl+Enter`: commit text
 - `Ctrl+C`: copy selected text
 - `Esc`: exit text editing focus
@@ -254,14 +255,16 @@ Notes:
 - `mode` values: `system`, `light`, `dark`.
 - `colors.light` and `colors.dark` can be partial.
 - Missing values are filled from built-in defaults.
+- `editor.default_tool_color` accepts `RRGGBB` or `#RRGGBB`.
 - `editor.tool_color_palette` accepts a list of hex colors in strict `#RRGGBB` format for option chips (`RRGGBB` without `#` is ignored).
 - Selection visuals in the editor can be customized with `editor.selection_drag_fill_color`, `editor.selection_drag_stroke_color`, `editor.selection_outline_color`, and `editor.selection_handle_color`.
 - Selection color fields accept strict `#RRGGBB` or `#RRGGBBAA` format.
 - Built-in defaults for selection visuals are mode-aware: light mode uses deep neutral graphite tones, while dark mode uses bright neutral zinc tones (and `system` follows the resolved runtime mode).
 - `editor` is the shared baseline for all modes. `editor_modes.dark` and `editor_modes.light` can override only the fields you want for each mode.
 - `editor.stroke_width_presets` and `editor.text_size_presets` drive popup option chip lists.
-- Each preset list accepts up to 6 items; extras are ignored.
-- Preset order is preserved; duplicates or out-of-range values are ignored.
+- `editor.stroke_width_presets` values must be in `1..=64`; `editor.text_size_presets` values must be in `8..=160`.
+- Each preset list accepts up to 6 unique items; extras are ignored.
+- Invalid or duplicate preset/color values are ignored with warnings in logs.
 
 ### 9.2 `keybindings.json`
 
@@ -283,8 +286,10 @@ Example:
 Notes:
 
 - `zoom_scroll_modifier` values: `none`, `control`, `shift`, `alt`, `super`.
+- `pan_hold_key` and shortcut key names are normalized, so aliases like `ctrl`/`control`, `cmd`/`command`/`win` (for `super`) are accepted.
+- Each shortcut chord must include exactly one non-modifier key (for example `ctrl+plus`).
 - Do not set shortcut arrays to empty lists.
-- Key names are normalized, so common modifier aliases (`ctrl`, `control`, `cmd`, `super`) are accepted.
+- If `keybindings.json` is invalid, ChalKak logs a warning and falls back to built-in defaults.
 
 ## 10. Wire ChalKak to Hyprland Keybindings
 
@@ -368,12 +373,14 @@ What to do:
 
 Likely cause:
 
-- `wl-copy` missing or failing.
+- For image-byte copy paths: `wl-copy` missing or failing.
+- For multi-format copy paths (Preview `c`/`u`, Editor `Ctrl+C`): Wayland/GTK clipboard display unavailable, unreadable temp file, or file-URI conversion failure.
 
 What to do:
 
 1. Check `wl-copy --help`.
 2. Verify `wl-clipboard` package is installed.
+3. Ensure you are in a live Wayland GUI session and retry.
 
 ### Symptom: save fails
 
@@ -391,12 +398,14 @@ What to do:
 
 Likely cause:
 
-- `XDG_RUNTIME_DIR` missing (so fallback path `/tmp/chalkak/` is used), or stale temp files in your runtime directory.
+- Session cleanup did not run (for example force-kill/crash), or stale temp files remained from previous runs.
+- `XDG_RUNTIME_DIR` missing (so fallback path `/tmp/chalkak/` is used).
 
 What to do:
 
 1. Set `XDG_RUNTIME_DIR` in your login environment.
-2. Remove stale `capture_*.png` files from `$XDG_RUNTIME_DIR` (or `/tmp/chalkak` if fallback is active).
+2. Close previews/editors normally when possible (ChalKak removes per-capture temp files on close/delete and also prunes stale `capture_*.png` files at startup).
+3. If stale files still remain, remove `capture_*.png` files from `$XDG_RUNTIME_DIR` (or `/tmp/chalkak` if fallback is active).
 
 ## 13. Practical Workflow Presets
 
@@ -404,7 +413,7 @@ What to do:
 
 1. Run `chalkak --region`.
 2. Select area.
-3. Press `c` in Preview.
+3. Press `c` in Preview to copy to clipboard.
 
 ### Documentation screenshot with annotation
 

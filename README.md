@@ -24,7 +24,7 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 ## Highlights
 
 - Capture modes: fullscreen, region, and window.
-- Preview stage before final action (save, copy, edit, delete).
+- Preview stage before final action (save, copy image, copy file reference, edit, delete).
 - Built-in editor tools: select, pan, blur, pen, arrow, rectangle, crop, text.
 - Keyboard-centric workflow across preview and editor.
 - Configurable theme and editor navigation keybindings.
@@ -48,15 +48,17 @@ Environment assumptions:
 
 ## Install
 
-### AUR (planned)
+### AUR
 
-This project is prepared for an AUR package named `chalkak`.
+This repository includes AUR packaging metadata for `chalkak` in `PKGBUILD` and `.SRCINFO`.
 
-When published, install with your AUR helper, for example:
+Install with your AUR helper, for example:
 
 ```bash
 yay -S chalkak
 ```
+
+If the published AUR package is behind the current crate release, use the source build path below.
 
 ### Build from source
 
@@ -68,11 +70,13 @@ cargo run
 
 ## Usage
 
-Basic launch:
+Launchpad UI:
 
 ```bash
-chalkak
+chalkak --launchpad
 ```
+
+Running `chalkak` with no flags starts and exits immediately.
 
 Startup flags:
 
@@ -85,15 +89,16 @@ Typical flow:
 
 1. Capture (`full`, `region`, `window`).
 2. Preview the capture.
-3. Save/copy/delete, or open editor.
-4. Annotate in editor, then save/copy.
+3. Save/copy image/copy file reference/delete, or open editor.
+4. Annotate in editor, then save/copy image/copy file reference.
 
 ## Keybindings
 
 Preview:
 
 - `s`: save
-- `c`: copy
+- `c`: copy image
+- `u`: copy file reference
 - `e`: open editor
 - `Delete`: delete capture
 - `Esc`: close preview
@@ -107,6 +112,8 @@ Editor:
 - `Delete` / `Backspace`: delete selection
 - `o`: toggle tool options panel
 - `Esc`: select tool, or close editor when already in select mode
+
+Preview and editor action buttons also support copying a file reference for the current image.
 
 Tool shortcuts:
 
@@ -183,7 +190,17 @@ Current module layout:
 
 ## AUR Packaging Notes (for maintainers)
 
-Suggested `PKGBUILD` dependency baseline:
+`PKGBUILD` and `.SRCINFO` are committed in this repository.
+
+When releasing a new version:
+
+1. Match `PKGBUILD` `pkgver` to `Cargo.toml` `version`.
+2. Reset `pkgrel=1` when `pkgver` changes.
+3. Update `source` to `.../archive/refs/tags/vX.Y.Z.tar.gz`.
+4. Refresh checksums with `updpkgsums`.
+5. Regenerate `.SRCINFO` with `makepkg --printsrcinfo > .SRCINFO`.
+
+Dependency baseline:
 
 - `depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')`
 - `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')`

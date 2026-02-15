@@ -23,12 +23,12 @@ ChalKak은 다음 흐름에 최적화되어 있습니다.
 
 ChalKak은 Wayland + Hyprland 세션을 전제로 합니다.
 
-필수 런타임 명령:
+캡처/클립보드 기능에서 사용하는 런타임 명령:
 
 - `hyprctl`
 - `grim`
 - `slurp`
-- `wl-copy` (`wl-clipboard` 패키지)
+- `wl-copy` (`wl-clipboard` 패키지, 이미지 바이트 복사 경로에서 사용)
 
 환경 변수 전제:
 
@@ -83,7 +83,7 @@ cargo run -- --launchpad
 2. 런치패드 또는 단축키로 캡처 실행
 3. 미리보기에서 결과 확인
 4. 편집이 필요하면 `e`로 편집기 열기
-5. `Ctrl+S` 저장 또는 `Ctrl+C` 복사
+5. 미리보기에서는 `s`로 저장하거나, 편집기에서 `Ctrl+S` / `Ctrl+C` 사용
 
 ## 5. 미리보기 단계 사용법
 
@@ -92,7 +92,8 @@ cargo run -- --launchpad
 기본 단축키:
 
 - `s`: 파일로 저장
-- `c`: 클립보드 복사
+- `c`: 클립보드로 복사 (`image/png` + 파일 경로/링크, 붙여넣기 결과는 앱마다 다를 수 있음)
+- `u`: `c`와 동일
 - `e`: 편집기 열기
 - `Delete`: 캡처 폐기
 - `Esc`: 미리보기 닫기
@@ -104,7 +105,7 @@ cargo run -- --launchpad
 편집기 기본 단축키:
 
 - `Ctrl+S`: 결과 이미지 저장
-- `Ctrl+C`: 결과 이미지 복사
+- `Ctrl+C`: 클립보드로 복사 (`image/png` + 파일 경로/링크, 붙여넣기 결과는 앱마다 다를 수 있음)
 - `Ctrl+Z`: 실행 취소
 - `Ctrl+Shift+Z`: 다시 실행
 - `Delete` / `Backspace`: 선택 객체 삭제
@@ -124,7 +125,7 @@ cargo run -- --launchpad
 
 텍스트 편집 단축키:
 
-- `Enter`: 줄바꿈
+- `Enter` / `Shift+Enter`: 줄바꿈
 - `Ctrl+Enter`: 텍스트 확정
 - `Ctrl+C`: 선택된 텍스트 복사
 - `Esc`: 텍스트 편집 포커스 종료
@@ -254,14 +255,16 @@ cargo run -- --launchpad
 - `mode` 값: `system`, `light`, `dark`
 - `colors.light`, `colors.dark`는 필요한 항목만 부분 지정 가능
 - 누락된 값은 기본 테마 값으로 보완됨
+- `editor.default_tool_color`는 `RRGGBB` 또는 `#RRGGBB` 형식을 허용
 - `editor.tool_color_palette`는 옵션 칩용 HEX 컬러를 엄격한 `#RRGGBB` 형식으로 받음 (`#` 없는 `RRGGBB`는 무시됨)
 - 에디터 선택 UI 색상은 `editor.selection_drag_fill_color`, `editor.selection_drag_stroke_color`, `editor.selection_outline_color`, `editor.selection_handle_color`로 조정 가능
 - 선택 색상 필드는 `#RRGGBB` 또는 `#RRGGBBAA` 형식만 허용
 - 선택 UI 기본값은 모드별로 다르게 적용됨: 라이트 모드는 진한 뉴트럴(그래파이트), 다크 모드는 밝은 뉴트럴(징크) 톤 (`system`은 런타임에서 해석된 모드를 따름)
 - `editor`는 모든 모드에 공통으로 적용되는 기본값이고, `editor_modes.dark`/`editor_modes.light`에서 필요한 필드만 모드별로 덮어쓸 수 있음
 - `editor.stroke_width_presets`, `editor.text_size_presets`는 팝업 옵션 칩 목록을 제어함
-- 각 preset 목록은 최대 6개까지만 반영되고 초과 항목은 무시됨
-- preset 순서는 유지되며, 중복/범위 밖 값은 무시됨
+- `editor.stroke_width_presets`는 `1..=64`, `editor.text_size_presets`는 `8..=160` 범위만 허용
+- 각 preset 목록은 최대 6개의 고유 값만 반영되고 초과 항목은 무시됨
+- 잘못된 값/중복 값은 로그 경고와 함께 무시됨
 
 ### 9.2 `keybindings.json`
 
@@ -283,8 +286,10 @@ cargo run -- --launchpad
 메모:
 
 - `zoom_scroll_modifier` 값: `none`, `control`, `shift`, `alt`, `super`
+- `pan_hold_key`와 단축키 키 이름은 정규화되어 `ctrl`/`control`, `cmd`/`command`/`win`(`super`) 같은 별칭이 인식됨
+- 각 단축키 조합은 수정자 키 외에 메인 키를 정확히 1개 포함해야 함 (예: `ctrl+plus`)
 - 단축키 배열을 빈 리스트(`[]`)로 두면 오류가 발생함
-- 수정자 키 별칭(`ctrl`, `control`, `cmd`, `super`)은 정규화되어 인식됨
+- `keybindings.json` 파싱이 실패하면 경고 로그를 남기고 기본값으로 폴백함
 
 ## 10. Hyprland 키바인딩으로 ChalKak 연결하기
 
@@ -370,12 +375,14 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 
 가능 원인:
 
-- `wl-copy` 누락 또는 실행 실패
+- 이미지 바이트 복사 경로에서 `wl-copy` 누락 또는 실행 실패
+- 멀티 포맷 복사 경로(미리보기 `c`/`u`, 편집기 `Ctrl+C`)에서 Wayland/GTK 클립보드 디스플레이 접근 실패, 임시 파일 읽기 실패, 파일 URI 변환 실패
 
 해결:
 
 1. `wl-copy --help` 확인
 2. `wl-clipboard` 패키지 설치 여부 확인
+3. Wayland GUI 세션에서 실행 중인지 확인 후 재시도
 
 ### 증상: 저장 실패
 
@@ -393,12 +400,14 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 
 가능 원인:
 
-- `XDG_RUNTIME_DIR` 미설정으로 `/tmp/chalkak/` fallback 사용, 또는 런타임 디렉터리의 임시 파일 누적
+- 정상 종료/정리 경로를 타지 못함(강제 종료/크래시 등)으로 이전 임시 파일이 남음
+- `XDG_RUNTIME_DIR` 미설정으로 `/tmp/chalkak/` fallback 사용
 
 해결:
 
 1. 로그인 환경에 `XDG_RUNTIME_DIR` 설정
-2. `$XDG_RUNTIME_DIR` (fallback 사용 시 `/tmp/chalkak`)의 오래된 `capture_*.png` 파일 정리
+2. 가능하면 미리보기/편집기를 정상 종료(ChalKak은 닫기/삭제 시 캡처 임시 파일을 정리하고, 시작 시 오래된 `capture_*.png`를 자동 정리함)
+3. 그래도 남아 있으면 `$XDG_RUNTIME_DIR` (fallback 사용 시 `/tmp/chalkak`)의 오래된 `capture_*.png` 파일 정리
 
 ## 13. 작업 목적별 추천 흐름
 
@@ -406,7 +415,7 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 
 1. `chalkak --region` 실행
 2. 영역 선택
-3. 미리보기에서 `c`로 즉시 복사
+3. 미리보기에서 `c`로 클립보드 복사
 
 ### 문서용 주석 캡처
 
