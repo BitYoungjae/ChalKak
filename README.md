@@ -153,6 +153,31 @@ Files:
 - `theme.json`
 - `keybindings.json`
 
+`theme.json` (summary):
+
+- `mode`: `system`, `light`, `dark`
+- `colors`: supports shared + per-mode overrides
+- `colors.common` + `colors.dark` + `colors.light`
+- `editor`: supports shared + per-mode overrides
+- `editor.common` + `editor.dark` + `editor.light`
+- all objects can be partial; missing fields fall back to built-in defaults
+- merge order:
+- `built-in defaults -> common -> current mode`
+- `system` follows runtime desktop preference and falls back to dark when unavailable
+- legacy schema is still supported:
+- shared flat `editor` + `editor_modes.dark/light`
+- if both legacy and new keys are present, precedence is:
+- `editor(flat) -> editor.common -> editor_modes.<mode> -> editor.<mode>`
+- editor preset constraints:
+- `stroke_width_presets`: `1..=64`
+- `text_size_presets`: `8..=160`
+- each preset list: up to 6 unique items
+
+For full examples and field-by-field details, see:
+
+- `docs/USER_GUIDE.md`
+- `docs/USER_GUIDE.ko.md`
+
 Temporary captures:
 
 - `$XDG_RUNTIME_DIR/`

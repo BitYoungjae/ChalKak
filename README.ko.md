@@ -153,6 +153,31 @@ chalkak --launchpad
 - `theme.json`
 - `keybindings.json`
 
+`theme.json` 요약:
+
+- `mode`: `system`, `light`, `dark`
+- `colors`: 공통값 + 모드별 덮어쓰기 지원
+- `colors.common` + `colors.dark` + `colors.light`
+- `editor`: 공통값 + 모드별 덮어쓰기 지원
+- `editor.common` + `editor.dark` + `editor.light`
+- 각 객체는 부분 지정 가능하며 누락된 값은 내장 기본값으로 보완
+- 병합 순서:
+- `내장 기본값 -> common -> 현재 모드`
+- `system`은 런타임 데스크톱 설정을 따르며, 감지 불가 시 dark로 폴백
+- 레거시 스키마도 계속 지원:
+- 공통값 flat `editor` + 모드별 `editor_modes.dark/light`
+- 레거시/신규 키를 함께 쓰면 우선순위:
+- `editor(flat) -> editor.common -> editor_modes.<mode> -> editor.<mode>`
+- editor preset 제약:
+- `stroke_width_presets`: `1..=64`
+- `text_size_presets`: `8..=160`
+- 각 preset 리스트: 최대 6개 고유 값
+
+전체 예시와 필드별 상세 설명은:
+
+- `docs/USER_GUIDE.md`
+- `docs/USER_GUIDE.ko.md`
+
 임시 캡처 저장 경로:
 
 - `$XDG_RUNTIME_DIR/`

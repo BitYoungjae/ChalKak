@@ -8,6 +8,21 @@
 
 <https://github.com/user-attachments/assets/4e3a4de2-10b0-4131-ab49-983f3b0ceb50>
 
+## 시작 가이드 (대부분 사용자)
+
+처음 설정이라면 아래만 먼저 진행하세요.
+
+1. 설치 후 `which chalkak`으로 실행 파일 경로 확인
+2. 9.3의 Print 키 프리셋을 그대로 복사/붙여넣기
+3. 9.5의 명령으로 리로드/검증
+4. `chalkak --launchpad` 실행 후, 일상 사용은 5장/6장 중심으로 사용
+
+고급 커스터마이징은 지금은 건너뛰어도 됩니다.
+
+- 선택: 편집기 네비게이션 덮어쓰기 (`keybindings.json`)는 14.2
+- 선택: 테마 커스터마이징 (`theme.json`)은 14.1
+- 선택: Print 외 프리셋은 9.4
+
 ## 1. ChalKak이 잘 맞는 사용 방식
 
 ChalKak은 다음 흐름에 최적화되어 있습니다.
@@ -18,6 +33,8 @@ ChalKak은 다음 흐름에 최적화되어 있습니다.
 4. 편집 후 저장/복사.
 
 빠른 캡처와 주석 편집을 키보드 중심으로 처리하고 싶다면 이 흐름이 가장 효율적입니다.
+
+실전에서는 에이전틱 코딩 워크플로우에도 잘 맞습니다. 특정 영역을 캡처하고 필요한 주석을 넣은 뒤, 클립보드 이미지 붙여넣기를 지원하는 도구(예: Codex CLI, Claude Code 등, 클라이언트 지원 여부에 따라 다름)에 바로 전달할 수 있습니다. 많은 스크린샷 도구는 저장 또는 수동 첨부 단계를 먼저 요구합니다.
 
 ## 2. 실행 전 준비
 
@@ -75,6 +92,72 @@ cargo run -- --launchpad
 
 캡처 플래그를 여러 개 주면 마지막 플래그가 적용됩니다.
 
+### 빠른 셋업 체크리스트 (권장)
+
+초기 설정을 단순하게 끝내려면 아래 순서를 권장합니다.
+
+1. 런타임 도구와 실행 파일 경로 확인:
+
+```bash
+hyprctl version
+grim -h
+slurp -h
+wl-copy --help
+which chalkak
+```
+
+1. 선택: 편집기 네비게이션 키를 바꾸고 싶을 때만 `keybindings.json`을 만드세요.
+
+기본값을 그대로 쓸 경우 이 단계는 건너뛰면 됩니다. (파일이 없으면 ChalKak 기본값을 사용합니다.)
+
+```bash
+mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak"
+cat > "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json" <<'JSON'
+{
+  "editor_navigation": {
+    "pan_hold_key": "space",
+    "zoom_scroll_modifier": "control",
+    "zoom_in_shortcuts": ["ctrl+plus", "ctrl+equal", "ctrl+kp_add"],
+    "zoom_out_shortcuts": ["ctrl+minus", "ctrl+underscore", "ctrl+kp_subtract"],
+    "actual_size_shortcuts": ["ctrl+0", "ctrl+kp_0"],
+    "fit_shortcuts": ["shift+1"]
+  }
+}
+JSON
+```
+
+1. Hyprland 바인딩은 전용 drop-in 파일(`~/.config/hypr/chalkak.conf`)에 모으고, 메인 설정에서 `source`를 1회만 연결:
+
+```conf
+source = ~/.config/hypr/chalkak.conf
+```
+
+1. 키 조합 문법을 직접 쓰지 않도록, 권장 Print 프리셋을 그대로 적용:
+
+```bash
+CHALKAK_BIN="$(command -v chalkak)"
+mkdir -p "$HOME/.config/hypr"
+cat > "$HOME/.config/hypr/chalkak.conf" <<EOF
+# ChalKak screenshot bindings (recommended: Print-based)
+unbind = , Print
+unbind = SHIFT, Print
+unbind = CTRL, Print
+bindd = , Print, ChalKak region capture, exec, ${CHALKAK_BIN} --capture-region
+bindd = SHIFT, Print, ChalKak window capture, exec, ${CHALKAK_BIN} --capture-window
+bindd = CTRL, Print, ChalKak full capture, exec, ${CHALKAK_BIN} --capture-full
+EOF
+```
+
+1. 검증 후 리로드:
+
+```bash
+if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json" ]; then
+  jq empty "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json"
+fi
+hyprctl reload
+hyprctl binds -j | jq -r '.[] | select(.description|test("ChalKak")) | [.description,.arg] | @tsv'
+```
+
 ## 4. 첫 사용 권장 순서
 
 처음에는 아래 순서로 익히는 것을 권장합니다.
@@ -92,7 +175,7 @@ cargo run -- --launchpad
 기본 단축키:
 
 - `s`: 파일로 저장
-- `c`: 클립보드로 복사 (`image/png` + 파일 경로/링크, 붙여넣기 결과는 앱마다 다를 수 있음)
+- `c`: 클립보드로 복사 (`image/png` + 파일 경로/링크, 붙여넣기 결과는 앱마다 다를 수 있음). 클립보드 이미지 붙여넣기를 지원하는 코딩 에이전트로 컨텍스트를 보낼 때 유용함
 - `u`: `c`와 동일
 - `e`: 편집기 열기
 - `Delete`: 캡처 폐기
@@ -105,7 +188,7 @@ cargo run -- --launchpad
 편집기 기본 단축키:
 
 - `Ctrl+S`: 결과 이미지 저장
-- `Ctrl+C`: 클립보드로 복사 (`image/png` + 파일 경로/링크, 붙여넣기 결과는 앱마다 다를 수 있음)
+- `Ctrl+C`: 클립보드로 복사 (`image/png` + 파일 경로/링크, 붙여넣기 결과는 앱마다 다를 수 있음). 클립보드 이미지 붙여넣기를 지원하는 코딩 에이전트로 컨텍스트를 보낼 때 유용함
 - `Ctrl+Z`: 실행 취소
 - `Ctrl+Shift+Z`: 다시 실행
 - `Delete` / `Backspace`: 선택 객체 삭제
@@ -188,114 +271,13 @@ cargo run -- --launchpad
 - 실제 크기: `Ctrl+0`, `Ctrl+KP_0`
 - 화면 맞춤: `Shift+1`
 
-## 9. 설정 파일
+## 9. Hyprland 키바인딩으로 ChalKak 연결하기 (권장 기본 설정)
 
-설정 디렉터리:
-
-- `$XDG_CONFIG_HOME/chalkak/`
-- fallback: `$HOME/.config/chalkak/`
-
-파일:
-
-- `theme.json`
-- `keybindings.json`
-
-### 9.1 `theme.json`
-
-최소 예시:
-
-```json
-{
-  "mode": "system"
-}
-```
-
-확장 예시:
-
-```json
-{
-  "mode": "dark",
-  "colors": {
-    "dark": {
-      "focus_ring_color": "#8cc2ff",
-      "border_color": "#2e3a46",
-      "panel_background": "#10151b",
-      "canvas_background": "#0b0f14",
-      "text_color": "#e7edf5",
-      "accent_gradient": "linear-gradient(135deg, #6aa3ff, #8ee3ff)",
-      "accent_text_color": "#07121f"
-    }
-  },
-  "editor": {
-    "rectangle_border_radius": 10,
-    "selection_drag_fill_color": "#2B63FF1F",
-    "selection_drag_stroke_color": "#2B63FFE0",
-    "selection_outline_color": "#2B63FFE6",
-    "selection_handle_color": "#2B63FFF2",
-    "default_tool_color": "#ff6b6b",
-    "default_text_size": 18,
-    "default_stroke_width": 3,
-    "tool_color_palette": ["#ff6b6b", "#ffd166", "#3a86ff", "#06d6a0"],
-    "stroke_width_presets": [2, 4, 8, 12],
-    "text_size_presets": [14, 18, 24, 32]
-  },
-  "editor_modes": {
-    "dark": {
-      "default_tool_color": "#f4f4f5"
-    },
-    "light": {
-      "default_tool_color": "#18181b"
-    }
-  }
-}
-```
-
-메모:
-
-- `mode` 값: `system`, `light`, `dark`
-- `colors.light`, `colors.dark`는 필요한 항목만 부분 지정 가능
-- 누락된 값은 기본 테마 값으로 보완됨
-- `editor.default_tool_color`는 `RRGGBB` 또는 `#RRGGBB` 형식을 허용
-- `editor.tool_color_palette`는 옵션 칩용 HEX 컬러를 엄격한 `#RRGGBB` 형식으로 받음 (`#` 없는 `RRGGBB`는 무시됨)
-- 에디터 선택 UI 색상은 `editor.selection_drag_fill_color`, `editor.selection_drag_stroke_color`, `editor.selection_outline_color`, `editor.selection_handle_color`로 조정 가능
-- 선택 색상 필드는 `#RRGGBB` 또는 `#RRGGBBAA` 형식만 허용
-- 선택 UI 기본값은 모드별로 다르게 적용됨: 라이트 모드는 진한 뉴트럴(그래파이트), 다크 모드는 밝은 뉴트럴(징크) 톤 (`system`은 런타임에서 해석된 모드를 따름)
-- `editor`는 모든 모드에 공통으로 적용되는 기본값이고, `editor_modes.dark`/`editor_modes.light`에서 필요한 필드만 모드별로 덮어쓸 수 있음
-- `editor.stroke_width_presets`, `editor.text_size_presets`는 팝업 옵션 칩 목록을 제어함
-- `editor.stroke_width_presets`는 `1..=64`, `editor.text_size_presets`는 `8..=160` 범위만 허용
-- 각 preset 목록은 최대 6개의 고유 값만 반영되고 초과 항목은 무시됨
-- 잘못된 값/중복 값은 로그 경고와 함께 무시됨
-
-### 9.2 `keybindings.json`
-
-예시:
-
-```json
-{
-  "editor_navigation": {
-    "pan_hold_key": "space",
-    "zoom_scroll_modifier": "control",
-    "zoom_in_shortcuts": ["ctrl+plus", "ctrl+equal", "ctrl+kp_add"],
-    "zoom_out_shortcuts": ["ctrl+minus", "ctrl+underscore", "ctrl+kp_subtract"],
-    "actual_size_shortcuts": ["ctrl+0", "ctrl+kp_0"],
-    "fit_shortcuts": ["shift+1"]
-  }
-}
-```
-
-메모:
-
-- `zoom_scroll_modifier` 값: `none`, `control`, `shift`, `alt`, `super`
-- `pan_hold_key`와 단축키 키 이름은 정규화되어 `ctrl`/`control`, `cmd`/`command`/`win`(`super`) 같은 별칭이 인식됨
-- 각 단축키 조합은 수정자 키 외에 메인 키를 정확히 1개 포함해야 함 (예: `ctrl+plus`)
-- 단축키 배열을 빈 리스트(`[]`)로 두면 오류가 발생함
-- `keybindings.json` 파싱이 실패하면 경고 로그를 남기고 기본값으로 폴백함
-
-## 10. Hyprland 키바인딩으로 ChalKak 연결하기
+설치 후 대부분 사용자는 이 섹션만 설정하면 충분합니다.
 
 Omarchy/Hyprland에서 자주 쓰는 캡처를 즉시 실행하려면 Hyprland 바인딩에 ChalKak 명령을 직접 연결하세요.
 
-### 10.1 실행 파일 경로 확인
+### 9.1 실행 파일 경로 확인
 
 먼저 현재 설치 기준 실행 경로를 확인합니다.
 
@@ -308,12 +290,55 @@ which chalkak
 
 이 경로가 실제 바인딩에서 실행될 경로와 일치해야 합니다.
 
-### 10.2 `bindings.conf`에 바인딩 추가
+### 9.2 `source` 한 줄만 먼저 연결
 
-`~/.config/hypr/bindings.conf`에 아래처럼 추가합니다.
+메인 Hyprland 설정(보통 `~/.config/hypr/hyprland.conf`)에 아래 한 줄을 유지하세요.
 
 ```conf
-# ChalKak screenshot bindings (Option = ALT)
+source = ~/.config/hypr/chalkak.conf
+```
+
+이미 `bindings.conf` 같은 파일을 source 중이라면 그 파일에 같은 `source` 줄을 넣어도 됩니다.
+
+### 9.3 빠른 시작: 권장 프리셋 그대로 사용
+
+키 조합 문법 자체가 부담스럽다면, `~/.config/hypr/chalkak.conf`에 아래를 그대로 붙여 넣으세요.
+
+```conf
+# ChalKak screenshot bindings (recommended: Print-based)
+unbind = , Print
+unbind = SHIFT, Print
+unbind = CTRL, Print
+bindd = , Print, ChalKak region capture, exec, /usr/bin/chalkak --capture-region
+bindd = SHIFT, Print, ChalKak window capture, exec, /usr/bin/chalkak --capture-window
+bindd = CTRL, Print, ChalKak full capture, exec, /usr/bin/chalkak --capture-full
+```
+
+메모:
+
+- 기존 바인딩과 충돌하면 `unbind`가 먼저 실행되어 덮어쓸 수 있습니다.
+- 본인 환경의 실제 경로에 맞게 `/usr/bin/chalkak` 부분을 바꿔야 합니다.
+
+이렇게 하면 ChalKak 바인딩 수정이 항상 한 파일에서 끝나고, 메인 설정 파일을 반복 편집할 필요가 없습니다.
+
+### 9.4 선택: 다른 프리셋 바로 쓰기
+
+Print 키 대신 다른 조합이 필요하면 아래 블록 중 하나를 그대로 사용하세요.
+
+문자 기억형 (`Alt+Shift+R/W/F`):
+
+```conf
+unbind = ALT SHIFT, R
+unbind = ALT SHIFT, W
+unbind = ALT SHIFT, F
+bindd = ALT SHIFT, R, ChalKak region capture, exec, /usr/bin/chalkak --capture-region
+bindd = ALT SHIFT, W, ChalKak window capture, exec, /usr/bin/chalkak --capture-window
+bindd = ALT SHIFT, F, ChalKak full capture, exec, /usr/bin/chalkak --capture-full
+```
+
+숫자열 (`Alt+Shift+2/3/4`):
+
+```conf
 unbind = ALT SHIFT, 2
 unbind = ALT SHIFT, 3
 unbind = ALT SHIFT, 4
@@ -322,12 +347,14 @@ bindd = ALT SHIFT, 3, ChalKak window capture, exec, /usr/bin/chalkak --capture-w
 bindd = ALT SHIFT, 4, ChalKak full capture, exec, /usr/bin/chalkak --capture-full
 ```
 
-메모:
+최소 설정(영역 캡처 1개만):
 
-- 기존 바인딩과 충돌하면 `unbind`가 먼저 실행되어 덮어쓸 수 있습니다.
-- 본인 환경의 실제 경로에 맞게 `/usr/bin/chalkak` 부분을 바꿔야 합니다.
+```conf
+unbind = , Print
+bindd = , Print, ChalKak region capture, exec, /usr/bin/chalkak --capture-region
+```
 
-### 10.3 설정 반영 및 점검
+### 9.5 설정 반영 및 점검
 
 ```bash
 hyprctl reload
@@ -336,14 +363,14 @@ hyprctl binds -j | jq -r '.[] | select(.description|test("ChalKak")) | [.descrip
 
 출력에 `ChalKak ... capture` 항목과 실행 경로가 보이면 반영된 상태입니다.
 
-### 10.4 Omarchy 사용자 참고
+### 9.6 Omarchy 사용자 참고
 
-Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드합니다. `~/.config/hypr/bindings.conf`가 로드되는지 확인하세요.
+Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드합니다. `source = ~/.config/hypr/chalkak.conf`가 실제로 로드되는지 확인하세요.
 
 - Dotfiles를 심볼릭 링크로 관리 중이라면 실제 편집 대상이 링크 원본 경로일 수 있습니다.
 - `cargo` 설치에서 AUR 설치로 옮긴 뒤 단축키가 안 먹는 경우, 바인딩 경로가 `~/.cargo/bin/chalkak`로 남아있는지 먼저 확인하세요.
 
-## 11. 파일 저장 위치
+## 10. 파일 저장 위치
 
 임시 캡처:
 
@@ -356,7 +383,7 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 
 필요 시 ChalKak이 디렉터리를 자동 생성합니다.
 
-## 12. 문제 해결
+## 11. 문제 해결
 
 ### 증상: 캡처가 시작되지 않음
 
@@ -409,7 +436,7 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 2. 가능하면 미리보기/편집기를 정상 종료(ChalKak은 닫기/삭제 시 캡처 임시 파일을 정리하고, 시작 시 오래된 `capture_*.png`를 자동 정리함)
 3. 그래도 남아 있으면 `$XDG_RUNTIME_DIR` (fallback 사용 시 `/tmp/chalkak`)의 오래된 `capture_*.png` 파일 정리
 
-## 13. 작업 목적별 추천 흐름
+## 12. 작업 목적별 추천 흐름
 
 ### 빠른 1회성 캡처
 
@@ -431,7 +458,7 @@ Omarchy 설정은 `hyprland.conf`에서 여러 `source = ...` 파일을 로드�
 3. `b`로 민감 영역 블러 처리
 4. `Ctrl+C` 복사
 
-## 14. 빠른 명령어 요약
+## 13. 빠른 명령어 요약
 
 ```bash
 # 런치패드부터 시작
@@ -444,3 +471,145 @@ chalkak --window
 ```
 
 일상 사용에서는 `--launchpad`로 익숙해진 뒤, 속도가 중요할 때 `--region`/`--window`를 사용하는 방식이 가장 실용적입니다.
+
+## 14. 고급 설정 (선택)
+
+대부분 사용자에게는 이 섹션이 필수가 아닙니다.
+
+기본값을 넘어 테마/편집기 네비게이션을 직접 커스터마이징할 때만 사용하세요.
+
+설정 디렉터리:
+
+- `$XDG_CONFIG_HOME/chalkak/`
+- fallback: `$HOME/.config/chalkak/`
+
+파일:
+
+- `theme.json`
+- `keybindings.json`
+
+### 14.1 `theme.json`
+
+`theme.json`은 앱 테마 모드, UI 색상, 편집기 기본값을 설정합니다.
+
+최소 예시:
+
+```json
+{
+  "mode": "system"
+}
+```
+
+권장 구조 예시 (`common` 공통값 + 모드별 덮어쓰기):
+
+```json
+{
+  "mode": "system",
+  "colors": {
+    "common": {
+      "focus_ring_color": "#8cc2ff",
+      "border_color": "#2e3a46",
+      "text_color": "#e7edf5"
+    },
+    "dark": {
+      "panel_background": "#10151b",
+      "canvas_background": "#0b0f14",
+      "accent_gradient": "linear-gradient(135deg, #6aa3ff, #8ee3ff)",
+      "accent_text_color": "#07121f"
+    },
+    "light": {
+      "panel_background": "#f7fafc",
+      "canvas_background": "#ffffff",
+      "accent_gradient": "linear-gradient(135deg, #3b82f6, #67e8f9)",
+      "accent_text_color": "#0f172a"
+    }
+  },
+  "editor": {
+    "common": {
+      "rectangle_border_radius": 10,
+      "selection_drag_fill_color": "#2B63FF1F",
+      "selection_drag_stroke_color": "#2B63FFE0",
+      "selection_outline_color": "#2B63FFE6",
+      "selection_handle_color": "#2B63FFF2",
+      "default_tool_color": "#ff6b6b",
+      "default_text_size": 18,
+      "default_stroke_width": 3,
+      "tool_color_palette": ["#ff6b6b", "#ffd166", "#3a86ff", "#06d6a0"],
+      "stroke_width_presets": [2, 4, 8, 12],
+      "text_size_presets": [14, 18, 24, 32]
+    },
+    "dark": {
+      "default_tool_color": "#f4f4f5",
+      "selection_drag_fill_color": "#2B63FF33"
+    },
+    "light": {
+      "default_tool_color": "#18181b",
+      "selection_drag_fill_color": "#2B63FF14"
+    }
+  }
+}
+```
+
+메모:
+
+- `mode` 값: `system`, `light`, `dark`
+- `system`은 런타임 데스크톱/GTK 테마 설정을 따릅니다. 런타임에서 감지할 수 없으면 다크 모드로 폴백합니다.
+- `colors`와 `editor` 모두 같은 패턴으로 설정할 수 있습니다.
+- `colors.common` + `colors.dark/light`
+- `editor.common` + `editor.dark/light`
+- 각 객체는 부분 지정이 가능하며, 비어 있는 값은 기본 테마 값으로 채워집니다.
+- 병합 순서는 `내장 기본값 -> common -> 현재 모드(dark/light)`입니다.
+- `colors`에서 사용할 수 있는 키:
+- `focus_ring_color`, `focus_ring_glow`, `border_color`, `panel_background`, `canvas_background`, `text_color`, `accent_gradient`, `accent_text_color`
+- `editor`에서 사용할 수 있는 키 (`common`, `dark`, `light` 어디서든 동일):
+- `rectangle_border_radius`, `selection_drag_fill_color`, `selection_drag_stroke_color`, `selection_outline_color`, `selection_handle_color`, `default_tool_color`, `default_text_size`, `default_stroke_width`, `tool_color_palette`, `stroke_width_presets`, `text_size_presets`
+- `default_tool_color`는 `RRGGBB` 또는 `#RRGGBB` 형식을 허용합니다.
+- `tool_color_palette`는 엄격한 `#RRGGBB` 목록만 허용합니다 (`#` 없는 `RRGGBB`는 무시).
+- 선택 색상 필드는 `#RRGGBB` 또는 `#RRGGBBAA` 형식만 허용합니다.
+- `stroke_width_presets` 허용 범위: `1..=64`
+- `text_size_presets` 허용 범위: `8..=160`
+- 각 preset 목록은 최대 6개의 고유 값만 반영됩니다.
+- 잘못된 값/중복 값은 로그 경고와 함께 무시됩니다.
+
+레거시 호환:
+
+- 이전 스키마도 계속 지원됩니다.
+- 공통값: flat `editor`
+- 모드별 값: `editor_modes.dark/light`
+- 새 스키마와 레거시를 함께 쓰면 우선순위는 다음과 같습니다.
+- `editor`(flat) -> `editor.common` -> `editor_modes.<mode>` -> `editor.<mode>`
+
+### 14.2 `keybindings.json`
+
+`keybindings.json`은 편집기 네비게이션 기본값을 덮어쓰고 싶을 때만 사용하세요.
+
+이 파일이 없으면 ChalKak 내장 기본값이 적용됩니다.
+
+안전한 시작 템플릿:
+
+```json
+{
+  "editor_navigation": {
+    "pan_hold_key": "space",
+    "zoom_scroll_modifier": "control",
+    "zoom_in_shortcuts": ["ctrl+plus", "ctrl+equal", "ctrl+kp_add"],
+    "zoom_out_shortcuts": ["ctrl+minus", "ctrl+underscore", "ctrl+kp_subtract"],
+    "actual_size_shortcuts": ["ctrl+0", "ctrl+kp_0"],
+    "fit_shortcuts": ["shift+1"]
+  }
+}
+```
+
+메모:
+
+- `zoom_scroll_modifier` 값: `none`, `control`, `shift`, `alt`, `super`
+- `pan_hold_key`와 단축키 키 이름은 정규화되어 `ctrl`/`control`, `cmd`/`command`/`win`(`super`) 같은 별칭이 인식됨
+- 각 단축키 조합은 수정자 키 외에 메인 키를 정확히 1개 포함해야 함 (예: `ctrl+plus`)
+- 단축키 배열은 비워두지 않아야 함
+- 수정 후 JSON 유효성 확인:
+
+```bash
+jq empty "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json"
+```
+
+- `keybindings.json` 파싱이 실패하면 경고 로그를 남기고 기본값으로 폴백함
