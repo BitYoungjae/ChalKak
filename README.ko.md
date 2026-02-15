@@ -1,5 +1,9 @@
 # ChalKak
 
+<p align="center">
+  <img src="./assets/banner.jpeg" alt="ChalKak banner" width="100%" />
+</p>
+
 [English](README.md) | 한국어
 
 Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보기 중심 흐름과 가벼운 주석 편집기를 제공합니다.

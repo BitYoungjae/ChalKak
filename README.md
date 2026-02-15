@@ -1,5 +1,9 @@
 # ChalKak
 
+<p align="center">
+  <img src="./assets/banner.jpeg" alt="ChalKak banner" width="100%" />
+</p>
+
 English | [한국어](README.ko.md)
 
 A Hyprland-focused screenshot utility for Wayland with a preview-first workflow and a lightweight annotation editor.
