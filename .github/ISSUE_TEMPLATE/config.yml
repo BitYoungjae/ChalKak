@@ -1,0 +1,6 @@
+blank_issues_enabled: true
+
+contact_links:
+  - name: User Guide
+    url: https://github.com/BitYoungjae/ChalKak/blob/main/docs/USER_GUIDE.md
+    about: Check the user guide before filing an issue.

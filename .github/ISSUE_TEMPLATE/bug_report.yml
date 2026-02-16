@@ -1,0 +1,65 @@
+name: Bug Report
+description: Report a bug in ChalKak
+labels: ["bug"]
+
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect instead?
+      placeholder: |
+        When I ..., ChalKak does X.
+        I expected Y instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Launch ChalKak with `chalkak`
+        2. Select a region
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      description: Which part of the workflow is affected?
+      options:
+        - Capture
+        - Preview
+        - Editor
+        - Launchpad
+        - Startup / exit
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Fill in the versions below.
+      value: |
+        - ChalKak version:
+        - Hyprland version:
+        - Distro:
+        - Install method (AUR / cargo / source):
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: |
+        Attach any relevant logs or screenshots.
+        Tip: run `RUST_LOG=debug chalkak ...` to get debug output.
+    validations:
+      required: false
