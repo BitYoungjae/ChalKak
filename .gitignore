@@ -16,3 +16,10 @@
 
 # OS-specific junk
 .DS_Store
+
+# AUR/makepkg build artifacts
+pkg/
+src/ChalKak-*/
+src/chalkak-*/
+*.pkg.tar.zst
+*.tar.gz
