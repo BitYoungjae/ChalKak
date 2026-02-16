@@ -2,7 +2,6 @@
 pub enum CropPreset {
     Free,
     Ratio16x9,
-    Ratio4x3,
     Ratio1x1,
     Ratio9x16,
     Original,
@@ -17,7 +16,6 @@ impl CropPreset {
         match self {
             Self::Free => None,
             Self::Ratio16x9 => Some((16, 9)),
-            Self::Ratio4x3 => Some((4, 3)),
             Self::Ratio1x1 => Some((1, 1)),
             Self::Ratio9x16 => Some((9, 16)),
             Self::Original => None,

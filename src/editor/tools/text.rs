@@ -4,7 +4,6 @@ use super::ToolPoint;
 pub enum TextFontFamily {
     Sans,
     Serif,
-    Monospace,
 }
 
 impl TextFontFamily {
@@ -12,7 +11,6 @@ impl TextFontFamily {
         match self {
             Self::Sans => "Sans",
             Self::Serif => "Serif",
-            Self::Monospace => "Monospace",
         }
     }
 }
@@ -142,11 +140,6 @@ impl TextElement {
         let byte_index = self.byte_index_for_cursor(self.cursor_chars);
         self.content.insert(byte_index, '\n');
         self.cursor_chars = self.cursor_chars.saturating_add(1);
-    }
-
-    pub fn set_text(&mut self, text: impl Into<String>) {
-        self.content = text.into();
-        self.cursor_chars = self.content.chars().count();
     }
 
     pub fn cursor_chars(&self) -> usize {

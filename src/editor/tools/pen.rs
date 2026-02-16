@@ -32,16 +32,6 @@ impl Default for PenOptions {
 }
 
 impl PenOptions {
-    pub fn with_rgba(color_r: u8, color_g: u8, color_b: u8, opacity: u8, thickness: u8) -> Self {
-        Self {
-            color_r,
-            color_g,
-            color_b,
-            opacity: clamp_u8_range(opacity, 1, 100),
-            thickness: clamp_u8_range(thickness, 1, 255),
-        }
-    }
-
     pub fn set_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
         self.color_r = color_r;
         self.color_g = color_g;

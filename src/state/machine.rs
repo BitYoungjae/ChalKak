@@ -50,8 +50,11 @@ impl StateMachine {
 
         Ok(self.state)
     }
+}
 
-    pub fn history(&self) -> &[StateTransition] {
+#[cfg(test)]
+impl StateMachine {
+    fn history(&self) -> &[StateTransition] {
         &self.transition_history
     }
 }

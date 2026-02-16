@@ -235,16 +235,7 @@ fn load_theme_config_with(
     Ok(config)
 }
 
-/// Backward-compatible: load only the mode preference
-pub fn load_theme_preference() -> ThemeResult<ThemeMode> {
-    load_theme_config().map(|c| c.mode)
-}
-
-pub fn save_theme_preference(mode: ThemeMode) -> ThemeResult<()> {
-    let (xdg_config_home, home) = config_env_dirs();
-    save_theme_preference_with(mode, xdg_config_home.as_deref(), home.as_deref())
-}
-
+#[cfg(test)]
 fn save_theme_preference_with(
     mode: ThemeMode,
     xdg_config_home: Option<&Path>,
