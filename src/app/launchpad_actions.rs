@@ -417,12 +417,6 @@ impl PreviewActionLabels {
                 past: "copied",
                 success_title: "Copied",
             },
-            PreviewAction::CopyFileReference => Self {
-                operation: "copy",
-                title: "Copy",
-                past: "copied",
-                success_title: "Copied",
-            },
             PreviewAction::Edit => Self {
                 operation: "edit",
                 title: "Edit",
@@ -646,7 +640,7 @@ where
 }
 
 fn requires_main_thread_preview_action(action: PreviewAction) -> bool {
-    matches!(action, PreviewAction::CopyFileReference)
+    matches!(action, PreviewAction::Copy)
 }
 
 fn matches_preview_action(action: PreviewAction, event: &PreviewEvent) -> bool {
@@ -654,10 +648,6 @@ fn matches_preview_action(action: PreviewAction, event: &PreviewEvent) -> bool {
         (action, event),
         (PreviewAction::Save, PreviewEvent::Save { .. })
             | (PreviewAction::Copy, PreviewEvent::Copy { .. })
-            | (
-                PreviewAction::CopyFileReference,
-                PreviewEvent::CopyFileReference { .. },
-            )
             | (PreviewAction::Edit, PreviewEvent::Edit { .. })
             | (PreviewAction::Delete, PreviewEvent::Delete { .. })
             | (PreviewAction::Close, PreviewEvent::Close { .. })
@@ -668,7 +658,6 @@ fn preview_event_capture_id(event: &PreviewEvent) -> &str {
     match event {
         PreviewEvent::Save { capture_id }
         | PreviewEvent::Copy { capture_id }
-        | PreviewEvent::CopyFileReference { capture_id }
         | PreviewEvent::Edit { capture_id }
         | PreviewEvent::Delete { capture_id }
         | PreviewEvent::Close { capture_id } => capture_id,
@@ -863,12 +852,9 @@ mod tests {
     }
 
     #[test]
-    fn copy_file_reference_requires_main_thread_execution() {
-        assert!(requires_main_thread_preview_action(
-            PreviewAction::CopyFileReference
-        ));
+    fn copy_requires_main_thread_execution() {
+        assert!(requires_main_thread_preview_action(PreviewAction::Copy));
         assert!(!requires_main_thread_preview_action(PreviewAction::Save));
-        assert!(!requires_main_thread_preview_action(PreviewAction::Copy));
         assert!(!requires_main_thread_preview_action(PreviewAction::Delete));
     }
 }

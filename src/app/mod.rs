@@ -782,12 +782,9 @@ fn connect_launchpad_default_buttons<R: Fn() + 'static>(
         let render = render.clone();
         launchpad.copy_button.connect_clicked(move |_| {
             let render = render.clone();
-            launchpad_actions.run_preview_action_async(
-                PreviewAction::CopyFileReference,
-                move || {
-                    (render.as_ref())();
-                },
-            );
+            launchpad_actions.run_preview_action_async(PreviewAction::Copy, move || {
+                (render.as_ref())();
+            });
         });
     }
     {

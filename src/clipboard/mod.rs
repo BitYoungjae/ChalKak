@@ -56,7 +56,7 @@ pub type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
 
 pub trait ClipboardBackend {
     fn copy_png_file(&self, path: &Path) -> ClipboardResult<()>;
-    fn copy_file_reference(&self, path: &Path) -> ClipboardResult<()>;
+    fn copy(&self, path: &Path) -> ClipboardResult<()>;
 }
 
 #[derive(Debug, Default)]
@@ -129,7 +129,7 @@ impl ClipboardBackend for WlCopyBackend {
         }
     }
 
-    fn copy_file_reference(&self, path: &Path) -> ClipboardResult<()> {
+    fn copy(&self, path: &Path) -> ClipboardResult<()> {
         let absolute_path = resolve_absolute_path(path)?;
         let uri_list_payload = uri_list_payload(path)?;
         let gnome_payload = gnome_copied_files_payload(path)?;
@@ -182,8 +182,8 @@ pub fn copy_png_file(path: &Path) -> ClipboardResult<()> {
     WlCopyBackend.copy_png_file(path)
 }
 
-pub fn copy_file_reference(path: &Path) -> ClipboardResult<()> {
-    WlCopyBackend.copy_file_reference(path)
+pub fn copy(path: &Path) -> ClipboardResult<()> {
+    WlCopyBackend.copy(path)
 }
 
 #[cfg(test)]
@@ -197,7 +197,7 @@ mod tests {
             Ok(())
         }
 
-        fn copy_file_reference(&self, _path: &Path) -> ClipboardResult<()> {
+        fn copy(&self, _path: &Path) -> ClipboardResult<()> {
             Ok(())
         }
     }
@@ -213,11 +213,11 @@ mod tests {
     }
 
     #[test]
-    fn copy_file_reference_success_with_backend() {
+    fn copy_success_with_backend() {
         let temp_dir = env::temp_dir();
         let file_path = temp_dir.join("chalkak-copy-ref-test.png");
         std::fs::write(&file_path, b"binary").unwrap();
-        let result = DummyBackend.copy_file_reference(&file_path);
+        let result = DummyBackend.copy(&file_path);
         assert!(result.is_ok());
         let _ = std::fs::remove_file(file_path);
     }

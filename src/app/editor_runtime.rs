@@ -1693,7 +1693,7 @@ pub(super) fn render_editor_state(
                 connect_editor_output_button(
                     &editor_copy_button,
                     &output_action_runtime,
-                    EditorAction::CopyFileReference,
+                    EditorAction::Copy,
                     "copy",
                 );
             }
