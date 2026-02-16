@@ -130,7 +130,7 @@ ChalKak follows a **Capture → Preview → (optional) Edit → Output** flow:
 
 ```mermaid
 graph LR
-    A[Capture] --> B[Preview] --> C[Editor\noptional] --> D[Save\nor Copy]
+    A[Capture] --> B[Preview] --> C[Editor<br/>optional] --> D[Save<br/>or Copy]
 ```
 
 1. **Capture** — take a screenshot (region, window, or full screen).
