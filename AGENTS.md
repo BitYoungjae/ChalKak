@@ -42,7 +42,8 @@
 ## Version & Release Notes
 - Project versioning follows Semantic Versioning (SemVer).
 - Canonical app version lives in `Cargo.toml` (`version = "X.Y.Z"`).
-- For a new upstream release, update `Cargo.toml`, create annotated Git tag `vX.Y.Z`, and keep AUR metadata in sync.
+- For a new upstream release, update `Cargo.toml`, run `cargo check` to regenerate `Cargo.lock`, create annotated Git tag `vX.Y.Z`, and keep AUR metadata in sync.
+- **Always commit `Cargo.lock` together with `Cargo.toml`** when bumping the version — CI uses `--locked` and will fail if the lock file is stale.
 - Update `PKGBUILD` with `pkgver=X.Y.Z` and reset `pkgrel=1` when `pkgver` changes.
 - If only packaging metadata changes (no upstream version bump), keep `pkgver` and increment `pkgrel`.
 - After tag push, refresh AUR metadata with `updpkgsums` and regenerate `.SRCINFO` via `makepkg --printsrcinfo > .SRCINFO`.
