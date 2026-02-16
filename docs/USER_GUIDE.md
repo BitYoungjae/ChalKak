@@ -128,11 +128,9 @@ If multiple capture flags are given, the last one wins.
 
 ChalKak follows a **Capture → Preview → (optional) Edit → Output** flow:
 
-```
-┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
-│ Capture │ ──▶ │ Preview │ ──▶ │ Editor  │ ──▶ │  Save   │
-│         │     │         │     │(optional)│     │ or Copy │
-└─────────┘     └─────────┘     └─────────┘     └─────────┘
+```mermaid
+graph LR
+    A[Capture] --> B[Preview] --> C[Editor\noptional] --> D[Save\nor Copy]
 ```
 
 1. **Capture** — take a screenshot (region, window, or full screen).
