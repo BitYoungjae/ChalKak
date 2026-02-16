@@ -247,7 +247,6 @@ fn preview_shortcut_target(action: ShortcutAction) -> Option<PreviewShortcutTarg
     match action {
         ShortcutAction::PreviewSave => Some(PreviewShortcutTarget::Save),
         ShortcutAction::PreviewCopy => Some(PreviewShortcutTarget::Copy),
-        ShortcutAction::PreviewCopyFileReference => Some(PreviewShortcutTarget::Copy),
         ShortcutAction::PreviewEdit => Some(PreviewShortcutTarget::Edit),
         ShortcutAction::PreviewDelete => Some(PreviewShortcutTarget::Delete),
         ShortcutAction::PreviewClose => Some(PreviewShortcutTarget::Close),
@@ -671,10 +670,6 @@ mod tests {
         );
         assert_eq!(
             preview_shortcut_target(ShortcutAction::PreviewCopy),
-            Some(PreviewShortcutTarget::Copy)
-        );
-        assert_eq!(
-            preview_shortcut_target(ShortcutAction::PreviewCopyFileReference),
             Some(PreviewShortcutTarget::Copy)
         );
         assert_eq!(

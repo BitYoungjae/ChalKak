@@ -56,7 +56,6 @@ pub enum ShortcutAction {
     EditorCloseRequested,
     PreviewSave,
     PreviewCopy,
-    PreviewCopyFileReference,
     PreviewEdit,
     PreviewDelete,
     PreviewClose,
@@ -138,9 +137,6 @@ fn resolve_preview_shortcut(
     match (key, modifiers.ctrl, modifiers.shift) {
         (ShortcutKey::Character('s'), false, false) => Some(ShortcutAction::PreviewSave),
         (ShortcutKey::Character('c'), false, false) => Some(ShortcutAction::PreviewCopy),
-        (ShortcutKey::Character('u'), false, false) => {
-            Some(ShortcutAction::PreviewCopyFileReference)
-        }
         (ShortcutKey::Character('e'), false, false) => Some(ShortcutAction::PreviewEdit),
         (ShortcutKey::Delete, false, false) => Some(ShortcutAction::PreviewDelete),
         (ShortcutKey::Escape, false, false) => Some(ShortcutAction::PreviewClose),
@@ -384,14 +380,6 @@ mod tests {
                 context
             ),
             Some(ShortcutAction::PreviewCopy)
-        );
-        assert_eq!(
-            resolve_shortcut(
-                ShortcutKey::Character('u'),
-                ShortcutModifiers::default(),
-                context
-            ),
-            Some(ShortcutAction::PreviewCopyFileReference)
         );
         assert_eq!(
             resolve_shortcut(
