@@ -206,26 +206,30 @@ pub(in crate::app) fn draw_arrow_segment(
         return;
     }
 
+    // Unit direction vector (start → end) and perpendicular vector.
     let ux = dx / length;
     let uy = dy / length;
-    let backward_x = -ux;
-    let backward_y = -uy;
-    let stroke_width = f64::from(style.thickness.max(1));
-    let max_head = (length * 0.7).max(stroke_width * 2.0);
-    let head_length = f64::from(style.head_size.max(style.thickness.saturating_mul(2)))
-        .max(stroke_width * 2.0)
-        .min(max_head);
+    let px = -uy;
+    let py = ux;
 
-    let spread = 26.0_f64.to_radians();
-    let (sin_spread, cos_spread) = spread.sin_cos();
-    let left_dir_x = backward_x * cos_spread - backward_y * sin_spread;
-    let left_dir_y = backward_x * sin_spread + backward_y * cos_spread;
-    let right_dir_x = backward_x * cos_spread + backward_y * sin_spread;
-    let right_dir_y = -backward_x * sin_spread + backward_y * cos_spread;
-    let left_x = f64::from(end.x) + (left_dir_x * head_length);
-    let left_y = f64::from(end.y) + (left_dir_y * head_length);
-    let right_x = f64::from(end.x) + (right_dir_x * head_length);
-    let right_y = f64::from(end.y) + (right_dir_y * head_length);
+    let stroke_width = f64::from(style.thickness.max(1));
+
+    // Head dimensions scale proportionally with stroke width.
+    // head_size acts as a scaling factor (default 8 → scale 1.0).
+    let scale = f64::from(style.head_size.max(1)) / 8.0;
+    let head_length = (stroke_width * 3.5 * scale)
+        .max(stroke_width * 2.0)
+        .min(length * 0.7);
+    let head_half_width = (stroke_width * 1.8 * scale).max(stroke_width * 0.8);
+
+    let tip_x = f64::from(end.x);
+    let tip_y = f64::from(end.y);
+    let base_x = tip_x - ux * head_length;
+    let base_y = tip_y - uy * head_length;
+    let left_x = base_x + px * head_half_width;
+    let left_y = base_y + py * head_half_width;
+    let right_x = base_x - px * head_half_width;
+    let right_y = base_y - py * head_half_width;
 
     set_source_rgb_u8(
         context,
@@ -234,16 +238,20 @@ pub(in crate::app) fn draw_arrow_segment(
         style.color_b,
         style.opacity_percent,
     );
+
+    // Draw shaft from start to the base of the head.
     context.set_line_width(stroke_width);
     context.set_line_cap(gtk4::cairo::LineCap::Round);
-    context.set_line_join(gtk4::cairo::LineJoin::Round);
     context.move_to(f64::from(start.x), f64::from(start.y));
-    context.line_to(f64::from(end.x), f64::from(end.y));
-    context.move_to(f64::from(end.x), f64::from(end.y));
-    context.line_to(left_x, left_y);
-    context.move_to(f64::from(end.x), f64::from(end.y));
-    context.line_to(right_x, right_y);
+    context.line_to(base_x, base_y);
     let _ = context.stroke();
+
+    // Draw filled triangle arrow head.
+    context.move_to(tip_x, tip_y);
+    context.line_to(left_x, left_y);
+    context.line_to(right_x, right_y);
+    context.close_path();
+    let _ = context.fill();
 }
 
 fn effective_rectangle_corner_radius(width: u32, height: u32, border_radius: u16) -> f64 {
