@@ -152,7 +152,6 @@ Preview is a confirmation step before saving or editing.
 |-----|--------|
 | `s` | Save to file |
 | `c` | Copy to clipboard |
-| `u` | Copy to clipboard (alias of `c`) |
 | `e` | Open editor |
 | `Delete` | Discard capture |
 | `Esc` | Close preview |
@@ -408,7 +407,7 @@ ChalKak creates these directories automatically when needed.
 
 ## 12. Clipboard Behavior
 
-When you copy from ChalKak (Preview `c`/`u` or Editor `Ctrl+C`), the clipboard receives multiple formats so different apps can pick the best one:
+When you copy from ChalKak (Preview `c` or Editor `Ctrl+C`), the clipboard receives multiple formats so different apps can pick the best one:
 
 | Format | Content | Used by |
 |--------|---------|---------|

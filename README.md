@@ -24,7 +24,7 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 ## Highlights
 
 - Capture modes: fullscreen, region, and window.
-- Preview stage before final action (save, copy image, copy file reference, edit, delete).
+- Preview stage before final action (save, copy, edit, delete).
 - Built-in editor tools: select, pan, blur, pen, arrow, rectangle, crop, text.
 - Keyboard-centric workflow across preview and editor.
 - Configurable theme and editor navigation keybindings.
@@ -89,8 +89,8 @@ Typical flow:
 
 1. Capture (`full`, `region`, `window`).
 2. Preview the capture.
-3. Save/copy image/copy file reference/delete, or open editor.
-4. Annotate in editor, then save/copy image/copy file reference.
+3. Save/copy/delete, or open editor.
+4. Annotate in editor, then save/copy.
 
 ## Keybindings
 
@@ -98,7 +98,6 @@ Preview:
 
 - `s`: save
 - `c`: copy image
-- `u`: copy file reference
 - `e`: open editor
 - `Delete`: delete capture
 - `Esc`: close preview
@@ -112,8 +111,6 @@ Editor:
 - `Delete` / `Backspace`: delete selection
 - `o`: toggle tool options panel
 - `Esc`: select tool, or close editor when already in select mode
-
-Preview and editor action buttons also support copying a file reference for the current image.
 
 Tool shortcuts:
 
