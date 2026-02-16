@@ -1,6 +1,5 @@
 //! Editor shell layout and panel behavior models.
 
-pub mod model;
 pub mod tools;
 
 use crate::capture::CaptureArtifact;
@@ -8,44 +7,7 @@ use crate::clipboard::{ClipboardBackend, ClipboardError};
 use crate::storage::{CaptureStorage, StorageError};
 use thiserror::Error;
 
-pub use model::{EditorDocument, EditorOperation, EditorOperationModel, SelectionState};
 pub use tools::{EditorTools, ToolError, ToolKind, ToolObject};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EditorPane {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OptionsPanelState {
-    Expanded,
-    Collapsed,
-}
-
-impl OptionsPanelState {
-    const fn width(self) -> u32 {
-        match self {
-            Self::Expanded => EDITOR_OPTIONS_PANEL_WIDTH_EXPANDED,
-            Self::Collapsed => EDITOR_OPTIONS_PANEL_WIDTH_COLLAPSED,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EditorLayout {
-    pub toolbar: EditorPane,
-    pub canvas: EditorPane,
-    pub options: EditorPane,
-    pub options_state: OptionsPanelState,
-}
-
-#[derive(Debug)]
-pub struct EditorFrame {
-    options_state: OptionsPanelState,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EditorViewport {
@@ -93,10 +55,6 @@ pub enum EditorActionError {
     },
 }
 
-const EDITOR_TOOLBAR_WIDTH: u32 = 68;
-const EDITOR_OPTIONS_PANEL_WIDTH_EXPANDED: u32 = 320;
-const EDITOR_OPTIONS_PANEL_WIDTH_COLLAPSED: u32 = 0;
-const EDITOR_MIN_CANVAS_WIDTH: u32 = 320;
 const VIEWPORT_ZOOM_MIN_PERCENT: u16 = 1;
 const VIEWPORT_ZOOM_MAX_PERCENT: u16 = 1600;
 const VIEWPORT_ZOOM_LEVELS_PERCENT: &[u16] = &[
@@ -127,96 +85,9 @@ fn next_zoom_out_level(current_zoom_percent: u16) -> u16 {
     VIEWPORT_ZOOM_MIN_PERCENT
 }
 
-impl Default for EditorFrame {
-    fn default() -> Self {
-        Self {
-            options_state: OptionsPanelState::Expanded,
-        }
-    }
-}
-
 impl Default for EditorViewport {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl EditorFrame {
-    pub const fn new() -> Self {
-        Self {
-            options_state: OptionsPanelState::Expanded,
-        }
-    }
-
-    pub fn options_panel_state(&self) -> OptionsPanelState {
-        self.options_state
-    }
-
-    pub fn is_toolbar_visible(&self) -> bool {
-        true
-    }
-
-    pub fn is_canvas_visible(&self) -> bool {
-        true
-    }
-
-    pub fn is_options_panel_visible(&self) -> bool {
-        true
-    }
-
-    pub fn toggle_options_panel(&mut self) {
-        self.options_state = match self.options_state {
-            OptionsPanelState::Expanded => OptionsPanelState::Collapsed,
-            OptionsPanelState::Collapsed => OptionsPanelState::Expanded,
-        };
-    }
-
-    pub fn open_session(&mut self) {
-        self.options_state = OptionsPanelState::Expanded;
-    }
-
-    pub fn layout(&self, window_width: u32, window_height: u32) -> EditorLayout {
-        let toolbar_width = EDITOR_TOOLBAR_WIDTH.min(window_width);
-        let available_for_center_and_options = window_width.saturating_sub(toolbar_width);
-
-        let mut options_width = self.options_state.width();
-        if available_for_center_and_options < EDITOR_MIN_CANVAS_WIDTH + options_width {
-            options_width =
-                available_for_center_and_options.saturating_sub(EDITOR_MIN_CANVAS_WIDTH);
-        }
-        if toolbar_width == window_width {
-            options_width = 0;
-        }
-
-        let canvas_width = available_for_center_and_options.saturating_sub(options_width);
-
-        let toolbar = EditorPane {
-            x: 0,
-            y: 0,
-            width: toolbar_width,
-            height: window_height,
-        };
-
-        let canvas = EditorPane {
-            x: toolbar.width,
-            y: 0,
-            width: canvas_width,
-            height: window_height,
-        };
-
-        let options = EditorPane {
-            x: toolbar.width + canvas.width,
-            y: 0,
-            width: options_width,
-            height: window_height,
-        };
-
-        EditorLayout {
-            toolbar,
-            canvas,
-            options,
-            options_state: self.options_state,
-        }
     }
 }
 
@@ -280,16 +151,8 @@ impl EditorViewport {
         self.pan_y = pan_y;
     }
 
-    pub fn pan_left(&mut self) {
-        self.pan_by(-VIEWPORT_PAN_STEP_PX, 0);
-    }
-
     pub fn pan_right(&mut self) {
         self.pan_by(VIEWPORT_PAN_STEP_PX, 0);
-    }
-
-    pub fn pan_up(&mut self) {
-        self.pan_by(0, -VIEWPORT_PAN_STEP_PX);
     }
 
     pub fn pan_down(&mut self) {
@@ -375,63 +238,6 @@ mod tests {
     use crate::clipboard::ClipboardResult;
     use crate::storage::StorageResult;
     use std::path::PathBuf;
-
-    #[test]
-    fn editor_frame_starts_with_options_open_and_panels_visible() {
-        let frame = EditorFrame::new();
-        assert!(frame.is_toolbar_visible());
-        assert!(frame.is_canvas_visible());
-        assert!(frame.is_options_panel_visible());
-        assert_eq!(frame.options_panel_state(), OptionsPanelState::Expanded);
-    }
-
-    #[test]
-    fn editor_frame_options_panel_can_toggle_and_reopen_resets_expanded() {
-        let mut frame = EditorFrame::new();
-        frame.toggle_options_panel();
-        assert_eq!(frame.options_panel_state(), OptionsPanelState::Collapsed);
-
-        frame.open_session();
-        assert_eq!(frame.options_panel_state(), OptionsPanelState::Expanded);
-    }
-
-    #[test]
-    fn editor_frame_layout_orders_left_toolbar_canvas_right_options() {
-        let mut frame = EditorFrame::new();
-        let layout = frame.layout(1280, 720);
-
-        assert_eq!(layout.toolbar.x, 0);
-        assert_eq!(layout.canvas.x, EDITOR_TOOLBAR_WIDTH);
-        assert_eq!(layout.options.x, EDITOR_TOOLBAR_WIDTH + layout.canvas.width);
-        assert_eq!(layout.toolbar.y, 0);
-        assert_eq!(layout.options.y, 0);
-        assert_eq!(layout.toolbar.height, 720);
-        assert_eq!(layout.options.height, 720);
-        assert_eq!(
-            layout.toolbar.width + layout.canvas.width + layout.options.width,
-            1280
-        );
-
-        frame.toggle_options_panel();
-        let collapsed = frame.layout(1280, 720);
-        assert!(collapsed.options.width < layout.options.width);
-        assert_eq!(
-            collapsed.toolbar.width + collapsed.canvas.width + collapsed.options.width,
-            1280
-        );
-    }
-
-    #[test]
-    fn editor_frame_forces_options_open_on_reopen_without_disabling_panels() {
-        let mut frame = EditorFrame::new();
-        frame.toggle_options_panel();
-        frame.open_session();
-        let layout = frame.layout(640, 360);
-
-        assert!(layout.options.width > 0);
-        assert!(layout.canvas.width > 0);
-        assert_eq!(layout.options_state, OptionsPanelState::Expanded);
-    }
 
     #[test]
     fn editor_viewport_defaults_to_100_percent_and_origin() {

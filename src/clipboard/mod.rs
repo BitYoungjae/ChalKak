@@ -178,14 +178,6 @@ impl ClipboardBackend for WlCopyBackend {
     }
 }
 
-pub fn copy_png_file(path: &Path) -> ClipboardResult<()> {
-    WlCopyBackend.copy_png_file(path)
-}
-
-pub fn copy(path: &Path) -> ClipboardResult<()> {
-    WlCopyBackend.copy(path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

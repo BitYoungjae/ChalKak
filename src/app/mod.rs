@@ -1161,30 +1161,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn hypr_client_address_from_json_matches_exact_title() {
-        let payload = br#"
-[
-  {"address":"0x100","title":"Preview - first"},
-  {"address":"0x200","title":"Preview - second"}
-]
-"#;
-        let address = hypr_client_address_from_json(payload, "Preview - second");
-        assert_eq!(address.as_deref(), Some("0x200"));
-    }
-
-    #[test]
-    fn hypr_client_address_from_json_ignores_non_object_entries() {
-        let payload = br#"
-[
-  "ok",
-  {"address":"0x300","title":"Preview - stable"}
-]
-"#;
-        let address = hypr_client_address_from_json(payload, "Preview - stable");
-        assert_eq!(address.as_deref(), Some("0x300"));
-    }
-
-    #[test]
     fn hypr_client_match_from_json_reads_pin_state_when_available() {
         let payload = br#"
 [

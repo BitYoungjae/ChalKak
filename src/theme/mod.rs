@@ -150,13 +150,6 @@ pub struct ThemeConfig {
     pub editor_modes: Option<EditorModeDefaults>,
 }
 
-/// Convert a requested mode into the active mode used by UI.
-///
-/// In model-only scope, `System` is retained and resolved by runtime UI layer.
-pub fn apply_theme(mode: ThemeMode) -> ThemeMode {
-    mode
-}
-
 /// Resolve color tokens for a given mode, applying user overrides on top of defaults.
 pub fn resolve_color_tokens(mode: ThemeMode, overrides: Option<&ThemeColors>) -> ColorTokens {
     let mut tokens = default_color_tokens(mode);
