@@ -52,6 +52,7 @@ pub enum ShortcutAction {
     EditorEnterRectangle,
     EditorEnterCrop,
     EditorEnterText,
+    EditorEnterOcr,
     EditorToggleToolOptions,
     EditorCloseRequested,
     PreviewSave,
@@ -59,6 +60,7 @@ pub enum ShortcutAction {
     PreviewEdit,
     PreviewDelete,
     PreviewClose,
+    PreviewOcr,
 }
 
 fn resolve_dialog_shortcut(key: ShortcutKey) -> Option<ShortcutAction> {
@@ -97,6 +99,7 @@ fn resolve_editor_tool_shortcut(key: ShortcutKey) -> Option<ShortcutAction> {
         ShortcutKey::Character('r') => Some(ShortcutAction::EditorEnterRectangle),
         ShortcutKey::Character('c') => Some(ShortcutAction::EditorEnterCrop),
         ShortcutKey::Character('t') => Some(ShortcutAction::EditorEnterText),
+        ShortcutKey::Character('o') => Some(ShortcutAction::EditorEnterOcr),
         _ => None,
     }
 }
@@ -114,9 +117,7 @@ fn resolve_editor_shortcut(
         }
         (ShortcutKey::Character('s'), true, _) => Some(ShortcutAction::EditorSave),
         (ShortcutKey::Character('c'), true, _) => Some(ShortcutAction::EditorCopyImage),
-        (ShortcutKey::Character('o'), false, false) => {
-            Some(ShortcutAction::EditorToggleToolOptions)
-        }
+        (ShortcutKey::Character('o'), false, true) => Some(ShortcutAction::EditorToggleToolOptions),
         (ShortcutKey::Escape, false, false) => {
             if context.editor_select_mode {
                 Some(ShortcutAction::EditorCloseRequested)
@@ -138,6 +139,7 @@ fn resolve_preview_shortcut(
         (ShortcutKey::Character('s'), false, false) => Some(ShortcutAction::PreviewSave),
         (ShortcutKey::Character('c'), false, false) => Some(ShortcutAction::PreviewCopy),
         (ShortcutKey::Character('e'), false, false) => Some(ShortcutAction::PreviewEdit),
+        (ShortcutKey::Character('o'), false, false) => Some(ShortcutAction::PreviewOcr),
         (ShortcutKey::Delete, false, false) => Some(ShortcutAction::PreviewDelete),
         (ShortcutKey::Escape, false, false) => Some(ShortcutAction::PreviewClose),
         _ => None,
@@ -338,6 +340,14 @@ mod tests {
                 ShortcutModifiers::new(false, false),
                 context
             ),
+            Some(ShortcutAction::EditorEnterOcr)
+        );
+        assert_eq!(
+            resolve_shortcut(
+                ShortcutKey::Character('o'),
+                ShortcutModifiers::new(false, true),
+                context
+            ),
             Some(ShortcutAction::EditorToggleToolOptions)
         );
         assert_eq!(
@@ -388,6 +398,14 @@ mod tests {
                 context
             ),
             Some(ShortcutAction::PreviewEdit)
+        );
+        assert_eq!(
+            resolve_shortcut(
+                ShortcutKey::Character('o'),
+                ShortcutModifiers::default(),
+                context
+            ),
+            Some(ShortcutAction::PreviewOcr)
         );
         assert_eq!(
             resolve_shortcut(ShortcutKey::Delete, ShortcutModifiers::default(), context),

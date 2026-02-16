@@ -141,14 +141,12 @@ pub(in crate::app) fn execute_editor_output_action(ctx: EditorOutputActionContex
         Ok(EditorEvent::Save { capture_id }) if ctx.action == EditorAction::Save => {
             *ctx.editor_has_unsaved_changes.borrow_mut() = false;
             *ctx.status_log.borrow_mut() = format!("editor saved capture {capture_id}");
-            ctx.editor_toast
-                .show(format!("Saved {capture_id}"), ctx.toast_duration_ms);
+            crate::notification::send(format!("Saved {capture_id}"));
             true
         }
         Ok(EditorEvent::Copy { capture_id }) if ctx.action == EditorAction::Copy => {
             *ctx.status_log.borrow_mut() = format!("editor copied capture {capture_id}");
-            ctx.editor_toast
-                .show(format!("Copied {capture_id}"), ctx.toast_duration_ms);
+            crate::notification::send(format!("Copied {capture_id}"));
             true
         }
         Ok(other) => {

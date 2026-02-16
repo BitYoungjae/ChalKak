@@ -6,6 +6,8 @@ pub mod editor;
 pub mod error;
 pub mod input;
 pub mod logging;
+pub mod notification;
+pub mod ocr;
 pub mod preview;
 pub mod state;
 pub mod storage;

@@ -29,6 +29,8 @@ pub(super) struct EditorRenderContext {
     pub(super) close_editor_button: Button,
     pub(super) storage_service: Rc<Option<StorageService>>,
     pub(super) shared_machine: Rc<RefCell<StateMachine>>,
+    pub(super) ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+    pub(super) ocr_language: crate::ocr::OcrLanguage,
 }
 
 mod wiring;
@@ -483,6 +485,7 @@ pub(super) fn render_editor_state(
     let close_editor_button = &context.close_editor_button;
     let storage_service = &context.storage_service;
     let shared_machine = &context.shared_machine;
+    let ocr_engine = &context.ocr_engine;
     let preview_anchor = active_capture.as_ref().and_then(|artifact| {
         let preview_title = format!("Preview - {}", artifact.capture_id);
         current_window_center(&preview_title)
@@ -754,6 +757,9 @@ pub(super) fn render_editor_state(
                     pending_crop: pending_crop.clone(),
                     editor_image_base_width,
                     editor_image_base_height,
+                    editor_source_pixbuf: editor_source_pixbuf.clone(),
+                    ocr_engine: ocr_engine.clone(),
+                    ocr_language: context.ocr_language,
                 });
             }
             {
@@ -1871,16 +1877,16 @@ mod tests {
             resolve_editor_tool_fallback_shortcut(ShortcutKey::Character('t')),
             Some(ToolKind::Text)
         );
+        assert_eq!(
+            resolve_editor_tool_fallback_shortcut(ShortcutKey::Character('o')),
+            Some(ToolKind::Ocr)
+        );
     }
 
     #[test]
     fn resolve_editor_tool_fallback_shortcut_ignores_non_tool_keys() {
         assert_eq!(
             resolve_editor_tool_fallback_shortcut(ShortcutKey::Character('x')),
-            None
-        );
-        assert_eq!(
-            resolve_editor_tool_fallback_shortcut(ShortcutKey::Character('o')),
             None
         );
         assert_eq!(

@@ -65,6 +65,12 @@ ChalKak은 Wayland + Hyprland 환경을 위한 미리보기 중심 스크린샷 
 | `XDG_RUNTIME_DIR` | 권장 | 임시 파일 저장소 |
 | `XDG_CONFIG_HOME` | 선택 | 설정 디렉터리 (기본값: `$HOME/.config`) |
 
+**선택 의존성:**
+
+| 패키지 | 용도 |
+|--------|------|
+| `chalkak-ocr-models` | OCR 텍스트 인식 (PaddleOCR v5 모델 파일) |
+
 **한 번에 검증:**
 
 ```bash
@@ -80,6 +86,9 @@ hyprctl version && grim -h && slurp -h && wl-copy --help && echo "All dependenci
 ```bash
 # AUR 헬퍼 사용 (예: yay 또는 paru)
 yay -S chalkak
+
+# 선택: OCR 텍스트 인식용 모델 파일 설치
+yay -S chalkak-ocr-models
 ```
 
 ### 소스에서 빌드
@@ -151,6 +160,7 @@ graph LR
 | `s` | 파일로 저장 |
 | `c` | 클립보드로 복사 |
 | `e` | 편집기 열기 |
+| `o` | OCR — 전체 이미지에서 텍스트 추출 후 클립보드 복사 |
 | `Delete` | 캡처 폐기 |
 | `Esc` | 미리보기 닫기 |
 
@@ -169,7 +179,7 @@ graph LR
 | `Ctrl+Z` | 실행 취소 |
 | `Ctrl+Shift+Z` | 다시 실행 |
 | `Delete` / `Backspace` | 선택 객체 삭제 |
-| `o` | 도구 옵션 패널 토글 |
+| `Shift+O` | 도구 옵션 패널 토글 |
 | `Esc` | 선택 도구로 복귀, 이미 선택 도구면 편집기 닫기 |
 
 ### 도구 단축키
@@ -184,6 +194,7 @@ graph LR
 | `r` | 사각형 |
 | `c` | 크롭 |
 | `t` | 텍스트 |
+| `o` | OCR |
 
 ---
 
@@ -234,7 +245,7 @@ graph LR
 ### 텍스트 (`t`)
 
 - 클릭으로 텍스트 박스 생성. 기존 텍스트를 더블클릭해서 편집.
-- **옵션:** 색상, 크기 (1–255), 두께 (100–1000), 글꼴 (Sans / Serif / Monospace).
+- **옵션:** 색상, 크기 (1–255), 두께 (100–1000), 글꼴 (Sans / Serif).
 - 텍스트 편집 키:
 
 | 키 | 동작 |
@@ -246,9 +257,18 @@ graph LR
 | `Backspace` | 문자 삭제 |
 | `Esc` | 텍스트 편집 종료 |
 
+### OCR (`o`)
+
+- 드래그로 영역을 지정하면 해당 영역의 텍스트를 인식하여 클립보드에 복사합니다.
+- 미리보기에서 `o`를 누르면 전체 이미지의 텍스트를 추출합니다.
+- 인식된 텍스트는 자동으로 클립보드에 복사되며 토스트 알림이 표시됩니다.
+- `chalkak-ocr-models` 패키지(PaddleOCR v5 모델 파일)가 필요합니다.
+- 언어는 시스템 `LANG` 환경 변수에서 자동 감지됩니다. `config.json`의 `ocr_language`로 오버라이드 가능합니다 ([14.3절](#143-configjson)).
+- 지원 언어: 한국어 (`ko`), 영어 (`en`), 중국어 (`zh`), 라틴, 키릴 (`ru`), 아랍어 (`ar`), 태국어 (`th`), 그리스어 (`el`), 데바나가리 (`hi`), 타밀어 (`ta`), 텔루구어 (`te`).
+
 ### 도구 옵션 패널
 
-`o`를 눌러 옵션 패널을 토글합니다. 활성 도구의 속성(색상, 두께, 불투명도 등)을 조절할 수 있습니다. 색상 팔레트, 선 두께 프리셋, 텍스트 크기 프리셋은 `theme.json`으로 커스터마이징할 수 있습니다 ([14.1절](#141-themejson)).
+`Shift+O`를 눌러 옵션 패널을 토글합니다. 활성 도구의 속성(색상, 두께, 불투명도 등)을 조절할 수 있습니다. 색상 팔레트, 선 두께 프리셋, 텍스트 크기 프리셋은 `theme.json`으로 커스터마이징할 수 있습니다 ([14.1절](#141-themejson)).
 
 ---
 
@@ -440,6 +460,18 @@ Shift+Print → e (편집기) → r (사각형) / a (화살표) / t (텍스트) 
 Ctrl+Print → e (편집기) → b (블러) → 민감 영역 드래그 → Ctrl+C (복사)
 ```
 
+### 스크린샷에서 텍스트 추출 (OCR)
+
+```
+Print → 영역 선택 → e (편집기) → o (OCR 도구) → 텍스트 위 드래그 → 클립보드 복사
+```
+
+또는 미리보기에서 전체 이미지:
+
+```
+Print → 영역 선택 → o (OCR) → 클립보드 복사
+```
+
 ### 코딩 에이전트에 컨텍스트 전달
 
 ```
@@ -535,7 +567,6 @@ ChalKak은 설정 파일 없이도 동작합니다. 아래 설정은 모두 선�
 | `selection_drag_stroke_color` | 문자열 | `#RRGGBB` 또는 `#RRGGBBAA` |
 | `selection_outline_color` | 문자열 | `#RRGGBB` 또는 `#RRGGBBAA` |
 | `selection_handle_color` | 문자열 | `#RRGGBB` 또는 `#RRGGBBAA` |
-
 잘못된 값은 로그 경고와 함께 무시됩니다.
 
 #### 레거시 호환
@@ -573,6 +604,34 @@ ChalKak은 설정 파일 없이도 동작합니다. 아래 설정은 모두 선�
 jq empty "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json"
 ```
 
+### 14.3 `config.json`
+
+애플리케이션 수준 설정입니다. 파일이 없으면 내장 기본값이 사용됩니다.
+
+```json
+{
+  "ocr_language": "korean"
+}
+```
+
+#### `ocr_language`
+
+OCR 인식 언어를 오버라이드합니다. 생략 시 시스템 `LANG` 환경 변수에서 자동 감지합니다.
+
+| 값 | 언어 |
+|----|------|
+| `korean` / `ko` | 한국어 |
+| `en` / `english` | 영어 |
+| `chinese` / `zh` | 중국어 |
+| `latin` | 라틴 문자 언어 |
+| `cyrillic` / `ru` | 키릴 문자 언어 |
+| `arabic` / `ar` | 아랍어 |
+| `th` / `thai` | 태국어 |
+| `el` / `greek` | 그리스어 |
+| `devanagari` / `hi` | 데바나가리 문자 언어 |
+| `ta` / `tamil` | 타밀어 |
+| `te` / `telugu` | 텔루구어 |
+
 ---
 
 ## 15. 문제 해결
@@ -598,6 +657,14 @@ jq empty "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json"
 |-----------|------|
 | `HOME` 미설정 | `HOME` 환경 변수 설정 |
 | 쓰기 권한 없음 | `~/Pictures` 권한 확인: `ls -ld ~/Pictures` |
+
+### OCR이 작동하지 않음
+
+| 확인 사항 | 해결 |
+|-----------|------|
+| "Model files not found" 토스트 | `chalkak-ocr-models` 패키지를 설치하거나, `~/.local/share/chalkak/models/`에 모델 파일 배치 |
+| 잘못된 언어가 인식됨 | `config.json`에서 `ocr_language` 설정 ([14.3절](#143-configjson)) 또는 시스템 `LANG` 확인 |
+| 유효한 텍스트인데 "No text found" | 더 큰 선택 영역 시도; 매우 작거나 대비가 낮은 텍스트는 감지되지 않을 수 있음 |
 
 ### 임시 파일 누적
 

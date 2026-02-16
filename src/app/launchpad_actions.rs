@@ -9,6 +9,7 @@ use crate::clipboard::WlCopyBackend;
 use crate::preview::{self, PreviewAction, PreviewEvent};
 use crate::state::{AppEvent, AppState, RuntimeWindowState, StateMachine};
 use crate::storage::StorageService;
+use gtk4::prelude::*;
 
 use super::runtime_support::{
     close_preview_window_for_capture, show_toast_for_capture, PreviewWindowRuntime, RuntimeSession,
@@ -33,6 +34,8 @@ pub(super) struct LaunchpadActionExecutor {
     runtime_window_state: Rc<RefCell<RuntimeWindowState>>,
     fallback_toast: ToastRuntime,
     toast_duration_ms: u32,
+    ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+    ocr_language: crate::ocr::OcrLanguage,
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +65,8 @@ impl LaunchpadActionExecutor {
         runtime_window_state: Rc<RefCell<RuntimeWindowState>>,
         fallback_toast: ToastRuntime,
         toast_duration_ms: u32,
+        ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+        ocr_language: crate::ocr::OcrLanguage,
     ) -> Self {
         Self {
             runtime_session,
@@ -73,6 +78,8 @@ impl LaunchpadActionExecutor {
             runtime_window_state,
             fallback_toast,
             toast_duration_ms,
+            ocr_engine,
+            ocr_language,
         }
     }
 
@@ -97,15 +104,11 @@ impl LaunchpadActionExecutor {
                     return;
                 }
                 set_status(&self.status_log, format!("preview opened for {capture_id}"));
-                self.fallback_toast
-                    .show(success_toast_message, self.toast_duration_ms);
+                crate::notification::send(success_toast_message);
             }
             Err(err) => {
                 set_status(&self.status_log, format!("{failure_status_prefix}: {err}"));
-                self.fallback_toast.show(
-                    format!("{failure_toast_prefix}: {err}"),
-                    self.toast_duration_ms,
-                );
+                crate::notification::send(format!("{failure_toast_prefix}: {err}"));
             }
         }
     }
@@ -381,6 +384,76 @@ impl LaunchpadActionExecutor {
         );
     }
 
+    pub(super) fn run_preview_ocr_action(&self) {
+        let active_capture = match consume_and_resolve_active_capture(
+            &self.runtime_session,
+            &self.capture_selection,
+        ) {
+            Some(artifact) => artifact,
+            None => {
+                set_status(&self.status_log, "OCR requires an active capture");
+                return;
+            }
+        };
+        if !matches!(self.machine.borrow().state(), AppState::Preview) {
+            set_status(&self.status_log, "OCR requires preview state");
+            return;
+        }
+
+        {
+            let mut engine_ref = self.ocr_engine.borrow_mut();
+            if engine_ref.is_none() {
+                let model_dir = match crate::ocr::resolve_model_dir() {
+                    Some(dir) => dir,
+                    None => {
+                        set_status(&self.status_log, "OCR: model directory not found");
+                        crate::notification::send(
+                            "OCR: model files not found in ~/.local/share/chalkak/models/",
+                        );
+                        return;
+                    }
+                };
+                match crate::ocr::create_engine(&model_dir, self.ocr_language) {
+                    Ok(engine) => *engine_ref = Some(engine),
+                    Err(err) => {
+                        set_status(&self.status_log, format!("OCR engine init failed: {err}"));
+                        crate::notification::send(format!("OCR init failed: {err}"));
+                        return;
+                    }
+                }
+            }
+        }
+
+        let engine_ref = self.ocr_engine.borrow();
+        let engine = engine_ref.as_ref().expect("OCR engine initialized above");
+        match crate::ocr::recognize_text_from_file(engine, &active_capture.temp_path) {
+            Ok(text) if text.is_empty() => {
+                set_status(&self.status_log, "OCR: no text found");
+                crate::notification::send("No text found");
+            }
+            Ok(text) => {
+                if let Some(display) = gtk4::gdk::Display::default() {
+                    display.clipboard().set_text(&text);
+                }
+                let preview_text = if text.chars().count() > 60 {
+                    let truncated: String = text.chars().take(57).collect();
+                    format!("{truncated}...")
+                } else {
+                    text.clone()
+                };
+                set_status(
+                    &self.status_log,
+                    format!("OCR copied {} chars", text.chars().count()),
+                );
+                crate::notification::send(format!("Copied: {preview_text}"));
+            }
+            Err(err) => {
+                set_status(&self.status_log, format!("OCR recognition failed: {err}"));
+                crate::notification::send(format!("OCR failed: {err}"));
+            }
+        }
+    }
+
     fn apply_deleted_capture(&self, capture_id: &str) {
         self.runtime_session.borrow_mut().remove_capture(capture_id);
         close_preview_window_for_capture(
@@ -576,13 +649,17 @@ fn apply_preview_action_result(
 ) -> Option<PreviewEvent> {
     let outcome = preview_action_ui_outcome(action, &active_capture.capture_id, result);
     set_status(status_log, outcome.status_message);
-    show_toast_for_capture(
-        preview_windows,
-        &outcome.toast_capture_id,
-        fallback_toast,
-        outcome.toast_message,
-        toast_duration_ms,
-    );
+    if matches!(action, PreviewAction::Save | PreviewAction::Copy) {
+        crate::notification::send(outcome.toast_message);
+    } else {
+        show_toast_for_capture(
+            preview_windows,
+            &outcome.toast_capture_id,
+            fallback_toast,
+            outcome.toast_message,
+            toast_duration_ms,
+        );
+    }
     outcome.event
 }
 
@@ -780,8 +857,9 @@ mod tests {
         let result = Err(preview::PreviewActionError::ClipboardError {
             operation: "copy",
             capture_id: "capture-copy".to_string(),
-            source: crate::clipboard::ClipboardError::CommandFailed {
-                status: "exit status 1".to_string(),
+            source: crate::clipboard::ClipboardError::CommandIo {
+                command: "wl-copy".to_string(),
+                source: std::io::Error::other("exit status 1"),
             },
         });
 

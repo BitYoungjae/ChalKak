@@ -1,8 +1,45 @@
 use std::path::{Path, PathBuf};
 
+use serde::Deserialize;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ConfigPathError {
     MissingHomeDirectory,
+}
+
+const APP_DIR: &str = "chalkak";
+const APP_CONFIG_FILE: &str = "config.json";
+
+/// Application-level settings from `config.json`.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub(crate) struct AppConfig {
+    #[serde(default)]
+    pub(crate) ocr_language: Option<String>,
+}
+
+pub(crate) fn load_app_config() -> AppConfig {
+    let (xdg_config_home, home) = config_env_dirs();
+    load_app_config_with(xdg_config_home.as_deref(), home.as_deref())
+}
+
+fn load_app_config_with(xdg_config_home: Option<&Path>, home: Option<&Path>) -> AppConfig {
+    let path = match app_config_path(APP_DIR, APP_CONFIG_FILE, xdg_config_home, home) {
+        Ok(p) => p,
+        Err(_) => return AppConfig::default(),
+    };
+    if !path.exists() {
+        return AppConfig::default();
+    }
+    match std::fs::read_to_string(&path) {
+        Ok(contents) => serde_json::from_str(&contents).unwrap_or_else(|err| {
+            tracing::warn!(?err, ?path, "failed to parse config.json; using defaults");
+            AppConfig::default()
+        }),
+        Err(err) => {
+            tracing::warn!(?err, ?path, "failed to read config.json; using defaults");
+            AppConfig::default()
+        }
+    }
 }
 
 pub(crate) fn config_env_dirs() -> (Option<PathBuf>, Option<PathBuf>) {

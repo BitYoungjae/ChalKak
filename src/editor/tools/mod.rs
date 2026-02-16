@@ -24,6 +24,7 @@ pub enum ToolKind {
     Rectangle,
     Crop,
     Text,
+    Ocr,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -91,13 +92,6 @@ impl ToolObject {
         }
     }
 
-    fn as_blur(&self) -> Option<&BlurElement> {
-        match self {
-            Self::Blur(blur) => Some(blur),
-            _ => None,
-        }
-    }
-
     fn as_blur_mut(&mut self) -> Option<&mut BlurElement> {
         match self {
             Self::Blur(blur) => Some(blur),
@@ -105,30 +99,9 @@ impl ToolObject {
         }
     }
 
-    fn as_pen(&self) -> Option<&PenStroke> {
-        match self {
-            Self::Pen(stroke) => Some(stroke),
-            _ => None,
-        }
-    }
-
     fn as_pen_mut(&mut self) -> Option<&mut PenStroke> {
         match self {
             Self::Pen(stroke) => Some(stroke),
-            _ => None,
-        }
-    }
-
-    fn as_arrow(&self) -> Option<&ArrowElement> {
-        match self {
-            Self::Arrow(arrow) => Some(arrow),
-            _ => None,
-        }
-    }
-
-    fn as_rectangle(&self) -> Option<&RectangleElement> {
-        match self {
-            Self::Rectangle(rectangle) => Some(rectangle),
             _ => None,
         }
     }
@@ -209,10 +182,6 @@ impl EditorTools {
         id
     }
 
-    fn count_objects(&self, matcher: fn(&ToolObject) -> bool) -> usize {
-        self.objects.iter().filter(|object| matcher(object)).count()
-    }
-
     fn collect_objects<T: Clone>(&self, projector: fn(&ToolObject) -> Option<&T>) -> Vec<T> {
         self.objects
             .iter()
@@ -277,28 +246,8 @@ impl EditorTools {
         }
     }
 
-    pub const fn active_tool(&self) -> ToolKind {
-        self.active_tool
-    }
-
     pub fn select_tool(&mut self, tool: ToolKind) {
         self.active_tool = tool;
-    }
-
-    pub const fn blur_intensity(&self) -> u8 {
-        self.blur_options.intensity
-    }
-
-    pub fn set_blur_intensity(&mut self, intensity: u8) {
-        self.blur_options.set_intensity(intensity);
-    }
-
-    pub fn blur_options(&self) -> BlurOptions {
-        self.blur_options
-    }
-
-    pub fn pen_options(&self) -> PenOptions {
-        self.pen_options
     }
 
     pub fn arrow_options(&self) -> ArrowOptions {
@@ -317,23 +266,19 @@ impl EditorTools {
         self.text_options
     }
 
-    pub fn set_pen_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
+    fn set_pen_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
         self.pen_options.set_color(color_r, color_g, color_b);
     }
 
-    pub fn set_pen_opacity(&mut self, opacity: u8) {
-        self.pen_options.set_opacity(opacity);
-    }
-
-    pub fn set_pen_thickness(&mut self, thickness: u8) {
+    fn set_pen_thickness(&mut self, thickness: u8) {
         self.pen_options.set_thickness(thickness);
     }
 
-    pub fn set_arrow_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
+    fn set_arrow_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
         self.arrow_options.set_color(color_r, color_g, color_b);
     }
 
-    pub fn set_arrow_thickness(&mut self, thickness: u8) {
+    fn set_arrow_thickness(&mut self, thickness: u8) {
         self.arrow_options.set_thickness(thickness);
     }
 
@@ -341,17 +286,13 @@ impl EditorTools {
         self.arrow_options.set_head_size(head_size);
     }
 
-    pub fn set_rectangle_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
+    fn set_rectangle_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
         self.rectangle_options
             .set_border_color(color_r, color_g, color_b);
     }
 
-    pub fn set_rectangle_thickness(&mut self, thickness: u8) {
+    fn set_rectangle_thickness(&mut self, thickness: u8) {
         self.rectangle_options.set_thickness(thickness);
-    }
-
-    pub fn set_rectangle_fill(&mut self, fill_enabled: bool) {
-        self.rectangle_options.set_fill_enabled(fill_enabled);
     }
 
     pub fn set_rectangle_border_radius(&mut self, border_radius: u16) {
@@ -362,7 +303,7 @@ impl EditorTools {
         self.crop_options.set_preset(preset);
     }
 
-    pub fn set_text_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
+    fn set_text_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
         self.text_options.set_color(color_r, color_g, color_b);
     }
 
@@ -383,71 +324,15 @@ impl EditorTools {
         self.text_options.set_size(size);
     }
 
-    pub fn set_text_weight(&mut self, weight: u16) {
-        self.text_options.set_weight(weight);
-    }
-
-    pub fn set_text_family(&mut self, family: TextFontFamily) {
-        self.text_options.set_family(family);
-    }
-
-    pub fn blur_count(&self) -> usize {
-        self.count_objects(|object| matches!(object, ToolObject::Blur(_)))
-    }
-
-    pub fn pen_stroke_count(&self) -> usize {
-        self.count_objects(|object| matches!(object, ToolObject::Pen(_)))
-    }
-
-    pub fn arrow_count(&self) -> usize {
-        self.count_objects(|object| matches!(object, ToolObject::Arrow(_)))
-    }
-
-    pub fn rectangle_count(&self) -> usize {
-        self.count_objects(|object| matches!(object, ToolObject::Rectangle(_)))
-    }
-
-    pub fn crop_count(&self) -> usize {
-        self.count_objects(|object| matches!(object, ToolObject::Crop(_)))
-    }
-
-    pub fn text_count(&self) -> usize {
-        self.count_objects(|object| matches!(object, ToolObject::Text(_)))
-    }
-
     pub fn objects(&self) -> &[ToolObject] {
         &self.objects
-    }
-
-    pub fn blur_regions(&self) -> Vec<BlurElement> {
-        self.collect_objects(ToolObject::as_blur)
-    }
-
-    pub fn pen_strokes(&self) -> Vec<PenStroke> {
-        self.collect_objects(ToolObject::as_pen)
-    }
-
-    pub fn arrows(&self) -> Vec<ArrowElement> {
-        self.collect_objects(ToolObject::as_arrow)
-    }
-
-    pub fn rectangles(&self) -> Vec<RectangleElement> {
-        self.collect_objects(ToolObject::as_rectangle)
     }
 
     pub fn crops(&self) -> Vec<CropElement> {
         self.collect_objects(ToolObject::as_crop)
     }
 
-    pub fn texts(&self) -> Vec<TextElement> {
-        self.collect_objects(ToolObject::as_text)
-    }
-
     pub fn active_text_id(&self) -> Option<u64> {
-        self.active_text_box
-    }
-
-    pub fn active_text_box(&self) -> Option<u64> {
         self.active_text_box
     }
 
@@ -514,10 +399,6 @@ impl EditorTools {
         Ok(id)
     }
 
-    pub fn add_crop(&mut self, start: ToolPoint, end: ToolPoint) -> Result<u64, ToolError> {
-        self.add_crop_in_bounds(start, end, u32::MAX, u32::MAX)
-    }
-
     pub fn add_crop_in_bounds(
         &mut self,
         start: ToolPoint,
@@ -573,17 +454,8 @@ impl EditorTools {
         self.push_text_element(TextElement::new(id, at, self.text_options))
     }
 
-    pub fn add_text_box_with_text(&mut self, at: ToolPoint, text: impl Into<String>) -> u64 {
-        let id = self.allocate_id();
-        self.push_text_element(TextElement::with_text(id, at, text, self.text_options))
-    }
-
     pub fn finish_text_box(&mut self) -> bool {
         self.active_text_box.take().is_some()
-    }
-
-    pub fn cancel_text_box(&mut self) -> bool {
-        self.finish_text_box()
     }
 
     pub fn apply_text_input(&mut self, event: TextInputEvent) -> TextInputAction {
@@ -664,22 +536,6 @@ impl EditorTools {
         }
     }
 
-    pub fn get_blur(&self, id: u64) -> Option<&BlurElement> {
-        self.find_object_ref(id, ToolObject::as_blur)
-    }
-
-    pub fn get_pen_stroke(&self, id: u64) -> Option<&PenStroke> {
-        self.find_object_ref(id, ToolObject::as_pen)
-    }
-
-    pub fn get_arrow(&self, id: u64) -> Option<&ArrowElement> {
-        self.find_object_ref(id, ToolObject::as_arrow)
-    }
-
-    pub fn get_rectangle(&self, id: u64) -> Option<&RectangleElement> {
-        self.find_object_ref(id, ToolObject::as_rectangle)
-    }
-
     pub fn get_crop(&self, id: u64) -> Option<&CropElement> {
         self.find_object_ref(id, ToolObject::as_crop)
     }
@@ -727,27 +583,6 @@ impl EditorTools {
             self.active_pen_stroke = None;
         }
         Ok(())
-    }
-
-    pub fn add_pen_stroke(&mut self, points: &[ToolPoint]) -> Result<u64, ToolError> {
-        if points.is_empty() {
-            return Err(ToolError::EmptyPenStroke);
-        }
-
-        let id = self.allocate_id();
-
-        let mut points = points
-            .iter()
-            .copied()
-            .map(|point| PenPoint::new(point.x, point.y));
-        let start = points.next().expect("points is checked non-empty above");
-
-        let mut stroke = PenStroke::new(id, start, self.pen_options);
-        points.for_each(|point| stroke.append_point(point));
-        stroke.finalize();
-
-        self.objects.push(ToolObject::Pen(stroke));
-        Ok(id)
     }
 
     pub fn move_object_by(
@@ -897,34 +732,6 @@ impl EditorTools {
         Some(object)
     }
 
-    pub fn clear_crops(&mut self) {
-        self.objects
-            .retain(|object| !matches!(object, ToolObject::Crop(_)));
-    }
-
-    pub fn commit_crop(&mut self, crop: CropElement) -> Result<u64, ToolError> {
-        if crop.width < CROP_MIN_SIZE || crop.height < CROP_MIN_SIZE {
-            return Err(ToolError::InvalidCropGeometry);
-        }
-        self.clear_crops();
-        let id = self.allocate_id();
-        let committed = CropElement::new(id, crop.x, crop.y, crop.width, crop.height, crop.options);
-        self.objects.push(ToolObject::Crop(committed));
-        Ok(id)
-    }
-
-    pub fn pop_last_object(&mut self) -> Option<ToolObject> {
-        let object = self.objects.pop()?;
-        self.clear_active_state_for_object(&object);
-        Some(object)
-    }
-
-    pub fn push_object(&mut self, object: ToolObject) {
-        let object_id = object.id();
-        self.next_id = self.next_id.max(object_id.saturating_add(1));
-        self.objects.push(object);
-    }
-
     pub fn replace_objects(&mut self, objects: Vec<ToolObject>) {
         self.objects = objects;
         self.next_id = self
@@ -952,13 +759,6 @@ impl EditorTools {
                 self.active_text_box = None;
             }
         }
-    }
-
-    pub fn clear(&mut self) {
-        self.objects.clear();
-        self.next_id = 1;
-        self.active_pen_stroke = None;
-        self.active_text_box = None;
     }
 }
 
@@ -1103,6 +903,154 @@ fn clamp_translation_delta(delta: i32, min_coord: i32, max_coord: i32, axis_max:
     let min_delta = min_coord.saturating_neg();
     let max_delta = axis_max.saturating_sub(max_coord);
     delta.clamp(min_delta, max_delta)
+}
+
+#[cfg(test)]
+impl ToolObject {
+    fn as_blur(&self) -> Option<&BlurElement> {
+        match self {
+            Self::Blur(blur) => Some(blur),
+            _ => None,
+        }
+    }
+
+    fn as_pen(&self) -> Option<&PenStroke> {
+        match self {
+            Self::Pen(stroke) => Some(stroke),
+            _ => None,
+        }
+    }
+
+    fn as_arrow(&self) -> Option<&ArrowElement> {
+        match self {
+            Self::Arrow(arrow) => Some(arrow),
+            _ => None,
+        }
+    }
+
+    fn as_rectangle(&self) -> Option<&RectangleElement> {
+        match self {
+            Self::Rectangle(rectangle) => Some(rectangle),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+impl EditorTools {
+    fn count_objects(&self, matcher: fn(&ToolObject) -> bool) -> usize {
+        self.objects.iter().filter(|object| matcher(object)).count()
+    }
+
+    fn active_tool(&self) -> ToolKind {
+        self.active_tool
+    }
+
+    fn blur_intensity(&self) -> u8 {
+        self.blur_options.intensity
+    }
+
+    fn set_blur_intensity(&mut self, intensity: u8) {
+        self.blur_options.set_intensity(intensity);
+    }
+
+    fn pen_options(&self) -> PenOptions {
+        self.pen_options
+    }
+
+    fn set_pen_opacity(&mut self, opacity: u8) {
+        self.pen_options.set_opacity(opacity);
+    }
+
+    fn set_rectangle_fill(&mut self, fill_enabled: bool) {
+        self.rectangle_options.set_fill_enabled(fill_enabled);
+    }
+
+    fn set_text_weight(&mut self, weight: u16) {
+        self.text_options.set_weight(weight);
+    }
+
+    fn set_text_family(&mut self, family: TextFontFamily) {
+        self.text_options.set_family(family);
+    }
+
+    fn blur_count(&self) -> usize {
+        self.count_objects(|object| matches!(object, ToolObject::Blur(_)))
+    }
+
+    fn pen_stroke_count(&self) -> usize {
+        self.count_objects(|object| matches!(object, ToolObject::Pen(_)))
+    }
+
+    fn arrow_count(&self) -> usize {
+        self.count_objects(|object| matches!(object, ToolObject::Arrow(_)))
+    }
+
+    fn rectangle_count(&self) -> usize {
+        self.count_objects(|object| matches!(object, ToolObject::Rectangle(_)))
+    }
+
+    fn crop_count(&self) -> usize {
+        self.count_objects(|object| matches!(object, ToolObject::Crop(_)))
+    }
+
+    fn text_count(&self) -> usize {
+        self.count_objects(|object| matches!(object, ToolObject::Text(_)))
+    }
+
+    fn get_blur(&self, id: u64) -> Option<&BlurElement> {
+        self.find_object_ref(id, ToolObject::as_blur)
+    }
+
+    fn get_pen_stroke(&self, id: u64) -> Option<&PenStroke> {
+        self.find_object_ref(id, ToolObject::as_pen)
+    }
+
+    fn get_arrow(&self, id: u64) -> Option<&ArrowElement> {
+        self.find_object_ref(id, ToolObject::as_arrow)
+    }
+
+    fn get_rectangle(&self, id: u64) -> Option<&RectangleElement> {
+        self.find_object_ref(id, ToolObject::as_rectangle)
+    }
+
+    fn add_text_box_with_text(&mut self, at: ToolPoint, text: impl Into<String>) -> u64 {
+        let id = self.allocate_id();
+        self.push_text_element(TextElement::with_text(id, at, text, self.text_options))
+    }
+
+    fn add_pen_stroke(&mut self, points: &[ToolPoint]) -> Result<u64, ToolError> {
+        if points.is_empty() {
+            return Err(ToolError::EmptyPenStroke);
+        }
+
+        let id = self.allocate_id();
+
+        let mut points = points
+            .iter()
+            .copied()
+            .map(|point| PenPoint::new(point.x, point.y));
+        let start = points.next().expect("points is checked non-empty above");
+
+        let mut stroke = PenStroke::new(id, start, self.pen_options);
+        points.for_each(|point| stroke.append_point(point));
+        stroke.finalize();
+
+        self.objects.push(ToolObject::Pen(stroke));
+        Ok(id)
+    }
+
+    fn pop_last_object(&mut self) -> Option<ToolObject> {
+        let object = self.objects.pop()?;
+        self.clear_active_state_for_object(&object);
+        Some(object)
+    }
+
+    fn push_object(&mut self, object: ToolObject) {
+        let object_id = object.id();
+        self.next_id = self.next_id.max(object_id.saturating_add(1));
+        self.objects.push(object);
+    }
 }
 
 #[cfg(test)]
@@ -1505,7 +1453,7 @@ mod tests {
         let text = tools.get_text(text_id).expect("text box should be stored");
 
         assert_eq!(tools.active_text_id(), Some(1));
-        assert_eq!(tools.active_text_box(), Some(1));
+        assert_eq!(tools.active_text_id(), Some(1));
         assert_eq!(tools.active_tool(), ToolKind::Text);
         assert_eq!(text.content, "");
         assert_eq!(text.x, 14);
@@ -1620,13 +1568,13 @@ mod tests {
 
         let id = tools.add_text_box(ToolPoint::new(1, 2));
         let _ = tools.apply_text_input(TextInputEvent::Character('x'));
-        assert_eq!(tools.active_text_box(), Some(id));
+        assert_eq!(tools.active_text_id(), Some(id));
 
         assert_eq!(
             tools.apply_text_input(TextInputEvent::Escape),
             TextInputAction::ExitFocus
         );
-        assert_eq!(tools.active_text_box(), None);
+        assert_eq!(tools.active_text_id(), None);
     }
 
     #[test]

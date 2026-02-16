@@ -15,6 +15,7 @@ pub(in crate::app) fn tool_kind_label(tool: ToolKind) -> &'static str {
         ToolKind::Rectangle => "Rect",
         ToolKind::Crop => "Crop",
         ToolKind::Text => "Text",
+        ToolKind::Ocr => "OCR",
     }
 }
 

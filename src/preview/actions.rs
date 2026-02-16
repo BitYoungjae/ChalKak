@@ -100,10 +100,6 @@ mod tests {
     }
 
     impl ClipboardBackend for FakeClipboard {
-        fn copy_png_file(&self, _path: &Path) -> crate::clipboard::ClipboardResult<()> {
-            Ok(())
-        }
-
         fn copy(&self, path: &Path) -> crate::clipboard::ClipboardResult<()> {
             self.copied_paths.borrow_mut().push(path.to_path_buf());
             Ok(())

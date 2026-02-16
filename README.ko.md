@@ -25,7 +25,7 @@ Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보�
 
 - 캡처 모드: 전체 화면, 영역, 창.
 - 캡처 후 즉시 미리보기 단계 제공 (저장, 이미지 복사, 파일 참조 복사, 편집, 삭제).
-- 내장 편집 도구: 선택, 패닝, 블러, 펜, 화살표, 사각형, 크롭, 텍스트.
+- 내장 편집 도구: 선택, 패닝, 블러, 펜, 화살표, 사각형, 크롭, 텍스트, OCR.
 - 미리보기/편집 모두 키보드 중심 조작 가능.
 - 테마 및 편집 네비게이션 키바인딩 사용자 설정 지원.
 - 시작 시 오래된 임시 캡처 자동 정리.
@@ -56,6 +56,12 @@ Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보�
 
 ```bash
 yay -S chalkak
+```
+
+OCR 텍스트 인식 기능을 사용하려면 모델 파일도 함께 설치하세요:
+
+```bash
+yay -S chalkak-ocr-models
 ```
 
 게시된 AUR 패키지 버전이 현재 crate 릴리스보다 뒤처져 있다면, 아래 소스 빌드 경로를 사용하세요.
@@ -99,6 +105,7 @@ chalkak --launchpad
 - `s`: 저장
 - `c`: 이미지 복사
 - `e`: 편집기 열기
+- `o`: OCR (전체 이미지에서 텍스트 추출)
 - `Delete`: 캡처 삭제
 - `Esc`: 미리보기 닫기
 
@@ -109,7 +116,7 @@ chalkak --launchpad
 - `Ctrl+Z`: 실행 취소
 - `Ctrl+Shift+Z`: 다시 실행
 - `Delete` / `Backspace`: 선택 항목 삭제
-- `o`: 도구 옵션 패널 토글
+- `Shift+O`: 도구 옵션 패널 토글
 - `Esc`: 선택 도구 전환 또는 (이미 선택 모드일 때) 편집기 닫기
 
 미리보기/편집기 액션 버튼에서도 현재 이미지의 파일 참조 복사를 지원합니다.
@@ -124,6 +131,7 @@ chalkak --launchpad
 - `r` 사각형
 - `c` 크롭
 - `t` 텍스트
+- `o` OCR
 
 텍스트 편집:
 
@@ -151,10 +159,12 @@ chalkak --launchpad
 
 - `theme.json`
 - `keybindings.json`
+- `config.json`
 
 `theme.json` 요약:
 
 - `mode`: `system`, `light`, `dark`
+- `config.json`: 애플리케이션 설정 (예: `ocr_language`)
 - `colors`: 공통값 + 모드별 덮어쓰기 지원
 - `colors.common` + `colors.dark` + `colors.light`
 - `editor`: 공통값 + 모드별 덮어쓰기 지원
@@ -208,6 +218,7 @@ cargo clippy --all-targets --all-features -D warnings
 - `src/theme`, `src/ui`: 테마/스타일 토큰
 - `src/state`: 앱 상태 머신
 - `src/clipboard`: 클립보드(`wl-copy`) 연동
+- `src/ocr`: OCR 텍스트 인식 (PaddleOCR v5 / MNN)
 - `src/config`: 설정/키바인딩/테마 경로 헬퍼
 - `src/error`: 애플리케이션 공통 에러/결과 타입
 - `src/logging`: tracing subscriber 초기화
@@ -227,9 +238,12 @@ cargo clippy --all-targets --all-features -D warnings
 기본 의존성:
 
 - `depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')`
-- `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')`
+- `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4' 'cmake')`
+- `optdepends=('chalkak-ocr-models: OCR 텍스트 인식 지원')`
 
 패키지명 목표: `chalkak`.
+
+별도 AUR 패키지 `chalkak-ocr-models`가 OCR용 PaddleOCR v5 모델 파일을 제공합니다. 패키징 메타데이터는 `aur/chalkak-ocr-models/`에 있습니다.
 
 ## 유지보수자
 

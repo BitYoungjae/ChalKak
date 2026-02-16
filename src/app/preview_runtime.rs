@@ -34,6 +34,7 @@ pub(super) struct PreviewRenderContext {
     status_log: Rc<RefCell<String>>,
     save_button: Button,
     copy_button: Button,
+    ocr_button: Button,
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
@@ -54,6 +55,7 @@ impl PreviewRenderContext {
         status_log: Rc<RefCell<String>>,
         save_button: Button,
         copy_button: Button,
+        ocr_button: Button,
         open_editor_button: Button,
         close_preview_button: Button,
         delete_button: Button,
@@ -71,6 +73,7 @@ impl PreviewRenderContext {
             status_log,
             save_button,
             copy_button,
+            ocr_button,
             open_editor_button,
             close_preview_button,
             delete_button,
@@ -229,6 +232,7 @@ fn connect_preview_action_bridges(
 struct PreviewLaunchpadButtons {
     save_button: Button,
     copy_button: Button,
+    ocr_button: Button,
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
@@ -238,6 +242,7 @@ struct PreviewLaunchpadButtons {
 enum PreviewShortcutTarget {
     Save,
     Copy,
+    Ocr,
     Edit,
     Delete,
     Close,
@@ -247,6 +252,7 @@ fn preview_shortcut_target(action: ShortcutAction) -> Option<PreviewShortcutTarg
     match action {
         ShortcutAction::PreviewSave => Some(PreviewShortcutTarget::Save),
         ShortcutAction::PreviewCopy => Some(PreviewShortcutTarget::Copy),
+        ShortcutAction::PreviewOcr => Some(PreviewShortcutTarget::Ocr),
         ShortcutAction::PreviewEdit => Some(PreviewShortcutTarget::Edit),
         ShortcutAction::PreviewDelete => Some(PreviewShortcutTarget::Delete),
         ShortcutAction::PreviewClose => Some(PreviewShortcutTarget::Close),
@@ -259,6 +265,7 @@ impl PreviewLaunchpadButtons {
         Self {
             save_button: context.save_button.clone(),
             copy_button: context.copy_button.clone(),
+            ocr_button: context.ocr_button.clone(),
             open_editor_button: context.open_editor_button.clone(),
             close_preview_button: context.close_preview_button.clone(),
             delete_button: context.delete_button.clone(),
@@ -269,6 +276,7 @@ impl PreviewLaunchpadButtons {
         match preview_shortcut_target(action) {
             Some(PreviewShortcutTarget::Save) => self.save_button.emit_clicked(),
             Some(PreviewShortcutTarget::Copy) => self.copy_button.emit_clicked(),
+            Some(PreviewShortcutTarget::Ocr) => self.ocr_button.emit_clicked(),
             Some(PreviewShortcutTarget::Edit) => self.open_editor_button.emit_clicked(),
             Some(PreviewShortcutTarget::Delete) => self.delete_button.emit_clicked(),
             Some(PreviewShortcutTarget::Close) => self.close_preview_button.emit_clicked(),
@@ -291,6 +299,7 @@ struct PreviewWindowBuild {
     copy_button: Button,
     save_button: Button,
     edit_button: Button,
+    ocr_button: Button,
     close_button: Button,
 }
 
@@ -301,6 +310,7 @@ struct PreviewControlsBuild {
     copy_button: Button,
     save_button: Button,
     edit_button: Button,
+    ocr_button: Button,
     close_button: Button,
 }
 
@@ -354,9 +364,17 @@ fn build_preview_controls(
         &["preview-icon-button"],
     );
 
+    let preview_ocr_button = icon_button(
+        "edit-find-symbolic",
+        "Extract text (OCR)",
+        context.style_tokens.control_size as i32,
+        &["preview-icon-button"],
+    );
+
     top_center_actions.append(&preview_copy_button);
     top_center_actions.append(&preview_save_button);
     top_center_actions.append(&preview_edit_button);
+    top_center_actions.append(&preview_ocr_button);
 
     let preview_close_button = icon_button(
         "x-symbolic",
@@ -419,6 +437,7 @@ fn build_preview_controls(
         copy_button: preview_copy_button,
         save_button: preview_save_button,
         edit_button: preview_edit_button,
+        ocr_button: preview_ocr_button,
         close_button: preview_close_button,
     }
 }
@@ -454,7 +473,6 @@ fn build_preview_window(
             height: geometry.height,
         });
     let mut preview_shell_model = preview::PreviewWindowShell::with_capture_size(
-        &artifact.capture_id,
         artifact.screen_width,
         artifact.screen_height,
     );
@@ -521,6 +539,7 @@ fn build_preview_window(
         copy_button: preview_controls.copy_button,
         save_button: preview_controls.save_button,
         edit_button: preview_controls.edit_button,
+        ocr_button: preview_controls.ocr_button,
         close_button: preview_controls.close_button,
     }
 }
@@ -534,6 +553,7 @@ fn connect_preview_window_action_wiring(
         &[
             (&build.save_button, &context.save_button),
             (&build.copy_button, &context.copy_button),
+            (&build.ocr_button, &context.ocr_button),
             (&build.edit_button, &context.open_editor_button),
             (&build.close_button, &context.close_preview_button),
         ],

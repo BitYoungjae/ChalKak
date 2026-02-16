@@ -79,7 +79,7 @@ pub(in crate::app::editor_runtime) fn connect_editor_text_click_gesture(
         let has_active_text = press_context
             .editor_tools
             .borrow()
-            .active_text_box()
+            .active_text_id()
             .is_some();
         if has_active_text {
             finish_text_editing_and_arm_text_tool(
@@ -149,6 +149,7 @@ pub(in crate::app::editor_runtime) fn connect_editor_selection_click_gesture(
                 | ToolKind::Pen
                 | ToolKind::Arrow
                 | ToolKind::Rectangle
+                | ToolKind::Ocr
         ) {
             return;
         }
@@ -215,6 +216,9 @@ pub(in crate::app::editor_runtime) struct EditorDrawGestureContext {
     pub(in crate::app::editor_runtime) pending_crop: Rc<RefCell<Option<CropElement>>>,
     pub(in crate::app::editor_runtime) editor_image_base_width: i32,
     pub(in crate::app::editor_runtime) editor_image_base_height: i32,
+    pub(in crate::app::editor_runtime) editor_source_pixbuf: Option<gtk4::gdk_pixbuf::Pixbuf>,
+    pub(in crate::app::editor_runtime) ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+    pub(in crate::app::editor_runtime) ocr_language: crate::ocr::OcrLanguage,
 }
 
 fn handle_draw_gesture_begin(
@@ -355,7 +359,7 @@ fn handle_draw_gesture_begin(
             context.active_pen_stroke_id.set(Some(stroke_id));
             context.tool_drag_preview.borrow_mut().take();
         }
-        ToolKind::Blur | ToolKind::Arrow | ToolKind::Rectangle => {
+        ToolKind::Blur | ToolKind::Arrow | ToolKind::Rectangle | ToolKind::Ocr => {
             context.active_pen_stroke_id.set(None);
             *context.tool_drag_preview.borrow_mut() = Some(ToolDragPreview {
                 tool,
@@ -581,6 +585,13 @@ fn handle_draw_gesture_end(context: &EditorDrawGestureContext, offset_x: f64, of
         return;
     }
 
+    if preview.tool == ToolKind::Ocr {
+        drop(tools);
+        perform_ocr_recognition(context, preview.start, end);
+        context.editor_canvas.queue_draw();
+        return;
+    }
+
     let outcome = match preview.tool {
         ToolKind::Select | ToolKind::Pan => Err(editor::ToolError::ToolNotSelected),
         ToolKind::Blur => normalize_tool_box(preview.start, end)
@@ -591,7 +602,7 @@ fn handle_draw_gesture_end(context: &EditorDrawGestureContext, offset_x: f64, of
         ToolKind::Arrow => tools.add_arrow(preview.start, end),
         ToolKind::Rectangle => tools.add_rectangle(preview.start, end),
         ToolKind::Crop => Err(editor::ToolError::ToolNotSelected),
-        ToolKind::Pen | ToolKind::Text => Err(editor::ToolError::ToolNotSelected),
+        ToolKind::Pen | ToolKind::Text | ToolKind::Ocr => Err(editor::ToolError::ToolNotSelected),
     };
 
     match outcome {
@@ -611,6 +622,85 @@ fn handle_draw_gesture_end(context: &EditorDrawGestureContext, offset_x: f64, of
         }
     }
     context.editor_canvas.queue_draw();
+}
+
+fn perform_ocr_recognition(
+    context: &EditorDrawGestureContext,
+    start: editor::tools::ToolPoint,
+    end: editor::tools::ToolPoint,
+) {
+    let Some((x, y, width, height)) = normalize_tool_box(start, end) else {
+        *context.status_log_for_render.borrow_mut() = "OCR drag too small".to_string();
+        return;
+    };
+
+    let Some(ref pixbuf) = context.editor_source_pixbuf else {
+        *context.status_log_for_render.borrow_mut() = "OCR: no source image available".to_string();
+        return;
+    };
+
+    {
+        let mut engine_ref = context.ocr_engine.borrow_mut();
+        if engine_ref.is_none() {
+            let model_dir = match crate::ocr::resolve_model_dir() {
+                Some(dir) => dir,
+                None => {
+                    *context.status_log_for_render.borrow_mut() =
+                        "OCR: model directory not found".to_string();
+                    crate::notification::send(
+                        "OCR: model files not found in ~/.local/share/chalkak/models/",
+                    );
+                    return;
+                }
+            };
+            match crate::ocr::create_engine(&model_dir, context.ocr_language) {
+                Ok(engine) => *engine_ref = Some(engine),
+                Err(err) => {
+                    *context.status_log_for_render.borrow_mut() =
+                        format!("OCR engine init failed: {err}");
+                    crate::notification::send(format!("OCR init failed: {err}"));
+                    return;
+                }
+            }
+        }
+    }
+
+    let image = match crate::ocr::pixbuf_region_to_dynamic_image(pixbuf, x, y, width, height) {
+        Ok(img) => img,
+        Err(err) => {
+            *context.status_log_for_render.borrow_mut() =
+                format!("OCR image conversion failed: {err}");
+            crate::notification::send(format!("OCR failed: {err}"));
+            return;
+        }
+    };
+
+    let engine_ref = context.ocr_engine.borrow();
+    let engine = engine_ref.as_ref().expect("OCR engine initialized above");
+    match crate::ocr::recognize_text(engine, &image) {
+        Ok(text) if text.is_empty() => {
+            *context.status_log_for_render.borrow_mut() = "OCR: no text found".to_string();
+            crate::notification::send("No text found");
+        }
+        Ok(text) => {
+            if let Some(display) = gtk4::gdk::Display::default() {
+                display.clipboard().set_text(&text);
+            }
+            let preview_text = if text.chars().count() > 60 {
+                let truncated: String = text.chars().take(57).collect();
+                format!("{truncated}...")
+            } else {
+                text.clone()
+            };
+            *context.status_log_for_render.borrow_mut() =
+                format!("OCR copied {} chars", text.chars().count());
+            crate::notification::send(format!("Copied: {preview_text}"));
+        }
+        Err(err) => {
+            *context.status_log_for_render.borrow_mut() = format!("OCR recognition failed: {err}");
+            crate::notification::send(format!("OCR recognition failed: {err}"));
+        }
+    }
 }
 
 pub(in crate::app::editor_runtime) fn connect_editor_draw_gesture(

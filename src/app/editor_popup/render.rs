@@ -1013,6 +1013,28 @@ pub(in crate::app) fn draw_drag_preview_overlay(
             }
         }
         ToolKind::Text => {}
+        ToolKind::Ocr => {
+            if let Some((x, y, width, height)) = normalize_tool_box(preview.start, preview.current)
+            {
+                context.set_source_rgba(0.12, 0.28, 0.70, 0.18);
+                context.rectangle(
+                    f64::from(x),
+                    f64::from(y),
+                    f64::from(width),
+                    f64::from(height),
+                );
+                let _ = context.fill();
+                context.set_source_rgba(0.25, 0.52, 1.0, 0.90);
+                context.set_line_width(1.5);
+                context.rectangle(
+                    f64::from(x),
+                    f64::from(y),
+                    f64::from(width),
+                    f64::from(height),
+                );
+                let _ = context.stroke();
+            }
+        }
     }
 }
 

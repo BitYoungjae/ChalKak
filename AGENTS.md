@@ -3,7 +3,7 @@
 ## Project Structure & Module Organization
 - `src/main.rs` is a thin CLI entrypoint that calls `chalkak::run()`.
 - `src/lib.rs` wires top-level modules and shared result/error exports.
-- Core domains are split by module: `src/app/` (runtime orchestration), `src/capture/`, `src/preview/`, `src/editor/`, `src/input/`, `src/state/`, `src/storage/`, `src/theme/`, `src/ui/`, `src/clipboard/`, and `src/logging/`.
+- Core domains are split by module: `src/app/` (runtime orchestration), `src/capture/`, `src/preview/`, `src/editor/`, `src/input/`, `src/state/`, `src/storage/`, `src/theme/`, `src/ui/`, `src/clipboard/`, `src/ocr/`, and `src/logging/`.
 - Tests are colocated with implementation using `#[cfg(test)]`; there is no separate `tests/` directory currently.
 
 ## Build, Test, and Development Commands

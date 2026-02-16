@@ -61,8 +61,6 @@ const VIEWPORT_ZOOM_LEVELS_PERCENT: &[u16] = &[
     1, 2, 3, 4, 5, 8, 10, 12, 16, 20, 25, 33, 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200,
     250, 300, 400, 500, 600, 800, 1000, 1200, 1600,
 ];
-const VIEWPORT_PAN_STEP_PX: i32 = 48;
-
 fn clamp_zoom_percent(zoom_percent: u16) -> u16 {
     zoom_percent.clamp(VIEWPORT_ZOOM_MIN_PERCENT, VIEWPORT_ZOOM_MAX_PERCENT)
 }
@@ -150,13 +148,16 @@ impl EditorViewport {
         self.pan_x = pan_x;
         self.pan_y = pan_y;
     }
+}
 
-    pub fn pan_right(&mut self) {
-        self.pan_by(VIEWPORT_PAN_STEP_PX, 0);
+#[cfg(test)]
+impl EditorViewport {
+    fn pan_right(&mut self) {
+        self.pan_by(48, 0);
     }
 
-    pub fn pan_down(&mut self) {
-        self.pan_by(0, VIEWPORT_PAN_STEP_PX);
+    fn pan_down(&mut self) {
+        self.pan_by(0, 48);
     }
 }
 
@@ -336,10 +337,6 @@ mod tests {
 
     struct MockClipboard;
     impl ClipboardBackend for MockClipboard {
-        fn copy_png_file(&self, _path: &std::path::Path) -> ClipboardResult<()> {
-            Ok(())
-        }
-
         fn copy(&self, _path: &std::path::Path) -> ClipboardResult<()> {
             Ok(())
         }

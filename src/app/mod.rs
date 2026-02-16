@@ -224,6 +224,7 @@ fn shortcut_editor_tool_switch(action: ShortcutAction) -> Option<(ToolKind, &'st
         }
         ShortcutAction::EditorEnterCrop => Some((ToolKind::Crop, "editor crop interaction armed")),
         ShortcutAction::EditorEnterText => Some((ToolKind::Text, "editor text tool armed")),
+        ShortcutAction::EditorEnterOcr => Some((ToolKind::Ocr, "editor OCR tool armed")),
         _ => None,
     }
 }
@@ -365,6 +366,7 @@ struct LaunchpadUi {
     close_editor_button: Button,
     save_button: Button,
     copy_button: Button,
+    ocr_button: Button,
     delete_button: Button,
 }
 
@@ -376,13 +378,10 @@ impl LaunchpadUi {
         latest_capture_label: &str,
         ids: &[String],
     ) {
-        self.state_label.set_text(&format!("State: {:?}", state));
-        self.active_capture_label
-            .set_text(&format!("Active capture: {active_capture_id}"));
-        self.capture_count_label
-            .set_text(&format!("Capture count: {}", ids.len()));
-        self.latest_label
-            .set_text(&format!("Latest capture: {latest_capture_label}"));
+        self.state_label.set_text(&format!("{:?}", state));
+        self.active_capture_label.set_text(active_capture_id);
+        self.capture_count_label.set_text(&format!("{}", ids.len()));
+        self.latest_label.set_text(latest_capture_label);
         self.capture_ids_label
             .set_text(&format_capture_ids_for_display(ids));
     }
@@ -400,21 +399,38 @@ impl LaunchpadUi {
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
         self.copy_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
+        self.ocr_button
+            .set_sensitive(matches!(state, AppState::Preview) && has_capture);
         self.delete_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
     }
 
     fn set_status_text(&self, message: &str) {
-        self.status_label.set_text(&format!("Status: {message}"));
+        self.status_label.set_text(message);
     }
 }
 
-fn launchpad_value_label(text: &str) -> Label {
-    let label = Label::new(Some(text));
-    label.add_css_class("launchpad-key-value");
-    label.set_halign(Align::Start);
-    label.set_xalign(0.0);
-    label
+fn launchpad_kv_row(key: &str, value_label: &Label) -> GtkBox {
+    let key_label = Label::new(Some(key));
+    key_label.add_css_class("launchpad-kv-key");
+    key_label.set_halign(Align::Start);
+    key_label.set_xalign(0.0);
+
+    value_label.add_css_class("launchpad-kv-value");
+    value_label.set_halign(Align::Start);
+    value_label.set_xalign(0.0);
+    value_label.set_hexpand(true);
+    value_label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
+
+    let row = GtkBox::new(Orientation::Horizontal, 8);
+    row.append(&key_label);
+    row.append(value_label);
+    row
+}
+
+fn launchpad_kv_static(key: &str, value: &str) -> GtkBox {
+    let value_label = Label::new(Some(value));
+    launchpad_kv_row(key, &value_label)
 }
 
 fn launchpad_section_title(text: &str) -> Label {
@@ -449,7 +465,20 @@ fn format_capture_ids_for_display(ids: &[String]) -> String {
     format!("IDs:\n{id_lines}")
 }
 
-fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> LaunchpadUi {
+struct LaunchpadSettingsInfo {
+    theme_label: String,
+    ocr_language_label: String,
+    ocr_model_dir_label: String,
+    config_path: String,
+    theme_config_path: String,
+    keybinding_config_path: String,
+}
+
+fn build_launchpad_ui(
+    style_tokens: StyleTokens,
+    show_launchpad: bool,
+    settings_info: &LaunchpadSettingsInfo,
+) -> LaunchpadUi {
     let root = GtkBox::new(Orientation::Vertical, style_tokens.spacing_12);
     root.set_margin_top(style_tokens.spacing_12);
     root.set_margin_bottom(style_tokens.spacing_12);
@@ -462,10 +491,20 @@ fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> Launch
     toast_label.set_halign(Align::Start);
     toast_label.set_visible(false);
 
+    // ── Header row: title + version badge ──
     let title_label = Label::new(Some("ChalKak Launchpad"));
     title_label.add_css_class("launchpad-title");
     title_label.set_halign(Align::Start);
     title_label.set_xalign(0.0);
+
+    let version_label = Label::new(Some(env!("CARGO_PKG_VERSION")));
+    version_label.add_css_class("launchpad-version");
+    version_label.set_halign(Align::Start);
+    version_label.set_valign(Align::Center);
+
+    let header_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
+    header_row.append(&title_label);
+    header_row.append(&version_label);
 
     let subtitle_label = Label::new(Some(
         "Quick control panel for validating capture, preview, and editor flow.",
@@ -475,27 +514,7 @@ fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> Launch
     subtitle_label.set_xalign(0.0);
     subtitle_label.set_wrap(true);
 
-    let state_label = launchpad_value_label("State: initializing");
-    let status_label = launchpad_value_label("Status: Ready");
-    let active_capture_label = launchpad_value_label("Active capture: none");
-    let capture_count_label = launchpad_value_label("Capture count: 0");
-    let latest_label = launchpad_value_label("No capture yet");
-    let capture_ids_label = Label::new(Some("IDs: none"));
-    capture_ids_label.add_css_class("launchpad-capture-ids");
-    capture_ids_label.set_halign(Align::Start);
-    capture_ids_label.set_xalign(0.0);
-    capture_ids_label.set_wrap(true);
-    capture_ids_label.set_selectable(true);
-
-    let info_content = GtkBox::new(Orientation::Vertical, style_tokens.spacing_8);
-    info_content.append(&state_label);
-    info_content.append(&status_label);
-    info_content.append(&active_capture_label);
-    info_content.append(&capture_count_label);
-    info_content.append(&latest_label);
-    info_content.append(&capture_ids_label);
-    let info_panel = launchpad_panel(style_tokens, "Session Overview", &info_content);
-
+    // ── Capture panel (3 buttons, horizontal) ──
     let full_capture_button = Button::with_label("Full Capture");
     full_capture_button.add_css_class("launchpad-primary-button");
     full_capture_button.set_hexpand(true);
@@ -509,58 +528,129 @@ fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> Launch
     capture_row.append(&window_capture_button);
     let capture_panel = launchpad_panel(style_tokens, "Capture", &capture_row);
 
+    // ── Session panel (key-value grid) ──
+    let state_label = Label::new(Some("initializing"));
+    let status_label = Label::new(Some("Ready"));
+    let active_capture_label = Label::new(Some("none"));
+    let capture_count_label = Label::new(Some("0"));
+    let latest_label = Label::new(Some("No capture yet"));
+
+    let capture_ids_label = Label::new(Some("IDs: none"));
+    capture_ids_label.add_css_class("launchpad-capture-ids");
+    capture_ids_label.set_halign(Align::Start);
+    capture_ids_label.set_xalign(0.0);
+    capture_ids_label.set_wrap(true);
+    capture_ids_label.set_selectable(true);
+
+    let session_content = GtkBox::new(Orientation::Vertical, style_tokens.spacing_4);
+    session_content.append(&launchpad_kv_row("State", &state_label));
+    session_content.append(&launchpad_kv_row("Status", &status_label));
+    session_content.append(&launchpad_kv_row("Active", &active_capture_label));
+    session_content.append(&launchpad_kv_row("Count", &capture_count_label));
+    session_content.append(&launchpad_kv_row("Latest", &latest_label));
+    session_content.append(&capture_ids_label);
+    let session_panel = launchpad_panel(style_tokens, "Session", &session_content);
+    session_panel.set_hexpand(true);
+
+    // ── Configuration panel (key-value grid) ──
+    let config_content = GtkBox::new(Orientation::Vertical, style_tokens.spacing_4);
+    config_content.append(&launchpad_kv_static("Theme", &settings_info.theme_label));
+    config_content.append(&launchpad_kv_static(
+        "OCR Lang",
+        &settings_info.ocr_language_label,
+    ));
+    config_content.append(&launchpad_kv_static(
+        "OCR Models",
+        &settings_info.ocr_model_dir_label,
+    ));
+    config_content.append(&launchpad_kv_static(
+        "config.json",
+        &settings_info.config_path,
+    ));
+    config_content.append(&launchpad_kv_static(
+        "theme.json",
+        &settings_info.theme_config_path,
+    ));
+    config_content.append(&launchpad_kv_static(
+        "keybindings",
+        &settings_info.keybinding_config_path,
+    ));
+    let config_panel = launchpad_panel(style_tokens, "Configuration", &config_content);
+    config_panel.set_hexpand(true);
+
+    // ── 2-column info row ──
+    let info_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_12);
+    info_row.add_css_class("launchpad-info-row");
+    info_row.append(&session_panel);
+    info_row.append(&config_panel);
+
+    // ── Actions panel (unified, 2 rows) ──
     let open_preview_button = Button::with_label("Open Preview");
     open_preview_button.set_hexpand(true);
     let open_editor_button = Button::with_label("Open Editor");
     open_editor_button.set_hexpand(true);
-    let close_preview_button = Button::with_label("Close Preview");
-    close_preview_button.set_hexpand(true);
-    let close_editor_button = Button::with_label("Close Editor");
-    close_editor_button.set_hexpand(true);
-    let preview_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
-    preview_row.append(&open_preview_button);
-    preview_row.append(&open_editor_button);
-    preview_row.append(&close_preview_button);
-    preview_row.append(&close_editor_button);
-    let preview_panel = launchpad_panel(style_tokens, "Preview / Editor", &preview_row);
-
     let save_button = Button::with_label("Save");
     save_button.set_hexpand(true);
     let copy_button = Button::with_label("Copy");
     copy_button.set_hexpand(true);
+
+    let actions_row1 = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
+    actions_row1.append(&open_preview_button);
+    actions_row1.append(&open_editor_button);
+    actions_row1.append(&save_button);
+    actions_row1.append(&copy_button);
+
+    let close_preview_button = Button::with_label("Close Preview");
+    close_preview_button.set_hexpand(true);
+    let close_editor_button = Button::with_label("Close Editor");
+    close_editor_button.set_hexpand(true);
+    let ocr_button = Button::with_label("OCR");
+    ocr_button.set_hexpand(true);
     let delete_button = Button::with_label("Delete");
     delete_button.set_hexpand(true);
     delete_button.add_css_class("launchpad-danger-button");
-    let action_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
-    action_row.append(&save_button);
-    action_row.append(&copy_button);
-    action_row.append(&delete_button);
-    let action_panel = launchpad_panel(style_tokens, "Capture Actions", &action_row);
+
+    let actions_row2 = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_8);
+    actions_row2.append(&close_preview_button);
+    actions_row2.append(&close_editor_button);
+    actions_row2.append(&ocr_button);
+    actions_row2.append(&delete_button);
+
+    let actions_content = GtkBox::new(Orientation::Vertical, style_tokens.spacing_8);
+    actions_content.append(&actions_row1);
+    actions_content.append(&actions_row2);
+    let actions_panel = launchpad_panel(style_tokens, "Actions", &actions_content);
+
+    // ── Scrollable content area ──
+    let launchpad_content = GtkBox::new(Orientation::Vertical, style_tokens.spacing_12);
+    launchpad_content.append(&capture_panel);
+    launchpad_content.append(&info_row);
+    launchpad_content.append(&actions_panel);
+
+    let scrolled_window = ScrolledWindow::new();
+    scrolled_window.set_policy(gtk4::PolicyType::Never, gtk4::PolicyType::Automatic);
+    scrolled_window.set_vexpand(true);
+    scrolled_window.set_child(Some(&launchpad_content));
 
     let hint_label = Label::new(Some(
-        "Buttons are enabled only when valid for the current state. (Idle -> Preview -> Editor)",
+        "Buttons are enabled only when valid for the current state. (Idle \u{2192} Preview \u{2192} Editor)",
     ));
     hint_label.add_css_class("launchpad-hint");
     hint_label.set_halign(Align::Start);
     hint_label.set_xalign(0.0);
     hint_label.set_wrap(true);
 
-    let launchpad_content = GtkBox::new(Orientation::Vertical, style_tokens.spacing_12);
-    launchpad_content.append(&info_panel);
-    launchpad_content.append(&capture_panel);
-    launchpad_content.append(&preview_panel);
-    launchpad_content.append(&action_panel);
-
-    root.append(&title_label);
+    // ── Assemble root ──
+    root.append(&header_row);
     root.append(&subtitle_label);
-    root.append(&launchpad_content);
+    root.append(&scrolled_window);
     root.append(&hint_label);
     root.append(&toast_label);
 
     if !show_launchpad {
-        title_label.set_visible(false);
+        header_row.set_visible(false);
         subtitle_label.set_visible(false);
-        launchpad_content.set_visible(false);
+        scrolled_window.set_visible(false);
         hint_label.set_visible(false);
     }
 
@@ -582,6 +672,7 @@ fn build_launchpad_ui(style_tokens: StyleTokens, show_launchpad: bool) -> Launch
         close_editor_button,
         save_button,
         copy_button,
+        ocr_button,
         delete_button,
     }
 }
@@ -787,6 +878,14 @@ fn connect_launchpad_default_buttons<R: Fn() + 'static>(
             });
         });
     }
+    connect_launchpad_button(
+        &launchpad.ocr_button,
+        launchpad_actions,
+        render,
+        |actions| {
+            actions.run_preview_ocr_action();
+        },
+    );
     {
         let launchpad_actions = launchpad_actions.clone();
         let render = render.clone();
@@ -939,6 +1038,7 @@ impl App {
                 .editor_theme_overrides
                 .default_stroke_width;
             let editor_tool_option_presets = resolved_theme_runtime.editor_tool_option_presets;
+            let ocr_language = resolved_theme_runtime.ocr_language;
             tracing::info!(
                 requested_mode = ?theme_config.mode,
                 resolved_mode = ?theme_mode,
@@ -959,16 +1059,62 @@ impl App {
             window.set_title(Some("ChalKak"));
             window.set_default_size(760, 520);
 
-            let launchpad = build_launchpad_ui(style_tokens, show_launchpad);
+            let settings_info = {
+                let theme_label = format!("{:?} → {:?}", theme_config.mode, theme_mode);
+                let ocr_language_label = format!(
+                    "{} ({})",
+                    ocr_language.display_name(),
+                    ocr_language.as_str()
+                );
+                let ocr_model_dir_label = crate::ocr::resolve_model_dir()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "not found".to_string());
+                let (xdg_config, home_dir) = crate::config::config_env_dirs();
+                let theme_config_path = crate::config::app_config_path(
+                    "chalkak",
+                    "theme.json",
+                    xdg_config.as_deref(),
+                    home_dir.as_deref(),
+                )
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unavailable".to_string());
+                let config_path = crate::config::app_config_path(
+                    "chalkak",
+                    "config.json",
+                    xdg_config.as_deref(),
+                    home_dir.as_deref(),
+                )
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unavailable".to_string());
+                let keybinding_config_path = crate::config::app_config_path(
+                    "chalkak",
+                    "keybindings.json",
+                    xdg_config.as_deref(),
+                    home_dir.as_deref(),
+                )
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| "unavailable".to_string());
+                LaunchpadSettingsInfo {
+                    theme_label,
+                    ocr_language_label,
+                    ocr_model_dir_label,
+                    config_path,
+                    theme_config_path,
+                    keybinding_config_path,
+                }
+            };
+            let launchpad = build_launchpad_ui(style_tokens, show_launchpad, &settings_info);
             let launchpad_toast_runtime = ToastRuntime::new(&launchpad.toast_label);
             let open_editor_button = launchpad.open_editor_button.clone();
             let close_preview_button = launchpad.close_preview_button.clone();
             let close_editor_button = launchpad.close_editor_button.clone();
             let save_button = launchpad.save_button.clone();
             let copy_button = launchpad.copy_button.clone();
+            let ocr_button = launchpad.ocr_button.clone();
             let delete_button = launchpad.delete_button.clone();
 
             window.set_child(Some(&launchpad.root));
+            let ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>> = Rc::new(RefCell::new(None));
             let app_for_preview = app.clone();
             let app_for_lifecycle = app.clone();
             let preview_render_context = PreviewRenderContext::new(
@@ -978,6 +1124,7 @@ impl App {
                 status_log_for_activate.clone(),
                 save_button.clone(),
                 copy_button.clone(),
+                ocr_button.clone(),
                 open_editor_button.clone(),
                 close_preview_button.clone(),
                 delete_button.clone(),
@@ -1016,6 +1163,8 @@ impl App {
                 close_editor_button: close_editor_button.clone(),
                 storage_service: storage_service_for_activate.clone(),
                 shared_machine: machine_for_activate.clone(),
+                ocr_engine: ocr_engine.clone(),
+                ocr_language,
             };
 
             let render = {
@@ -1106,6 +1255,8 @@ impl App {
                 runtime_window_state.clone(),
                 launchpad_toast_runtime.clone(),
                 style_tokens.toast_duration_ms,
+                ocr_engine.clone(),
+                ocr_language,
             );
             connect_launchpad_default_buttons(&launchpad, &launchpad_actions, &render);
 
@@ -1280,6 +1431,10 @@ mod tests {
         assert_eq!(
             shortcut_editor_tool_switch(ShortcutAction::EditorEnterText),
             Some((ToolKind::Text, "editor text tool armed"))
+        );
+        assert_eq!(
+            shortcut_editor_tool_switch(ShortcutAction::EditorEnterOcr),
+            Some((ToolKind::Ocr, "editor OCR tool armed"))
         );
     }
 

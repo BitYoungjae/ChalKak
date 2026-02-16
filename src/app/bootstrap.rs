@@ -1,3 +1,4 @@
+use crate::config::load_app_config;
 use crate::input::{load_editor_navigation_bindings, EditorNavigationBindings};
 use crate::storage::prune_stale_temp_files;
 use crate::theme::{
@@ -22,6 +23,7 @@ pub(super) struct ResolvedThemeRuntime {
     pub(super) text_input_palette: EditorTextInputPalette,
     pub(super) editor_theme_overrides: EditorThemeOverrides,
     pub(super) editor_tool_option_presets: EditorToolOptionPresets,
+    pub(super) ocr_language: crate::ocr::OcrLanguage,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -160,12 +162,16 @@ pub(super) fn resolve_theme_runtime(
         EditorTextInputPalette::default()
     });
 
+    let app_config = load_app_config();
+    let ocr_language = crate::ocr::resolve_ocr_language(app_config.ocr_language.as_deref());
+
     ResolvedThemeRuntime {
         style_tokens,
         color_tokens,
         text_input_palette,
         editor_theme_overrides,
         editor_tool_option_presets,
+        ocr_language,
     }
 }
 
