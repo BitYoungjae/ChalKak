@@ -4,7 +4,8 @@ use std::rc::Rc;
 use crate::editor::tools::CropElement;
 use crate::editor::{self, ToolKind, ToolObject};
 use crate::input::{
-    resolve_shortcut, InputContext, InputMode, ShortcutAction, TextInputAction, TextInputEvent,
+    resolve_shortcut, InputContext, InputMode, ShortcutAction, ShortcutKey, TextInputAction,
+    TextInputEvent,
 };
 
 use gtk4::prelude::*;
@@ -323,6 +324,12 @@ pub(in crate::app::editor_runtime) fn connect_editor_key_handling(
                     text_preedit_state: text_preedit_state.as_ref(),
                 };
                 return handle_editor_text_key_action(text_event, &context);
+            }
+            if let Some(ShortcutKey::Tab) = normalize_shortcut_key(key, keycode) {
+                return handle_editor_shortcut_action(
+                    ShortcutAction::EditorToggleToolOptions,
+                    &shortcut_action_context,
+                );
             }
             return gtk4::glib::Propagation::Proceed;
         }

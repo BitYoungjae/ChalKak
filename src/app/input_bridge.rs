@@ -77,6 +77,9 @@ pub(super) fn normalize_shortcut_key(key: gtk4::gdk::Key, keycode: u32) -> Optio
     if key == gtk4::gdk::Key::BackSpace {
         return Some(ShortcutKey::Backspace);
     }
+    if key == gtk4::gdk::Key::Tab || key == gtk4::gdk::Key::ISO_Left_Tab {
+        return Some(ShortcutKey::Tab);
+    }
 
     let keyval_shortcut = key
         .to_unicode()

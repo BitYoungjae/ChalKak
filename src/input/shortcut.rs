@@ -5,6 +5,7 @@ pub enum ShortcutKey {
     Escape,
     Delete,
     Backspace,
+    Tab,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -125,7 +126,6 @@ fn resolve_editor_shortcut(
         }
         (ShortcutKey::Character('s'), true, _) => Some(ShortcutAction::EditorSave),
         (ShortcutKey::Character('c'), true, _) => Some(ShortcutAction::EditorCopyImage),
-        (ShortcutKey::Character('o'), false, true) => Some(ShortcutAction::EditorToggleToolOptions),
         (ShortcutKey::Escape, false, false) => {
             if select_mode {
                 Some(ShortcutAction::EditorCloseRequested)
@@ -159,6 +159,9 @@ pub fn resolve_shortcut(
     modifiers: ShortcutModifiers,
     context: InputContext,
 ) -> Option<ShortcutAction> {
+    if key == ShortcutKey::Tab && matches!(context.mode, InputMode::Editor { .. } | InputMode::Crop | InputMode::TextInput) {
+        return Some(ShortcutAction::EditorToggleToolOptions);
+    }
     match context.mode {
         InputMode::Dialog => resolve_dialog_shortcut(key),
         InputMode::TextInput => resolve_text_shortcut(key, modifiers),
@@ -329,8 +332,8 @@ mod tests {
         );
         assert_eq!(
             resolve_shortcut(
-                ShortcutKey::Character('o'),
-                ShortcutModifiers::new(false, true),
+                ShortcutKey::Tab,
+                ShortcutModifiers::default(),
                 context
             ),
             Some(ShortcutAction::EditorToggleToolOptions)

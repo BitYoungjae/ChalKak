@@ -228,7 +228,7 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
     tool_options_toggle.set_vexpand(false);
     tool_options_toggle.set_halign(Align::Center);
     tool_options_toggle.set_valign(Align::Center);
-    tool_options_toggle.set_tooltip_text(Some("Collapse tool options (O)"));
+    tool_options_toggle.set_tooltip_text(Some("Collapse tool options (Tab)"));
     tool_options_toggle.add_css_class("flat");
     tool_options_toggle.add_css_class("editor-options-toggle");
     tool_options_header.append(&tool_options_collapsed_row);
@@ -532,11 +532,11 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
             if collapsed {
                 tool_options_bar.add_css_class("editor-options-collapsed");
                 tool_options_toggle.set_icon_name("chevron-up-symbolic");
-                tool_options_toggle.set_tooltip_text(Some("Expand tool options (O)"));
+                tool_options_toggle.set_tooltip_text(Some("Expand tool options (Tab)"));
             } else {
                 tool_options_bar.remove_css_class("editor-options-collapsed");
                 tool_options_toggle.set_icon_name("chevron-down-symbolic");
-                tool_options_toggle.set_tooltip_text(Some("Collapse tool options (O)"));
+                tool_options_toggle.set_tooltip_text(Some("Collapse tool options (Tab)"));
             }
 
             (refresh_collapsed_option_chips.as_ref())();
