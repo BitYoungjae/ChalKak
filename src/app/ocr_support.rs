@@ -142,13 +142,32 @@ mod tests {
     }
 
     #[test]
-    fn resolve_or_init_engine_returns_existing_engine_when_some() {
-        // We cannot construct a real OcrEngine without model files, so we only
-        // test the None path error (model directory missing) to verify wiring.
+    fn resolve_or_init_engine_errors_when_no_model_dir() {
+        // Override both XDG_DATA_HOME and HOME so that neither user-level nor
+        // home-fallback model directories are found.  The system-level path
+        // (`/usr/share/chalkak/models`) may still exist on dev machines, so
+        // skip the assertion when it does.
+        let prev_xdg = std::env::var("XDG_DATA_HOME").ok();
+        let prev_home = std::env::var("HOME").ok();
         std::env::set_var("XDG_DATA_HOME", "/tmp/chalkak-test-nonexistent-dir");
+        std::env::set_var("HOME", "/tmp/chalkak-test-nonexistent-home");
+
         let result = resolve_or_init_engine(None, crate::ocr::OcrLanguage::English);
-        assert!(result.is_err());
-        std::env::remove_var("XDG_DATA_HOME");
+
+        // Restore environment before asserting so later tests are unaffected.
+        match prev_xdg {
+            Some(v) => std::env::set_var("XDG_DATA_HOME", v),
+            None => std::env::remove_var("XDG_DATA_HOME"),
+        }
+        match prev_home {
+            Some(v) => std::env::set_var("HOME", v),
+            None => std::env::remove_var("HOME"),
+        }
+
+        if !std::path::Path::new("/usr/share/chalkak/models").is_dir() {
+            assert!(result.is_err());
+        }
+        // When system models exist the engine may succeed — that is fine.
     }
 
     #[test]
