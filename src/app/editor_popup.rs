@@ -11,6 +11,7 @@ use crate::theme::ThemeMode;
 use super::ToastRuntime;
 
 mod geometry;
+mod image_processing;
 mod interaction;
 mod output;
 mod render;

@@ -65,11 +65,11 @@ _Branch: `refactor/domain-boundaries`_
 ## Session 06: Split Large Files
 _Branch: `refactor/split-large-files`_
 
-- [ ] **T06-1** Split `editor/tools/mod.rs` → `operations.rs`, `selection.rs`, `query.rs`
-- [ ] **T06-2** Split `app/editor_runtime.rs` → `canvas.rs`, `toolbar.rs`, `window.rs`
-- [ ] **T06-3** Extract image processing from `editor_popup/render.rs` → `image_processing.rs`
-- [ ] **T06-4** Move tests to their respective new files
-- [ ] **T06-V** Validate: `cargo check && cargo test && cargo fmt --check`
+- [x] **T06-1** Split `editor/tools/mod.rs` → `operations.rs`, `selection.rs`, `query.rs`
+- [x] **T06-2** Split `app/editor_runtime.rs` → `canvas.rs`, `toolbar.rs`, `window.rs`
+- [x] **T06-3** Extract image processing from `editor_popup/render.rs` → `image_processing.rs`
+- [x] **T06-4** Move tests to their respective new files
+- [x] **T06-V** Validate: `cargo check && cargo test && cargo fmt --check`
 
 ---
 
