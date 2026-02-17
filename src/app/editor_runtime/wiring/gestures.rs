@@ -217,7 +217,7 @@ pub(in crate::app::editor_runtime) struct EditorDrawGestureContext {
     pub(in crate::app::editor_runtime) editor_image_base_width: i32,
     pub(in crate::app::editor_runtime) editor_image_base_height: i32,
     pub(in crate::app::editor_runtime) editor_source_pixbuf: Option<gtk4::gdk_pixbuf::Pixbuf>,
-    pub(in crate::app::editor_runtime) ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+    pub(in crate::app::editor_runtime) ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
     pub(in crate::app::editor_runtime) ocr_language: crate::ocr::OcrLanguage,
     pub(in crate::app::editor_runtime) ocr_in_progress: Rc<Cell<bool>>,
 }
@@ -649,7 +649,9 @@ fn perform_ocr_recognition(
     };
 
     // Convert Pixbuf region to DynamicImage on the main thread (Pixbuf is not Send).
-    let image = match crate::ocr::pixbuf_region_to_dynamic_image(pixbuf, x, y, width, height) {
+    let image = match crate::app::ocr_support::pixbuf_region_to_dynamic_image(
+        pixbuf, x, y, width, height,
+    ) {
         Ok(img) => img,
         Err(err) => {
             *context.status_log_for_render.borrow_mut() =
@@ -685,7 +687,7 @@ fn perform_ocr_recognition(
             (Some(engine), result)
         },
         move |(engine, result): (
-            Option<ocr_rs::OcrEngine>,
+            Option<crate::ocr::OcrEngine>,
             Result<String, crate::ocr::OcrError>,
         )| {
             // Restore engine.

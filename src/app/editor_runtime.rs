@@ -29,7 +29,7 @@ pub(super) struct EditorRenderContext {
     pub(super) close_editor_button: Button,
     pub(super) storage_service: Rc<Option<StorageService>>,
     pub(super) shared_machine: Rc<RefCell<StateMachine>>,
-    pub(super) ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+    pub(super) ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
     pub(super) ocr_language: crate::ocr::OcrLanguage,
     pub(super) ocr_in_progress: Rc<Cell<bool>>,
 }

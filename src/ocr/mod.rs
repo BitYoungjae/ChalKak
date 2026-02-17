@@ -2,6 +2,8 @@ use std::path::{Path, PathBuf};
 
 use image::DynamicImage;
 
+pub use ocr_rs::OcrEngine;
+
 #[derive(Debug, thiserror::Error)]
 pub enum OcrError {
     #[error("engine initialization failed: {message}")]
@@ -177,12 +179,12 @@ pub fn resolve_model_dir() -> Option<PathBuf> {
     None
 }
 
-pub fn create_engine(model_dir: &Path, language: OcrLanguage) -> OcrResult<ocr_rs::OcrEngine> {
+pub fn create_engine(model_dir: &Path, language: OcrLanguage) -> OcrResult<OcrEngine> {
     let det_path = model_dir.join("PP-OCRv5_mobile_det.mnn");
     let rec_path = model_dir.join(language.rec_model_filename());
     let keys_path = model_dir.join(language.keys_filename());
 
-    ocr_rs::OcrEngine::new(
+    OcrEngine::new(
         det_path.to_str().unwrap_or_default(),
         rec_path.to_str().unwrap_or_default(),
         keys_path.to_str().unwrap_or_default(),
@@ -193,69 +195,7 @@ pub fn create_engine(model_dir: &Path, language: OcrLanguage) -> OcrResult<ocr_r
     })
 }
 
-pub fn pixbuf_region_to_dynamic_image(
-    pixbuf: &gtk4::gdk_pixbuf::Pixbuf,
-    x: i32,
-    y: i32,
-    width: u32,
-    height: u32,
-) -> OcrResult<DynamicImage> {
-    if width == 0 || height == 0 {
-        return Err(OcrError::InvalidRegion {
-            message: "zero-size region".to_string(),
-        });
-    }
-
-    let pb_width = pixbuf.width() as u32;
-    let pb_height = pixbuf.height() as u32;
-
-    let clamped_x = x.max(0) as u32;
-    let clamped_y = y.max(0) as u32;
-    let clamped_w = width.min(pb_width.saturating_sub(clamped_x));
-    let clamped_h = height.min(pb_height.saturating_sub(clamped_y));
-
-    if clamped_w == 0 || clamped_h == 0 {
-        return Err(OcrError::InvalidRegion {
-            message: "region outside image bounds".to_string(),
-        });
-    }
-
-    let sub = pixbuf.new_subpixbuf(
-        clamped_x as i32,
-        clamped_y as i32,
-        clamped_w as i32,
-        clamped_h as i32,
-    );
-
-    let n_channels = sub.n_channels() as u32;
-    let rowstride = sub.rowstride() as u32;
-    let has_alpha = sub.has_alpha();
-    let pixels = unsafe { sub.pixels() };
-
-    let mut rgb_buf = Vec::with_capacity((clamped_w * clamped_h * 3) as usize);
-    for row in 0..clamped_h {
-        let row_offset = (row * rowstride) as usize;
-        for col in 0..clamped_w {
-            let px_offset = row_offset + (col * n_channels) as usize;
-            rgb_buf.push(pixels[px_offset]);
-            rgb_buf.push(pixels[px_offset + 1]);
-            rgb_buf.push(pixels[px_offset + 2]);
-        }
-    }
-
-    let img_buf = image::RgbImage::from_raw(clamped_w, clamped_h, rgb_buf).ok_or_else(|| {
-        OcrError::ImageConversion {
-            message: format!(
-                "RGB buffer size mismatch for {}x{} (has_alpha={has_alpha})",
-                clamped_w, clamped_h
-            ),
-        }
-    })?;
-
-    Ok(DynamicImage::ImageRgb8(img_buf))
-}
-
-pub fn recognize_text(engine: &ocr_rs::OcrEngine, image: &DynamicImage) -> OcrResult<String> {
+pub fn recognize_text(engine: &OcrEngine, image: &DynamicImage) -> OcrResult<String> {
     let results = engine
         .recognize(image)
         .map_err(|err| OcrError::Recognition {
@@ -284,7 +224,7 @@ pub fn recognize_text(engine: &ocr_rs::OcrEngine, image: &DynamicImage) -> OcrRe
     Ok(text)
 }
 
-pub fn recognize_text_from_file(engine: &ocr_rs::OcrEngine, path: &Path) -> OcrResult<String> {
+pub fn recognize_text_from_file(engine: &OcrEngine, path: &Path) -> OcrResult<String> {
     let image = image::open(path).map_err(|err| OcrError::ImageConversion {
         message: format!("failed to open image {}: {err}", path.display()),
     })?;
@@ -313,19 +253,6 @@ mod tests {
         let _ = resolve_model_dir();
         let _ = std::fs::remove_dir_all(&tmp);
         std::env::remove_var("XDG_DATA_HOME");
-    }
-
-    #[test]
-    fn pixbuf_region_rejects_zero_size() {
-        let result = pixbuf_region_to_dynamic_image(
-            &gtk4::gdk_pixbuf::Pixbuf::new(gtk4::gdk_pixbuf::Colorspace::Rgb, false, 8, 10, 10)
-                .unwrap(),
-            0,
-            0,
-            0,
-            10,
-        );
-        assert!(matches!(result, Err(OcrError::InvalidRegion { .. })));
     }
 
     #[test]

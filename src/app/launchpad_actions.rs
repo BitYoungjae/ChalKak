@@ -32,7 +32,7 @@ pub(super) struct LaunchpadActionExecutor {
     runtime_window_state: Rc<RefCell<RuntimeWindowState>>,
     fallback_toast: ToastRuntime,
     toast_duration_ms: u32,
-    ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+    ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
     ocr_language: crate::ocr::OcrLanguage,
     ocr_in_progress: Rc<Cell<bool>>,
 }
@@ -64,7 +64,7 @@ impl LaunchpadActionExecutor {
         runtime_window_state: Rc<RefCell<RuntimeWindowState>>,
         fallback_toast: ToastRuntime,
         toast_duration_ms: u32,
-        ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
+        ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
         ocr_language: crate::ocr::OcrLanguage,
         ocr_in_progress: Rc<Cell<bool>>,
     ) -> Self {
@@ -434,7 +434,7 @@ impl LaunchpadActionExecutor {
                 (Some(engine), result)
             },
             move |(engine, result): (
-                Option<ocr_rs::OcrEngine>,
+                Option<crate::ocr::OcrEngine>,
                 Result<String, crate::ocr::OcrError>,
             )| {
                 if let Some(engine) = engine {

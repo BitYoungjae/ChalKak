@@ -1117,7 +1117,8 @@ impl App {
             let delete_button = launchpad.delete_button.clone();
 
             window.set_child(Some(&launchpad.root));
-            let ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>> = Rc::new(RefCell::new(None));
+            let ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>> =
+                Rc::new(RefCell::new(None));
             let ocr_in_progress = Rc::new(Cell::new(false));
             let app_for_preview = app.clone();
             let app_for_lifecycle = app.clone();

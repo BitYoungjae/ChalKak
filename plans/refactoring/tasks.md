@@ -31,13 +31,13 @@ _Branch: `refactor/relocate-types`_
 ## Session 03: OCR Abstraction Cleanup
 _Branch: `refactor/ocr-abstraction`_
 
-- [ ] **T03-1** Add `pub use ocr_rs::OcrEngine;` to `src/ocr/mod.rs`
-- [ ] **T03-2** Replace all `ocr_rs::OcrEngine` → `crate::ocr::OcrEngine` in `app/` (9 sites across 6 files)
-- [ ] **T03-3** Verify no direct `ocr_rs` imports remain in `src/app/`
-- [ ] **T03-4** Move `pixbuf_region_to_dynamic_image()` from `ocr/mod.rs` → `app/ocr_support.rs`
-- [ ] **T03-5** Update call sites for moved function
-- [ ] **T03-6** Remove duplicate `SharedStatusLog` from `ocr_support.rs`, import from `launchpad_actions`
-- [ ] **T03-V** Validate: `cargo check && cargo test && cargo fmt --check`
+- [x] **T03-1** Add `pub use ocr_rs::OcrEngine;` to `src/ocr/mod.rs`
+- [x] **T03-2** Replace all `ocr_rs::OcrEngine` → `crate::ocr::OcrEngine` in `app/` (9 sites across 6 files)
+- [x] **T03-3** Verify no direct `ocr_rs` imports remain in `src/app/`
+- [x] **T03-4** Move `pixbuf_region_to_dynamic_image()` from `ocr/mod.rs` → `app/ocr_support.rs`
+- [x] **T03-5** Update call sites for moved function
+- [x] **T03-6** Remove duplicate `SharedStatusLog` from `ocr_support.rs`, import from `launchpad_actions`
+- [x] **T03-V** Validate: `cargo check && cargo test && cargo fmt --check`
 
 ## Session 04: Extract Launchpad from `app/mod.rs`
 _Branch: `refactor/extract-launchpad`_

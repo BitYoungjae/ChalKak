@@ -1,18 +1,13 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-
 use gtk4::prelude::*;
 
-use super::launchpad_actions::set_status;
-
-pub(super) type SharedStatusLog = Rc<RefCell<String>>;
+use super::launchpad_actions::{set_status, SharedStatusLog};
 
 /// Initialise the OCR engine if it is `None`, otherwise return the existing
 /// one. Designed to run on a **worker thread** — all arguments are `Send`.
 pub(super) fn resolve_or_init_engine(
-    engine: Option<ocr_rs::OcrEngine>,
+    engine: Option<crate::ocr::OcrEngine>,
     language: crate::ocr::OcrLanguage,
-) -> Result<ocr_rs::OcrEngine, crate::ocr::OcrError> {
+) -> Result<crate::ocr::OcrEngine, crate::ocr::OcrError> {
     if let Some(engine) = engine {
         return Ok(engine);
     }
@@ -22,6 +17,68 @@ pub(super) fn resolve_or_init_engine(
             message: "model directory not found".to_string(),
         })?;
     crate::ocr::create_engine(&model_dir, language)
+}
+
+pub(super) fn pixbuf_region_to_dynamic_image(
+    pixbuf: &gtk4::gdk_pixbuf::Pixbuf,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+) -> crate::ocr::OcrResult<image::DynamicImage> {
+    if width == 0 || height == 0 {
+        return Err(crate::ocr::OcrError::InvalidRegion {
+            message: "zero-size region".to_string(),
+        });
+    }
+
+    let pb_width = pixbuf.width() as u32;
+    let pb_height = pixbuf.height() as u32;
+
+    let clamped_x = x.max(0) as u32;
+    let clamped_y = y.max(0) as u32;
+    let clamped_w = width.min(pb_width.saturating_sub(clamped_x));
+    let clamped_h = height.min(pb_height.saturating_sub(clamped_y));
+
+    if clamped_w == 0 || clamped_h == 0 {
+        return Err(crate::ocr::OcrError::InvalidRegion {
+            message: "region outside image bounds".to_string(),
+        });
+    }
+
+    let sub = pixbuf.new_subpixbuf(
+        clamped_x as i32,
+        clamped_y as i32,
+        clamped_w as i32,
+        clamped_h as i32,
+    );
+
+    let n_channels = sub.n_channels() as u32;
+    let rowstride = sub.rowstride() as u32;
+    let has_alpha = sub.has_alpha();
+    let pixels = unsafe { sub.pixels() };
+
+    let mut rgb_buf = Vec::with_capacity((clamped_w * clamped_h * 3) as usize);
+    for row in 0..clamped_h {
+        let row_offset = (row * rowstride) as usize;
+        for col in 0..clamped_w {
+            let px_offset = row_offset + (col * n_channels) as usize;
+            rgb_buf.push(pixels[px_offset]);
+            rgb_buf.push(pixels[px_offset + 1]);
+            rgb_buf.push(pixels[px_offset + 2]);
+        }
+    }
+
+    let img_buf = image::RgbImage::from_raw(clamped_w, clamped_h, rgb_buf).ok_or_else(|| {
+        crate::ocr::OcrError::ImageConversion {
+            message: format!(
+                "RGB buffer size mismatch for {}x{} (has_alpha={has_alpha})",
+                clamped_w, clamped_h
+            ),
+        }
+    })?;
+
+    Ok(image::DynamicImage::ImageRgb8(img_buf))
 }
 
 /// Handle a successful OCR text result on the **main thread**: copy to
@@ -61,6 +118,8 @@ pub(super) fn ocr_processing_status(engine_available: bool) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     #[test]
     fn ocr_processing_status_indicates_engine_state() {
@@ -90,5 +149,21 @@ mod tests {
         let result = resolve_or_init_engine(None, crate::ocr::OcrLanguage::English);
         assert!(result.is_err());
         std::env::remove_var("XDG_DATA_HOME");
+    }
+
+    #[test]
+    fn pixbuf_region_rejects_zero_size() {
+        let result = pixbuf_region_to_dynamic_image(
+            &gtk4::gdk_pixbuf::Pixbuf::new(gtk4::gdk_pixbuf::Colorspace::Rgb, false, 8, 10, 10)
+                .unwrap(),
+            0,
+            0,
+            0,
+            10,
+        );
+        assert!(matches!(
+            result,
+            Err(crate::ocr::OcrError::InvalidRegion { .. })
+        ));
     }
 }
