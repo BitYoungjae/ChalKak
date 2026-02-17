@@ -179,7 +179,7 @@ Preview is a useful safety gate: verify the capture content before committing to
 | `Ctrl+Z` | Undo |
 | `Ctrl+Shift+Z` | Redo |
 | `Delete` / `Backspace` | Delete selected object |
-| `Shift+O` | Toggle tool options panel |
+| `Tab` | Toggle tool options panel |
 | `Esc` | Return to Select tool, or close editor if already in Select |
 
 ### Tool Shortcuts
@@ -268,7 +268,7 @@ Preview is a useful safety gate: verify the capture content before committing to
 
 ### Tool Options Panel
 
-Press `Shift+O` to toggle the options panel. This panel exposes configurable properties for the active tool (color, thickness, opacity, etc.). Color palette, stroke width presets, and text size presets can be customized via `theme.json` ([Section 14.1](#141-themejson)).
+Press `Tab` to toggle the options panel. This panel exposes configurable properties for the active tool (color, thickness, opacity, etc.). Color palette, stroke width presets, and text size presets can be customized via `theme.json` ([Section 14.1](#141-themejson)).
 
 ---
 

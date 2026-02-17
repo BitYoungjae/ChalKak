@@ -116,7 +116,7 @@ Editor:
 - `Ctrl+Z`: undo
 - `Ctrl+Shift+Z`: redo
 - `Delete` / `Backspace`: delete selection
-- `Shift+O`: toggle tool options panel
+- `Tab`: toggle tool options panel
 - `Esc`: select tool, or close editor when already in select mode
 
 Tool shortcuts:
