@@ -7,7 +7,6 @@ use crate::clipboard::WlCopyBackend;
 use crate::preview::{self, PreviewAction, PreviewEvent};
 use crate::state::{AppEvent, AppState, RuntimeWindowState, StateMachine};
 use crate::storage::StorageService;
-use gtk4::prelude::*;
 
 use super::runtime_support::{
     close_preview_window_for_capture, show_toast_for_capture, PreviewWindowRuntime, RuntimeSession,
@@ -412,37 +411,17 @@ impl LaunchpadActionExecutor {
         self.ocr_in_progress.set(true);
         set_status(
             &self.status_log,
-            if engine.is_some() {
-                "Recognizing text..."
-            } else {
-                "Initializing OCR engine..."
-            },
+            super::ocr_support::ocr_processing_status(engine.is_some()),
         );
 
         let executor = self.clone();
         spawn_worker_action(
             move || {
-                let engine = match engine {
-                    Some(engine) => engine,
-                    None => {
-                        let model_dir = match crate::ocr::resolve_model_dir() {
-                            Some(dir) => dir,
-                            None => {
-                                return (
-                                    None,
-                                    Err(crate::ocr::OcrError::EngineInit {
-                                        message: "model directory not found".to_string(),
-                                    }),
-                                );
-                            }
-                        };
-                        match crate::ocr::create_engine(&model_dir, ocr_language) {
-                            Ok(engine) => engine,
-                            Err(err) => return (None, Err(err)),
-                        }
-                    }
+                let engine = match super::ocr_support::resolve_or_init_engine(engine, ocr_language)
+                {
+                    Ok(e) => e,
+                    Err(err) => return (None, Err(err)),
                 };
-
                 let result = crate::ocr::recognize_text_from_file(&engine, &temp_path);
                 (Some(engine), result)
             },
@@ -456,7 +435,9 @@ impl LaunchpadActionExecutor {
                 executor.ocr_in_progress.set(false);
 
                 match result {
-                    Ok(text) => executor.handle_ocr_result(text),
+                    Ok(text) => {
+                        super::ocr_support::handle_ocr_text_result(&executor.status_log, text)
+                    }
                     Err(err) => {
                         set_status(&executor.status_log, format!("OCR failed: {err}"));
                         crate::notification::send(format!("OCR failed: {err}"));
@@ -464,29 +445,6 @@ impl LaunchpadActionExecutor {
                 }
             },
         );
-    }
-
-    fn handle_ocr_result(&self, text: String) {
-        if text.is_empty() {
-            set_status(&self.status_log, "OCR: no text found");
-            crate::notification::send("No text found");
-            return;
-        }
-
-        if let Some(display) = gtk4::gdk::Display::default() {
-            display.clipboard().set_text(&text);
-        }
-        let preview_text = if text.chars().count() > 60 {
-            let truncated: String = text.chars().take(57).collect();
-            format!("{truncated}...")
-        } else {
-            text.clone()
-        };
-        set_status(
-            &self.status_log,
-            format!("OCR copied {} chars", text.chars().count()),
-        );
-        crate::notification::send(format!("Copied: {preview_text}"));
     }
 
     fn apply_deleted_capture(&self, capture_id: &str) {

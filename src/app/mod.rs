@@ -41,6 +41,7 @@ mod lifecycle;
 mod preview_pin;
 mod preview_runtime;
 mod runtime_css;
+mod ocr_support;
 mod runtime_support;
 mod worker;
 
