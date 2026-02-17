@@ -4,6 +4,7 @@ pub mod clipboard;
 mod config;
 pub mod editor;
 pub mod error;
+pub mod geometry;
 pub mod input;
 pub mod logging;
 pub mod notification;

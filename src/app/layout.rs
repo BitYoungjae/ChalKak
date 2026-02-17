@@ -1,9 +1,10 @@
 use crate::capture;
 use crate::preview;
-use crate::state::RuntimeWindowGeometry;
 use crate::ui::StyleTokens;
 use gtk4::prelude::*;
 use gtk4::ApplicationWindow;
+
+use super::window_state::RuntimeWindowGeometry;
 
 fn normalize_window_dimension(value: i32, fallback: i32, minimum: i32) -> i32 {
     let normalized = if value > 0 { value } else { fallback };

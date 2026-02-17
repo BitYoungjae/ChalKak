@@ -13,9 +13,7 @@ use crate::input::{
     TextInputEvent,
 };
 use crate::preview::PreviewAction;
-use crate::state::{
-    AppEvent, AppState, RuntimeWindowGeometry, RuntimeWindowKind, RuntimeWindowState, StateMachine,
-};
+use crate::state::{AppEvent, AppState, StateMachine};
 use crate::storage::StorageService;
 use crate::ui::StyleTokens;
 use gtk4::gdk::prelude::GdkCairoContextExt;
@@ -43,6 +41,7 @@ mod preview_pin;
 mod preview_runtime;
 mod runtime_css;
 mod runtime_support;
+mod window_state;
 mod worker;
 
 use self::adaptive::*;
@@ -59,6 +58,7 @@ use self::layout::*;
 use self::lifecycle::*;
 use self::preview_runtime::*;
 use self::runtime_support::*;
+use self::window_state::*;
 
 const UI_TICK_INTERVAL: Duration = Duration::from_millis(100);
 const EDITOR_PEN_ICON_NAME: &str = "pencil-symbolic";

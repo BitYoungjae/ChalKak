@@ -4,12 +4,12 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use crate::preview;
-use crate::state::{RuntimeWindowGeometry, RuntimeWindowKind, RuntimeWindowState};
 use gtk4::prelude::*;
 use gtk4::{ApplicationWindow, Frame, Label, Revealer};
 
 use super::super::hypr::current_window_geometry;
 use super::super::layout::read_window_geometry;
+use super::super::window_state::{RuntimeWindowGeometry, RuntimeWindowKind, RuntimeWindowState};
 
 #[derive(Clone)]
 pub(crate) struct ToastRuntime {

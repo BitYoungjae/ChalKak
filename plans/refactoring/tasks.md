@@ -18,15 +18,15 @@ _Branch: `refactor/fix-circular-deps`_
 ## Session 02: Relocate Misplaced Types
 _Branch: `refactor/relocate-types`_
 
-- [ ] **T02-1** Move `state/window.rs` → `app/window_state.rs`
-- [ ] **T02-2** Remove `mod window` + re-exports from `state/mod.rs`
-- [ ] **T02-3** Add `mod window_state` to `app/mod.rs`
-- [ ] **T02-4** Update 5 consumer files to use new import path for `RuntimeWindow*`
-- [ ] **T02-5** Create `src/geometry.rs` with `ToolPoint`, `ToolBounds`, `ImageBounds`, `Color`
-- [ ] **T02-6** Add `pub mod geometry;` to `src/lib.rs`
-- [ ] **T02-7** Replace type definitions in `editor/tools/mod.rs` with `pub use crate::geometry::*` re-exports
-- [ ] **T02-8** Verify all `super::Color`, `super::ToolPoint` etc. still resolve in tool subfiles
-- [ ] **T02-V** Validate: `cargo check && cargo test && cargo fmt --check`
+- [x] **T02-1** Move `state/window.rs` → `app/window_state.rs`
+- [x] **T02-2** Remove `mod window` + re-exports from `state/mod.rs`
+- [x] **T02-3** Add `mod window_state` to `app/mod.rs`
+- [x] **T02-4** Update 5 consumer files to use new import path for `RuntimeWindow*`
+- [x] **T02-5** Create `src/geometry.rs` with `ToolPoint`, `ToolBounds`, `ImageBounds`, `Color`
+- [x] **T02-6** Add `pub mod geometry;` to `src/lib.rs`
+- [x] **T02-7** Replace type definitions in `editor/tools/mod.rs` with `pub use crate::geometry::*` re-exports
+- [x] **T02-8** Verify all `super::Color`, `super::ToolPoint` etc. still resolve in tool subfiles
+- [x] **T02-V** Validate: `cargo check && cargo test && cargo fmt --check`
 
 ## Session 03: OCR Abstraction Cleanup
 _Branch: `refactor/ocr-abstraction`_

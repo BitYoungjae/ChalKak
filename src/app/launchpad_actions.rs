@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::capture;
 use crate::clipboard::WlCopyBackend;
 use crate::preview::{self, PreviewAction, PreviewEvent};
-use crate::state::{AppEvent, AppState, RuntimeWindowState, StateMachine};
+use crate::state::{AppEvent, AppState, StateMachine};
 use crate::storage::StorageService;
 use gtk4::prelude::*;
 
@@ -13,6 +13,7 @@ use super::runtime_support::{
     close_preview_window_for_capture, show_toast_for_capture, PreviewWindowRuntime, RuntimeSession,
     ToastRuntime,
 };
+use super::window_state::RuntimeWindowState;
 use super::worker::spawn_worker_action;
 
 pub(super) type SharedMachine = Rc<RefCell<StateMachine>>;
