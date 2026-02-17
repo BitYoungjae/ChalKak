@@ -62,13 +62,7 @@ impl EditorTools {
             return Err(ToolError::InvalidCropGeometry);
         }
 
-        if let Some((ratio_x, ratio_y)) = preset.ratio().or_else(|| {
-            if preset == CropPreset::Original {
-                Some((image_width, image_height))
-            } else {
-                None
-            }
-        }) {
+        if let Some((ratio_x, ratio_y)) = preset.resolve_ratio(image_width, image_height) {
             let (adjusted_width, adjusted_height) =
                 adjust_ratio_to_fit(width, height, ratio_x, ratio_y);
             width = adjusted_width;

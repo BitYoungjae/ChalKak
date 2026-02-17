@@ -17,6 +17,26 @@ pub use rectangle::{RectangleElement, RectangleOptions};
 pub use text::{TextElement, TextFontFamily, TextOptions};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ToolOptionVisibility {
+    pub has_color: bool,
+    pub has_stroke_width: bool,
+    pub has_text_size: bool,
+    pub has_crop_preset: bool,
+}
+
+impl ToolOptionVisibility {
+    pub const fn has_any(&self) -> bool {
+        let Self {
+            has_color,
+            has_stroke_width,
+            has_text_size,
+            has_crop_preset,
+        } = *self;
+        has_color || has_stroke_width || has_text_size || has_crop_preset
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ToolKind {
     Select,
     Pan,
@@ -27,6 +47,37 @@ pub enum ToolKind {
     Crop,
     Text,
     Ocr,
+}
+
+impl ToolKind {
+    pub const fn option_visibility(self) -> ToolOptionVisibility {
+        match self {
+            Self::Pen | Self::Arrow | Self::Rectangle => ToolOptionVisibility {
+                has_color: true,
+                has_stroke_width: true,
+                has_text_size: false,
+                has_crop_preset: false,
+            },
+            Self::Text => ToolOptionVisibility {
+                has_color: true,
+                has_stroke_width: false,
+                has_text_size: true,
+                has_crop_preset: false,
+            },
+            Self::Crop => ToolOptionVisibility {
+                has_color: false,
+                has_stroke_width: false,
+                has_text_size: false,
+                has_crop_preset: true,
+            },
+            Self::Select | Self::Pan | Self::Blur | Self::Ocr => ToolOptionVisibility {
+                has_color: false,
+                has_stroke_width: false,
+                has_text_size: false,
+                has_crop_preset: false,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -419,5 +470,55 @@ impl EditorTools {
 
     fn get_rectangle(&self, id: u64) -> Option<&RectangleElement> {
         self.find_object_ref(id, ToolObject::as_rectangle)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn pen_arrow_rectangle_show_color_and_stroke_width() {
+        for tool in [ToolKind::Pen, ToolKind::Arrow, ToolKind::Rectangle] {
+            let vis = tool.option_visibility();
+            assert!(vis.has_color, "{tool:?} should have color");
+            assert!(vis.has_stroke_width, "{tool:?} should have stroke width");
+            assert!(!vis.has_text_size, "{tool:?} should not have text size");
+            assert!(!vis.has_crop_preset, "{tool:?} should not have crop preset");
+            assert!(vis.has_any());
+        }
+    }
+
+    #[test]
+    fn text_shows_color_and_text_size() {
+        let vis = ToolKind::Text.option_visibility();
+        assert!(vis.has_color);
+        assert!(!vis.has_stroke_width);
+        assert!(vis.has_text_size);
+        assert!(!vis.has_crop_preset);
+        assert!(vis.has_any());
+    }
+
+    #[test]
+    fn crop_shows_only_crop_preset() {
+        let vis = ToolKind::Crop.option_visibility();
+        assert!(!vis.has_color);
+        assert!(!vis.has_stroke_width);
+        assert!(!vis.has_text_size);
+        assert!(vis.has_crop_preset);
+        assert!(vis.has_any());
+    }
+
+    #[test]
+    fn select_pan_blur_ocr_have_no_options() {
+        for tool in [
+            ToolKind::Select,
+            ToolKind::Pan,
+            ToolKind::Blur,
+            ToolKind::Ocr,
+        ] {
+            let vis = tool.option_visibility();
+            assert!(!vis.has_any(), "{tool:?} should have no options");
+        }
     }
 }

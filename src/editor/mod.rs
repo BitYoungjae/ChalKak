@@ -6,7 +6,7 @@ use crate::clipboard::ClipboardError;
 use crate::storage::StorageError;
 use thiserror::Error;
 
-pub use tools::{EditorTools, ToolError, ToolKind, ToolObject};
+pub use tools::{EditorTools, ToolError, ToolKind, ToolObject, ToolOptionVisibility};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EditorViewport {

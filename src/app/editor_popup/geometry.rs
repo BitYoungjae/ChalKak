@@ -1,5 +1,5 @@
 use crate::editor::tools::{
-    CropElement, CropPreset, ImageBounds, RectangleElement, TextElement, ToolBounds, ToolPoint,
+    CropElement, ImageBounds, RectangleElement, TextElement, ToolBounds, ToolPoint,
 };
 use crate::editor::{self, ToolObject};
 use gtk4::prelude::*;
@@ -469,15 +469,9 @@ pub(in crate::app) fn resized_rectangle_from_handle(
 }
 
 fn crop_ratio(crop: &CropElement, image_width: i32, image_height: i32) -> Option<(u32, u32)> {
-    crop.options.preset.ratio().or_else(|| {
-        if crop.options.preset == CropPreset::Original {
-            let ratio_x = u32::try_from(image_width.max(1)).ok()?;
-            let ratio_y = u32::try_from(image_height.max(1)).ok()?;
-            Some((ratio_x, ratio_y))
-        } else {
-            None
-        }
-    })
+    let w = u32::try_from(image_width.max(1)).unwrap_or(1);
+    let h = u32::try_from(image_height.max(1)).unwrap_or(1);
+    crop.options.preset.resolve_ratio(w, h)
 }
 
 pub(in crate::app) fn resized_crop_from_handle(

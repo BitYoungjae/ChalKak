@@ -11,8 +11,8 @@ use super::image_processing::{
     rgba_image_to_cairo_surface,
 };
 use super::{
-    draw_resize_handles_for_bounds, is_object_selected, normalize_tool_box, object_bounds,
-    objects_in_draw_order, text_baseline_y, text_line_height, text_lines_for_render,
+    adjust_ratio_to_fit, draw_resize_handles_for_bounds, is_object_selected, normalize_tool_box,
+    object_bounds, objects_in_draw_order, text_baseline_y, text_line_height, text_lines_for_render,
     ArrowDrawStyle, BlurRenderCache, BlurRenderEntry, BlurRenderKey, EditorSelectionPalette,
     RgbaColor, TextCaretLayout, ToolDragPreview, ToolRenderContext,
 };
@@ -811,18 +811,29 @@ pub(in crate::app) fn draw_drag_preview_overlay(
             }
         }
         ToolKind::Crop => {
-            if let Some((x, y, width, height)) = normalize_tool_box(preview.start, preview.current)
+            if let Some((x, y, mut width, mut height)) =
+                normalize_tool_box(preview.start, preview.current)
             {
-                draw_crop_mask(context, x, y, width, height, image_width, image_height);
-                context.set_source_rgba(1.0, 1.0, 1.0, 0.95);
-                context.set_line_width(2.0);
-                context.rectangle(
-                    f64::from(x),
-                    f64::from(y),
-                    f64::from(width),
-                    f64::from(height),
-                );
-                let _ = context.stroke();
+                let preset = tools.crop_options().preset;
+                let img_w = u32::try_from(image_width.max(1)).unwrap_or(1);
+                let img_h = u32::try_from(image_height.max(1)).unwrap_or(1);
+                if let Some((ratio_x, ratio_y)) = preset.resolve_ratio(img_w, img_h) {
+                    let (aw, ah) = adjust_ratio_to_fit(width, height, ratio_x, ratio_y);
+                    width = aw;
+                    height = ah;
+                }
+                if width > 0 && height > 0 {
+                    draw_crop_mask(context, x, y, width, height, image_width, image_height);
+                    context.set_source_rgba(1.0, 1.0, 1.0, 0.95);
+                    context.set_line_width(2.0);
+                    context.rectangle(
+                        f64::from(x),
+                        f64::from(y),
+                        f64::from(width),
+                        f64::from(height),
+                    );
+                    let _ = context.stroke();
+                }
             }
         }
         ToolKind::Text => {}

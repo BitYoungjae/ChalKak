@@ -1,6 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+use crate::editor::tools::CropPreset;
 use crate::editor::{self, ToolKind};
 
 use gtk4::prelude::*;
@@ -208,6 +209,18 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
     collapsed_text_size_chip.set_size_request(34, 30);
     tool_options_collapsed_row.append(&collapsed_text_size_chip);
 
+    let initial_crop_preset = editor_tools.borrow().crop_options().preset;
+    let collapsed_crop_preset_chip = Button::with_label(initial_crop_preset.label());
+    collapsed_crop_preset_chip.set_focus_on_click(false);
+    collapsed_crop_preset_chip.set_can_target(false);
+    collapsed_crop_preset_chip.set_valign(Align::Center);
+    collapsed_crop_preset_chip.add_css_class("flat");
+    collapsed_crop_preset_chip.add_css_class("stroke-chip-button");
+    collapsed_crop_preset_chip.add_css_class("stroke-chip-active");
+    collapsed_crop_preset_chip.set_size_request(-1, 30);
+    collapsed_crop_preset_chip.set_visible(false);
+    tool_options_collapsed_row.append(&collapsed_crop_preset_chip);
+
     let tool_options_toggle = Button::from_icon_name("chevron-down-symbolic");
     tool_options_toggle.set_focus_on_click(false);
     tool_options_toggle.set_size_request(30, 30);
@@ -238,6 +251,7 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
         let collapsed_thickness = collapsed_thickness.clone();
         let collapsed_thickness_preview = collapsed_thickness_preview.clone();
         let collapsed_text_size_chip = collapsed_text_size_chip.clone();
+        let collapsed_crop_preset_chip = collapsed_crop_preset_chip.clone();
         let stroke_width_presets = stroke_width_presets.clone();
         let text_size_presets = text_size_presets.clone();
         move || {
@@ -255,6 +269,8 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
             let text_size =
                 nearest_preset_u8(f64::from(tools.text_options().size), &text_size_presets);
             collapsed_text_size_chip.set_label(text_size.to_string().as_str());
+            let crop_label = tools.crop_options().preset.label();
+            collapsed_crop_preset_chip.set_label(crop_label);
         }
     });
     (refresh_collapsed_option_chips.as_ref())();
@@ -422,101 +438,193 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
     thickness_group.append(&thickness_row);
     tool_options_content.append(&thickness_group);
 
-    let text_size_group = GtkBox::new(Orientation::Vertical, 2);
-    text_size_group.add_css_class("stroke-options-section");
-    text_size_group.set_margin_top(style_tokens.spacing_8);
-    let text_size_title = Label::new(Some("Text Size"));
-    text_size_title.add_css_class("stroke-options-title");
-    text_size_title.set_xalign(0.0);
-    let text_size_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_4);
-    text_size_row.add_css_class("stroke-chip-row");
-    let text_size_chip_buttons = Rc::new(RefCell::new(Vec::<(u8, Button)>::new()));
     let initial_text_size = {
         let options = editor_tools.borrow().text_options();
         nearest_preset_u8(f64::from(options.size), &text_size_presets)
     };
-    for text_size in text_size_presets.iter().copied() {
-        let chip = Button::with_label(text_size.to_string().as_str());
-        chip.set_focus_on_click(false);
-        chip.set_tooltip_text(Some(format!("Text size {text_size}").as_str()));
-        chip.add_css_class("flat");
-        chip.add_css_class("stroke-chip-button");
-        chip.set_size_request(34, 30);
-        text_size_row.append(&chip);
-        text_size_chip_buttons
-            .borrow_mut()
-            .push((text_size, chip.clone()));
-        let text_size_chip_buttons = text_size_chip_buttons.clone();
-        let editor_tools = editor_tools.clone();
-        let editor_canvas = editor_canvas.clone();
-        let status_log_for_render = status_log_for_render.clone();
-        let refresh_collapsed_option_chips = refresh_collapsed_option_chips.clone();
-        chip.connect_clicked(move |_| {
-            for (candidate_size, candidate_button) in text_size_chip_buttons.borrow().iter() {
-                if *candidate_size == text_size {
-                    candidate_button.add_css_class("stroke-chip-active");
-                } else {
-                    candidate_button.remove_css_class("stroke-chip-active");
-                }
-            }
-            editor_tools.borrow_mut().set_text_size(text_size);
-            *status_log_for_render.borrow_mut() = format!("text size preset: {text_size}");
-            editor_canvas.queue_draw();
-            (refresh_collapsed_option_chips.as_ref())();
-        });
-    }
-    for (text_size, chip) in text_size_chip_buttons.borrow().iter() {
-        if *text_size == initial_text_size {
-            chip.add_css_class("stroke-chip-active");
-        }
-    }
-    text_size_group.append(&text_size_title);
-    text_size_group.append(&text_size_row);
+    let text_size_group = build_label_chip_group(
+        style_tokens,
+        "Text Size",
+        &text_size_presets,
+        initial_text_size,
+        34,
+        0,
+        |size: u8| size.to_string(),
+        {
+            let editor_tools = editor_tools.clone();
+            let editor_canvas = editor_canvas.clone();
+            let status_log_for_render = status_log_for_render.clone();
+            let refresh_collapsed_option_chips = refresh_collapsed_option_chips.clone();
+            Rc::new(move |text_size: u8| {
+                editor_tools.borrow_mut().set_text_size(text_size);
+                *status_log_for_render.borrow_mut() = format!("text size preset: {text_size}");
+                editor_canvas.queue_draw();
+                (refresh_collapsed_option_chips.as_ref())();
+            })
+        },
+    );
     tool_options_content.append(&text_size_group);
 
-    {
-        let tool_options_collapsed = tool_options_collapsed.clone();
+    let initial_crop_preset_active = editor_tools.borrow().crop_options().preset;
+    let crop_preset_group = build_label_chip_group(
+        style_tokens,
+        "Aspect Ratio",
+        &CropPreset::ALL,
+        initial_crop_preset_active,
+        -1,
+        4,
+        |preset: CropPreset| preset.label().to_string(),
+        {
+            let editor_tools = editor_tools.clone();
+            let editor_canvas = editor_canvas.clone();
+            let status_log_for_render = status_log_for_render.clone();
+            let refresh_collapsed_option_chips = refresh_collapsed_option_chips.clone();
+            Rc::new(move |preset: CropPreset| {
+                editor_tools.borrow_mut().set_crop_preset(preset);
+                *status_log_for_render.borrow_mut() = format!("crop preset: {}", preset.label());
+                editor_canvas.queue_draw();
+                (refresh_collapsed_option_chips.as_ref())();
+            })
+        },
+    );
+    tool_options_content.append(&crop_preset_group);
+
+    let refresh_tool_options_with_bottom = Rc::new({
         let tool_options_bar = tool_options_bar.clone();
+        let tool_options_collapsed = tool_options_collapsed.clone();
         let tool_options_collapsed_row = tool_options_collapsed_row.clone();
-        let tool_options_toggle = tool_options_toggle.clone();
-        let tool_options_toggle_for_click = tool_options_toggle.clone();
         let tool_options_content_revealer = tool_options_content_revealer.clone();
+        let tool_options_toggle = tool_options_toggle.clone();
+        let color_group = color_group.clone();
+        let thickness_group = thickness_group.clone();
+        let text_size_group = text_size_group.clone();
+        let crop_preset_group = crop_preset_group.clone();
+        let collapsed_color_chip = collapsed_color_chip.clone();
+        let collapsed_thickness_chip = collapsed_thickness_chip.clone();
+        let collapsed_text_size_chip = collapsed_text_size_chip.clone();
+        let collapsed_crop_preset_chip = collapsed_crop_preset_chip.clone();
         let refresh_collapsed_option_chips = refresh_collapsed_option_chips.clone();
-        let status_log_for_render = status_log_for_render.clone();
-        tool_options_toggle.connect_clicked(move |_| {
-            let collapsed = !tool_options_collapsed.get();
-            tool_options_collapsed.set(collapsed);
+        move |tool: ToolKind| {
+            let vis = tool.option_visibility();
+
+            tool_options_bar.set_visible(vis.has_any());
+            if !vis.has_any() {
+                return;
+            }
+
+            // Expanded section group visibility
+            color_group.set_visible(vis.has_color);
+            thickness_group.set_visible(vis.has_stroke_width);
+            text_size_group.set_visible(vis.has_text_size);
+            crop_preset_group.set_visible(vis.has_crop_preset);
+
+            // Collapsed chip visibility
+            collapsed_color_chip.set_visible(vis.has_color);
+            collapsed_thickness_chip.set_visible(vis.has_stroke_width);
+            collapsed_text_size_chip.set_visible(vis.has_text_size);
+            collapsed_crop_preset_chip.set_visible(vis.has_crop_preset);
+
+            // Restore collapsed/expanded state
+            let collapsed = tool_options_collapsed.get();
             tool_options_content_revealer.set_visible(!collapsed);
             tool_options_content_revealer.set_reveal_child(!collapsed);
             tool_options_collapsed_row.set_visible(collapsed);
             if collapsed {
                 tool_options_bar.add_css_class("editor-options-collapsed");
-                tool_options_toggle_for_click.set_icon_name("chevron-up-symbolic");
-                tool_options_toggle_for_click.set_tooltip_text(Some("Expand tool options (O)"));
-                *status_log_for_render.borrow_mut() = "editor tool options collapsed".to_string();
+                tool_options_toggle.set_icon_name("chevron-up-symbolic");
+                tool_options_toggle.set_tooltip_text(Some("Expand tool options (O)"));
             } else {
                 tool_options_bar.remove_css_class("editor-options-collapsed");
-                tool_options_toggle_for_click.set_icon_name("chevron-down-symbolic");
-                tool_options_toggle_for_click.set_tooltip_text(Some("Collapse tool options (O)"));
-                *status_log_for_render.borrow_mut() = "editor tool options expanded".to_string();
+                tool_options_toggle.set_icon_name("chevron-down-symbolic");
+                tool_options_toggle.set_tooltip_text(Some("Collapse tool options (O)"));
             }
-            (refresh_collapsed_option_chips.as_ref())();
-        });
-    }
 
-    let refresh_tool_options_with_bottom = Rc::new({
-        let refresh_collapsed_option_chips = refresh_collapsed_option_chips.clone();
-        move |_tool: ToolKind| {
             (refresh_collapsed_option_chips.as_ref())();
         }
     });
     refresh_tool_options_with_bottom(active_editor_tool.get());
-    *refresh_tool_options.borrow_mut() = Some(refresh_tool_options_with_bottom);
+    let refresh_tool_options_dyn: Rc<dyn Fn(ToolKind)> = refresh_tool_options_with_bottom.clone();
+    *refresh_tool_options.borrow_mut() = Some(refresh_tool_options_dyn);
+
+    {
+        let tool_options_collapsed = tool_options_collapsed.clone();
+        let active_editor_tool = active_editor_tool.clone();
+        let refresh = refresh_tool_options_with_bottom;
+        let status_log_for_render = status_log_for_render.clone();
+        tool_options_toggle.connect_clicked(move |_| {
+            let collapsed = !tool_options_collapsed.get();
+            tool_options_collapsed.set(collapsed);
+            if collapsed {
+                *status_log_for_render.borrow_mut() = "editor tool options collapsed".to_string();
+            } else {
+                *status_log_for_render.borrow_mut() = "editor tool options expanded".to_string();
+            }
+            refresh(active_editor_tool.get());
+        });
+    }
 
     ToolOptionsRuntime {
         tool_options_bar,
         tool_options_toggle,
     }
+}
+
+fn build_label_chip_group<K: Copy + PartialEq + 'static>(
+    style_tokens: StyleTokens,
+    title: &str,
+    presets: &[K],
+    initial_active: K,
+    chip_width: i32,
+    chip_label_padding: i32,
+    label_fn: impl Fn(K) -> String,
+    on_select: Rc<dyn Fn(K)>,
+) -> GtkBox {
+    let group = GtkBox::new(Orientation::Vertical, 2);
+    group.add_css_class("stroke-options-section");
+    group.set_margin_top(style_tokens.spacing_8);
+    let title_label = Label::new(Some(title));
+    title_label.add_css_class("stroke-options-title");
+    title_label.set_xalign(0.0);
+    let row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_4);
+    row.add_css_class("stroke-chip-row");
+    let chip_buttons = Rc::new(RefCell::new(Vec::<(K, Button)>::new()));
+    for &preset in presets {
+        let label = label_fn(preset);
+        let chip = Button::with_label(&label);
+        chip.set_focus_on_click(false);
+        chip.set_tooltip_text(Some(&label));
+        chip.add_css_class("flat");
+        chip.add_css_class("stroke-chip-button");
+        chip.set_size_request(chip_width, 30);
+        if chip_label_padding > 0 {
+            if let Some(child) = chip.child() {
+                child.set_margin_start(chip_label_padding);
+                child.set_margin_end(chip_label_padding);
+            }
+        }
+        row.append(&chip);
+        chip_buttons.borrow_mut().push((preset, chip.clone()));
+        let chip_buttons = chip_buttons.clone();
+        let on_select = on_select.clone();
+        chip.connect_clicked(move |_| {
+            for (candidate, candidate_button) in chip_buttons.borrow().iter() {
+                if *candidate == preset {
+                    candidate_button.add_css_class("stroke-chip-active");
+                } else {
+                    candidate_button.remove_css_class("stroke-chip-active");
+                }
+            }
+            on_select(preset);
+        });
+    }
+    for (preset, chip) in chip_buttons.borrow().iter() {
+        if *preset == initial_active {
+            chip.add_css_class("stroke-chip-active");
+        }
+    }
+    group.append(&title_label);
+    group.append(&row);
+    group
 }
 
 fn stroke_preview_line_width(thickness: u8, preview_width: i32, preview_height: i32) -> f64 {
