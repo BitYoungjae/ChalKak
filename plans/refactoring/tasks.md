@@ -42,13 +42,13 @@ _Branch: `refactor/ocr-abstraction`_
 ## Session 04: Extract Launchpad from `app/mod.rs`
 _Branch: `refactor/extract-launchpad`_
 
-- [ ] **T04-1** Create `src/ui/widgets.rs` with `icon_button`, `icon_toggle_button`, `install_lucide_icon_theme`
-- [ ] **T04-2** Update `ui/mod.rs` to declare and re-export `widgets`
-- [ ] **T04-3** Create `src/app/launchpad.rs` with `LaunchpadUi`, `build_launchpad_ui`, and all helper types/functions
-- [ ] **T04-4** Add `mod launchpad;` + `use self::launchpad::*;` to `app/mod.rs`
-- [ ] **T04-5** Remove moved items from `app/mod.rs`
-- [ ] **T04-6** Verify `app/` submodule `use super::*` globs still resolve all needed types
-- [ ] **T04-V** Validate: `cargo check && cargo test && cargo fmt --check`
+- [x] **T04-1** Create `src/ui/widgets.rs` with `icon_button`, `icon_toggle_button`, `install_lucide_icon_theme`
+- [x] **T04-2** Update `ui/mod.rs` to declare and re-export `widgets`
+- [x] **T04-3** Create `src/app/launchpad.rs` with `LaunchpadUi`, `build_launchpad_ui`, and all helper types/functions
+- [x] **T04-4** Add `mod launchpad;` + `use self::launchpad::*;` to `app/mod.rs`
+- [x] **T04-5** Remove moved items from `app/mod.rs`
+- [x] **T04-6** Verify `app/` submodule `use super::*` globs still resolve all needed types
+- [x] **T04-V** Validate: `cargo check && cargo test && cargo fmt --check`
 
 ## Session 05: Clean Domain Boundaries
 _Branch: `refactor/domain-boundaries`_
