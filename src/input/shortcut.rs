@@ -159,7 +159,12 @@ pub fn resolve_shortcut(
     modifiers: ShortcutModifiers,
     context: InputContext,
 ) -> Option<ShortcutAction> {
-    if key == ShortcutKey::Tab && matches!(context.mode, InputMode::Editor { .. } | InputMode::Crop | InputMode::TextInput) {
+    if key == ShortcutKey::Tab
+        && matches!(
+            context.mode,
+            InputMode::Editor { .. } | InputMode::Crop | InputMode::TextInput
+        )
+    {
         return Some(ShortcutAction::EditorToggleToolOptions);
     }
     match context.mode {
@@ -331,11 +336,7 @@ mod tests {
             Some(ShortcutAction::EditorEnterOcr)
         );
         assert_eq!(
-            resolve_shortcut(
-                ShortcutKey::Tab,
-                ShortcutModifiers::default(),
-                context
-            ),
+            resolve_shortcut(ShortcutKey::Tab, ShortcutModifiers::default(), context),
             Some(ShortcutAction::EditorToggleToolOptions)
         );
         assert_eq!(
