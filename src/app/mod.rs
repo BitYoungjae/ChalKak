@@ -22,6 +22,7 @@ use gtk4::{
     ScrolledWindow,
 };
 
+mod actions;
 mod adaptive;
 mod bootstrap;
 mod editor_history;

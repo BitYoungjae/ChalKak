@@ -1,0 +1,304 @@
+//! Executes domain actions that involve I/O (storage, clipboard).
+
+use crate::capture::CaptureArtifact;
+use crate::clipboard::ClipboardBackend;
+use crate::editor::{EditorAction, EditorActionError, EditorEvent};
+use crate::preview::{PreviewAction, PreviewActionError, PreviewEvent};
+use crate::storage::CaptureStorage;
+
+pub(super) fn execute_editor_action<S: CaptureStorage, C: ClipboardBackend>(
+    artifact: &CaptureArtifact,
+    action: EditorAction,
+    storage: &S,
+    clipboard: &C,
+) -> Result<EditorEvent, EditorActionError> {
+    let capture_id = artifact.capture_id.clone();
+    match action {
+        EditorAction::Save => {
+            storage
+                .save_capture(artifact)
+                .map_err(|err| EditorActionError::StorageError {
+                    operation: "save",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                })?;
+            Ok(EditorEvent::Save { capture_id })
+        }
+        EditorAction::Copy => {
+            clipboard.copy(&artifact.temp_path).map_err(|err| {
+                EditorActionError::ClipboardError {
+                    operation: "copy",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                }
+            })?;
+            Ok(EditorEvent::Copy { capture_id })
+        }
+        EditorAction::CloseRequested => Ok(EditorEvent::CloseRequested { capture_id }),
+    }
+}
+
+pub(super) fn execute_preview_action<S: CaptureStorage, C: ClipboardBackend>(
+    artifact: &CaptureArtifact,
+    action: PreviewAction,
+    storage: &S,
+    clipboard: &C,
+) -> Result<PreviewEvent, PreviewActionError> {
+    let capture_id = artifact.capture_id.clone();
+    match action {
+        PreviewAction::Save => {
+            storage
+                .save_capture(artifact)
+                .map_err(|err| PreviewActionError::StorageError {
+                    operation: "save",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                })?;
+            Ok(PreviewEvent::Save { capture_id })
+        }
+        PreviewAction::Copy => {
+            clipboard.copy(&artifact.temp_path).map_err(|err| {
+                PreviewActionError::ClipboardError {
+                    operation: "copy",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                }
+            })?;
+            Ok(PreviewEvent::Copy { capture_id })
+        }
+        PreviewAction::Edit => Ok(PreviewEvent::Edit { capture_id }),
+        PreviewAction::Delete => {
+            storage
+                .discard_session_artifacts(&capture_id)
+                .map_err(|err| PreviewActionError::StorageError {
+                    operation: "delete",
+                    capture_id: capture_id.clone(),
+                    source: err,
+                })?;
+            Ok(PreviewEvent::Delete { capture_id })
+        }
+        PreviewAction::Close => Ok(PreviewEvent::Close { capture_id }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::path::{Path, PathBuf};
+
+    use crate::clipboard::ClipboardBackend;
+    use crate::storage::CaptureStorage;
+
+    use super::*;
+
+    #[derive(Default)]
+    struct FakeClipboard {
+        copied_paths: RefCell<Vec<PathBuf>>,
+    }
+
+    impl ClipboardBackend for FakeClipboard {
+        fn copy(&self, path: &Path) -> crate::clipboard::ClipboardResult<()> {
+            self.copied_paths.borrow_mut().push(path.to_path_buf());
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct FakeStorage {
+        save_requests: RefCell<Vec<String>>,
+        discarded: RefCell<Vec<String>>,
+    }
+
+    impl CaptureStorage for FakeStorage {
+        fn save_capture(
+            &self,
+            artifact: &CaptureArtifact,
+        ) -> crate::storage::StorageResult<PathBuf> {
+            self.save_requests
+                .borrow_mut()
+                .push(artifact.capture_id.clone());
+            Ok(artifact.temp_path.clone())
+        }
+
+        fn discard_session_artifacts(&self, capture_id: &str) -> crate::storage::StorageResult<()> {
+            self.discarded.borrow_mut().push(capture_id.to_string());
+            Ok(())
+        }
+    }
+
+    fn artifact(id: &str) -> CaptureArtifact {
+        CaptureArtifact {
+            capture_id: id.to_string(),
+            temp_path: PathBuf::from("/tmp/test.png"),
+            width: 320,
+            height: 200,
+            screen_x: 0,
+            screen_y: 0,
+            screen_width: 320,
+            screen_height: 200,
+            created_at: 0,
+        }
+    }
+
+    #[test]
+    fn editor_action_save_calls_storage_save() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("editor-save");
+
+        let event = execute_editor_action(&current, EditorAction::Save, &storage, &clipboard)
+            .expect("save should succeed");
+
+        assert_eq!(
+            event,
+            EditorEvent::Save {
+                capture_id: "editor-save".to_string()
+            }
+        );
+        assert_eq!(
+            storage.save_requests.borrow().as_slice(),
+            &["editor-save".to_string()]
+        );
+        assert!(clipboard.copied_paths.borrow().is_empty());
+    }
+
+    #[test]
+    fn editor_action_copy_calls_clipboard() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("editor-copy");
+
+        let event = execute_editor_action(&current, EditorAction::Copy, &storage, &clipboard)
+            .expect("copy should succeed");
+
+        assert_eq!(
+            event,
+            EditorEvent::Copy {
+                capture_id: "editor-copy".to_string()
+            }
+        );
+        assert_eq!(
+            clipboard.copied_paths.borrow().as_slice(),
+            &[PathBuf::from("/tmp/test.png")]
+        );
+        assert!(storage.save_requests.borrow().is_empty());
+    }
+
+    #[test]
+    fn editor_action_close_requested_has_no_side_effects() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("editor-close");
+
+        let event =
+            execute_editor_action(&current, EditorAction::CloseRequested, &storage, &clipboard)
+                .expect("close should succeed");
+
+        assert_eq!(
+            event,
+            EditorEvent::CloseRequested {
+                capture_id: "editor-close".to_string()
+            }
+        );
+        assert!(storage.save_requests.borrow().is_empty());
+        assert!(storage.discarded.borrow().is_empty());
+        assert!(clipboard.copied_paths.borrow().is_empty());
+    }
+
+    #[test]
+    fn preview_action_save_calls_storage_save() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("capture-save");
+
+        let event = execute_preview_action(&current, PreviewAction::Save, &storage, &clipboard)
+            .expect("save should succeed");
+
+        assert_eq!(
+            event,
+            PreviewEvent::Save {
+                capture_id: "capture-save".to_string()
+            }
+        );
+        assert_eq!(
+            storage.save_requests.borrow().as_slice(),
+            &["capture-save".to_string()]
+        );
+        assert!(clipboard.copied_paths.borrow().is_empty());
+    }
+
+    #[test]
+    fn preview_action_copy_calls_clipboard() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("capture-copy");
+
+        let event = execute_preview_action(&current, PreviewAction::Copy, &storage, &clipboard)
+            .expect("copy should succeed");
+
+        assert_eq!(
+            event,
+            PreviewEvent::Copy {
+                capture_id: "capture-copy".to_string()
+            }
+        );
+        assert_eq!(
+            clipboard.copied_paths.borrow().as_slice(),
+            &[PathBuf::from("/tmp/test.png")]
+        );
+        assert!(storage.save_requests.borrow().is_empty());
+    }
+
+    #[test]
+    fn preview_action_edit_and_close_no_side_effects() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("capture-edit-close");
+
+        let edit_event =
+            execute_preview_action(&current, PreviewAction::Edit, &storage, &clipboard)
+                .expect("edit should succeed");
+        let close_event =
+            execute_preview_action(&current, PreviewAction::Close, &storage, &clipboard)
+                .expect("close should succeed");
+
+        assert_eq!(
+            edit_event,
+            PreviewEvent::Edit {
+                capture_id: "capture-edit-close".to_string()
+            }
+        );
+        assert_eq!(
+            close_event,
+            PreviewEvent::Close {
+                capture_id: "capture-edit-close".to_string()
+            }
+        );
+        assert!(storage.save_requests.borrow().is_empty());
+        assert!(storage.discarded.borrow().is_empty());
+        assert!(clipboard.copied_paths.borrow().is_empty());
+    }
+
+    #[test]
+    fn preview_action_delete_discards_artifact() {
+        let storage = FakeStorage::default();
+        let clipboard = FakeClipboard::default();
+        let current = artifact("capture-delete");
+
+        let event = execute_preview_action(&current, PreviewAction::Delete, &storage, &clipboard)
+            .expect("delete should succeed");
+
+        assert_eq!(
+            event,
+            PreviewEvent::Delete {
+                capture_id: "capture-delete".to_string()
+            }
+        );
+        assert_eq!(
+            storage.discarded.borrow().as_slice(),
+            &["capture-delete".to_string()]
+        );
+        assert!(storage.save_requests.borrow().is_empty());
+        assert!(clipboard.copied_paths.borrow().is_empty());
+    }
+}

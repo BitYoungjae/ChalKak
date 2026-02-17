@@ -53,14 +53,14 @@ _Branch: `refactor/extract-launchpad`_
 ## Session 05: Clean Domain Boundaries
 _Branch: `refactor/domain-boundaries`_
 
-- [ ] **T05-1** Create `src/app/actions.rs` with `execute_editor_action` + `execute_preview_action`
-- [ ] **T05-2** Remove `execute_editor_action` from `editor/mod.rs`
-- [ ] **T05-3** Remove `execute_preview_action` from `preview/actions.rs` + `preview/mod.rs` re-export
-- [ ] **T05-4** Update call sites: `editor_popup/output.rs` and `launchpad_actions.rs`
-- [ ] **T05-5** Move related tests to `app/actions.rs` or keep with adjusted imports
-- [ ] **T05-6** Create `src/capture/hyprland.rs` — extract Hyprland JSON types and parsing
-- [ ] **T05-7** Update `capture/mod.rs` to use `mod hyprland;`
-- [ ] **T05-V** Validate: `cargo check && cargo test && cargo fmt --check`
+- [x] **T05-1** Create `src/app/actions.rs` with `execute_editor_action` + `execute_preview_action`
+- [x] **T05-2** Remove `execute_editor_action` from `editor/mod.rs`
+- [x] **T05-3** Remove `execute_preview_action` from `preview/actions.rs` + `preview/mod.rs` re-export
+- [x] **T05-4** Update call sites: `editor_popup/output.rs` and `launchpad_actions.rs`
+- [x] **T05-5** Move related tests to `app/actions.rs` or keep with adjusted imports
+- [x] **T05-6** Create `src/capture/hyprland.rs` — extract Hyprland JSON types and parsing
+- [x] **T05-7** Update `capture/mod.rs` to use `mod hyprland;`
+- [x] **T05-V** Validate: `cargo check && cargo test && cargo fmt --check`
 
 ## Session 06: Split Large Files
 _Branch: `refactor/split-large-files`_

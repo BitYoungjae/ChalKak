@@ -132,7 +132,7 @@ pub(in crate::app) fn execute_editor_output_action(ctx: EditorOutputActionContex
         return false;
     }
 
-    match editor::execute_editor_action(
+    match super::super::actions::execute_editor_action(
         ctx.active_capture,
         ctx.action,
         ctx.storage_service,

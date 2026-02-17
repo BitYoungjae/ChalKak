@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use crate::capture;
 use crate::clipboard::WlCopyBackend;
-use crate::preview::{self, PreviewAction, PreviewEvent};
+use crate::preview::{PreviewAction, PreviewActionError, PreviewEvent};
 use crate::state::{AppEvent, AppState, StateMachine};
 use crate::storage::StorageService;
 use gtk4::prelude::*;
@@ -284,7 +284,7 @@ impl LaunchpadActionExecutor {
         };
 
         if requires_main_thread_preview_action(action) {
-            let result = preview::execute_preview_action(
+            let result = super::actions::execute_preview_action(
                 &prepared.active_capture,
                 prepared.action,
                 &prepared.storage_service,
@@ -311,7 +311,7 @@ impl LaunchpadActionExecutor {
         let mut on_complete = Some(on_complete);
         spawn_worker_action(
             move || {
-                preview::execute_preview_action(
+                super::actions::execute_preview_action(
                     &worker_capture,
                     worker_action,
                     &worker_storage,
@@ -358,7 +358,7 @@ impl LaunchpadActionExecutor {
         let mut on_complete = Some(on_complete);
         spawn_worker_action(
             move || {
-                preview::execute_preview_action(
+                super::actions::execute_preview_action(
                     &worker_capture,
                     PreviewAction::Delete,
                     &worker_storage,
@@ -643,7 +643,7 @@ fn prepare_preview_action_request(
 fn apply_preview_action_result(
     action: PreviewAction,
     active_capture: &capture::CaptureArtifact,
-    result: Result<PreviewEvent, preview::PreviewActionError>,
+    result: Result<PreviewEvent, PreviewActionError>,
     status_log: &SharedStatusLog,
     preview_windows: &Rc<RefCell<HashMap<String, PreviewWindowRuntime>>>,
     fallback_toast: &ToastRuntime,
@@ -668,7 +668,7 @@ fn apply_preview_action_result(
 fn preview_action_ui_outcome(
     action: PreviewAction,
     active_capture_id: &str,
-    result: Result<PreviewEvent, preview::PreviewActionError>,
+    result: Result<PreviewEvent, PreviewActionError>,
 ) -> PreviewActionUiOutcome {
     let labels = PreviewActionLabels::for_action(action);
     match result {
@@ -844,7 +844,7 @@ mod tests {
 
     #[test]
     fn preview_action_ui_outcome_reports_error_for_failed_copy() {
-        let result = Err(preview::PreviewActionError::ClipboardError {
+        let result = Err(PreviewActionError::ClipboardError {
             operation: "copy",
             capture_id: "capture-copy".to_string(),
             source: crate::clipboard::ClipboardError::CommandIo {
