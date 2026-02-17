@@ -567,6 +567,7 @@ impl App {
             let delete_button = launchpad.delete_button.clone();
 
             window.set_child(Some(&launchpad.root));
+            let ocr_available = crate::ocr::resolve_model_dir().is_some();
             let ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>> =
                 Rc::new(RefCell::new(None));
             let ocr_in_progress = Rc::new(Cell::new(false));
@@ -589,6 +590,7 @@ impl App {
                 editor_window.clone(),
                 editor_close_guard.clone(),
                 editor_runtime.clone(),
+                ocr_available,
             );
             let editor_render_context = EditorRenderContext {
                 preview_windows: preview_windows.clone(),
@@ -621,6 +623,7 @@ impl App {
                 ocr_engine: ocr_engine.clone(),
                 ocr_language,
                 ocr_in_progress: ocr_in_progress.clone(),
+                ocr_available,
             };
 
             let render = {
@@ -657,7 +660,7 @@ impl App {
                         &runtime.latest_label_text(),
                         &ids,
                     );
-                    launchpad.set_action_availability(state, has_capture);
+                    launchpad.set_action_availability(state, has_capture, ocr_available);
 
                     match state {
                         AppState::Preview => {

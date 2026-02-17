@@ -40,6 +40,7 @@ pub(super) fn build_top_toolbar_row(
     editor_tool_switch_context: &EditorToolSwitchContext,
     status_log_for_render: &Rc<RefCell<String>>,
     tool_buttons: &Rc<RefCell<Vec<(ToolKind, Button)>>>,
+    ocr_available: bool,
 ) -> GtkBox {
     let top_toolbar_row = GtkBox::new(Orientation::Horizontal, style_tokens.spacing_4);
     top_toolbar_row.add_css_class("editor-toolbar");
@@ -58,6 +59,10 @@ pub(super) fn build_top_toolbar_row(
         );
         if tool_kind == ToolKind::Select {
             button.add_css_class("tool-active");
+        }
+        if tool_kind == ToolKind::Ocr && !ocr_available {
+            button.set_sensitive(false);
+            button.set_tooltip_text(Some("OCR models not installed"));
         }
         tool_buttons.borrow_mut().push((tool_kind, button.clone()));
         top_toolbar_row.append(&button);
@@ -569,6 +574,7 @@ pub(super) fn build_tool_options_runtime(context: ToolOptionsBuildContext) -> To
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_label_chip_group<K: Copy + PartialEq + 'static>(
     style_tokens: StyleTokens,
     title: &str,

@@ -91,12 +91,14 @@ pub(super) fn connect_editor_tool_shortcut_fallback(
                 .map(|(_, button)| button.clone())
         };
         if let Some(button) = maybe_button {
-            tracing::debug!(
-                tool = ?tool,
-                "editor tool shortcut fallback triggered"
-            );
-            button.emit_clicked();
-            return gtk4::glib::Propagation::Stop;
+            if button.is_sensitive() {
+                tracing::debug!(
+                    tool = ?tool,
+                    "editor tool shortcut fallback triggered"
+                );
+                button.emit_clicked();
+                return gtk4::glib::Propagation::Stop;
+            }
         }
         gtk4::glib::Propagation::Proceed
     });

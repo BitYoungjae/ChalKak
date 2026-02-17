@@ -106,6 +106,14 @@ window.floating-editor-window {{
               border-color 60ms ease,
               box-shadow 60ms ease;
 }}
+.icon-button:disabled {{
+  opacity: 0.38;
+  box-shadow: none;
+}}
+.icon-button:disabled:hover,
+.icon-button:disabled:active {{
+  box-shadow: none;
+}}
 .editor-toolbar button.tool-active {{
   background-image: linear-gradient(
                       rgba(0, 0, 0, 0.24),

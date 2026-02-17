@@ -41,6 +41,7 @@ pub(super) struct PreviewRenderContext {
     editor_window: Rc<RefCell<Option<ApplicationWindow>>>,
     editor_close_guard: Rc<Cell<bool>>,
     editor_runtime: Rc<EditorRuntimeState>,
+    ocr_available: bool,
 }
 
 impl PreviewRenderContext {
@@ -62,6 +63,7 @@ impl PreviewRenderContext {
         editor_window: Rc<RefCell<Option<ApplicationWindow>>>,
         editor_close_guard: Rc<Cell<bool>>,
         editor_runtime: Rc<EditorRuntimeState>,
+        ocr_available: bool,
     ) -> Self {
         Self {
             app,
@@ -80,6 +82,7 @@ impl PreviewRenderContext {
             editor_window,
             editor_close_guard,
             editor_runtime,
+            ocr_available,
         }
     }
 }
@@ -233,6 +236,7 @@ struct PreviewLaunchpadButtons {
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
+    ocr_available: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -266,6 +270,7 @@ impl PreviewLaunchpadButtons {
             open_editor_button: context.open_editor_button.clone(),
             close_preview_button: context.close_preview_button.clone(),
             delete_button: context.delete_button.clone(),
+            ocr_available: context.ocr_available,
         }
     }
 
@@ -273,7 +278,13 @@ impl PreviewLaunchpadButtons {
         match preview_shortcut_target(action) {
             Some(PreviewShortcutTarget::Save) => self.save_button.emit_clicked(),
             Some(PreviewShortcutTarget::Copy) => self.copy_button.emit_clicked(),
-            Some(PreviewShortcutTarget::Ocr) => self.ocr_button.emit_clicked(),
+            Some(PreviewShortcutTarget::Ocr) => {
+                if self.ocr_available {
+                    self.ocr_button.emit_clicked();
+                } else {
+                    return false;
+                }
+            }
             Some(PreviewShortcutTarget::Edit) => self.open_editor_button.emit_clicked(),
             Some(PreviewShortcutTarget::Delete) => self.delete_button.emit_clicked(),
             Some(PreviewShortcutTarget::Close) => self.close_preview_button.emit_clicked(),
@@ -367,6 +378,11 @@ fn build_preview_controls(
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
     );
+
+    if !context.ocr_available {
+        preview_ocr_button.set_sensitive(false);
+        preview_ocr_button.set_tooltip_text(Some("OCR models not installed"));
+    }
 
     top_center_actions.append(&preview_copy_button);
     top_center_actions.append(&preview_save_button);

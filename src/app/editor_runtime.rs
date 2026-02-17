@@ -75,6 +75,7 @@ pub(super) struct EditorRenderContext {
     pub(super) ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
     pub(super) ocr_language: crate::ocr::OcrLanguage,
     pub(super) ocr_in_progress: Rc<Cell<bool>>,
+    pub(super) ocr_available: bool,
 }
 
 mod canvas;
@@ -280,6 +281,7 @@ pub(super) fn render_editor_state(
                 &editor_tool_switch_context,
                 status_log_for_render,
                 &tool_buttons,
+                context.ocr_available,
             );
 
             let canvas_panel = GtkBox::new(Orientation::Vertical, 0);

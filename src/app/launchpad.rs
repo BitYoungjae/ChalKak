@@ -48,7 +48,12 @@ impl LaunchpadUi {
             .set_text(&format_capture_ids_for_display(ids));
     }
 
-    pub(super) fn set_action_availability(&self, state: AppState, has_capture: bool) {
+    pub(super) fn set_action_availability(
+        &self,
+        state: AppState,
+        has_capture: bool,
+        ocr_available: bool,
+    ) {
         self.open_preview_button
             .set_sensitive(matches!(state, AppState::Idle) && has_capture);
         self.open_editor_button
@@ -62,7 +67,11 @@ impl LaunchpadUi {
         self.copy_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
         self.ocr_button
-            .set_sensitive(matches!(state, AppState::Preview) && has_capture);
+            .set_sensitive(ocr_available && matches!(state, AppState::Preview) && has_capture);
+        if !ocr_available {
+            self.ocr_button
+                .set_tooltip_text(Some("OCR models not installed"));
+        }
         self.delete_button
             .set_sensitive(matches!(state, AppState::Preview) && has_capture);
     }
