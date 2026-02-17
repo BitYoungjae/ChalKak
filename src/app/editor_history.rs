@@ -1,4 +1,12 @@
-use super::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::editor::tools::CropElement;
+use crate::editor::{self, ToolObject};
+use gtk4::prelude::*;
+use gtk4::{Button, DrawingArea};
+
+use super::editor_popup::ensure_selected_object_exists;
 
 #[derive(Clone, Copy)]
 pub(super) enum EditorHistoryAction {

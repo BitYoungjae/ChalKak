@@ -1,5 +1,3 @@
-use super::*;
-
 mod dialog;
 mod gestures;
 mod shortcuts;

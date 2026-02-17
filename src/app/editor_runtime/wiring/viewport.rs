@@ -1,4 +1,17 @@
-use super::*;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+use std::time::Duration;
+
+use crate::editor;
+
+use gtk4::prelude::*;
+use gtk4::{Button, DrawingArea, Label, Scale, ScrolledWindow};
+
+use crate::app::editor_viewport::{
+    apply_fit_zoom_once, scroller_center_anchor, set_editor_actual_size_and_refresh,
+    set_editor_zoom_percent_and_refresh, zoom_editor_viewport_and_refresh,
+    zoom_percent_from_slider_value, EditorViewportRuntime,
+};
 #[derive(Clone)]
 pub(in crate::app::editor_runtime) struct EditorZoomSliderContext {
     pub(in crate::app::editor_runtime) editor_viewport: Rc<RefCell<editor::EditorViewport>>,

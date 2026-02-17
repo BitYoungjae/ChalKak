@@ -1,4 +1,16 @@
-use super::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::editor::{self, EditorAction, ToolKind};
+
+use gtk4::prelude::*;
+use gtk4::Button;
+
+use crate::app::editor_popup::{set_single_selection, tool_kind_label, TextPreeditState};
+use crate::app::{
+    EditorOutputActionRuntime, EditorToolSwitchContext, TextInputActivation, ToolSwitchConfig,
+    EDITOR_PEN_ICON_NAME,
+};
 
 pub(in crate::app::editor_runtime) fn connect_editor_output_button(
     button: &Button,

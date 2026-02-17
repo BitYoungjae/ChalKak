@@ -1,4 +1,16 @@
-use super::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::editor::{self, ToolKind};
+use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutKey};
+
+use gtk4::prelude::*;
+use gtk4::{Application, ApplicationWindow, Button, Overlay, Revealer};
+
+use crate::app::input_bridge::normalize_shortcut_key;
+use crate::app::shortcut_editor_tool_switch;
+use crate::app::window_state::RuntimeWindowGeometry;
+use crate::ui::StyleTokens;
 
 pub(super) fn build_editor_window_shell(
     app: &Application,

@@ -1,4 +1,47 @@
-use super::*;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::time::Duration;
+
+use crate::capture;
+use crate::editor::tools::CropElement;
+use crate::editor::{self, EditorAction, ToolKind, ToolObject};
+use crate::state::StateMachine;
+use crate::storage::StorageService;
+
+use gtk4::prelude::*;
+use gtk4::{
+    Align, Application, ApplicationWindow, Box as GtkBox, Button, DrawingArea, Frame, Label,
+    Orientation, Overflow, Overlay, Revealer, RevealerTransitionType, Scale, ScrolledWindow,
+};
+
+use super::adaptive::EditorToolOptionPresets;
+use super::editor_history::{EditorHistoryAction, EditorHistoryRuntime};
+use super::editor_popup::{
+    EditorSelectionPalette, EditorTextInputPalette, ObjectDragState, TextPreeditState,
+    ToolDragPreview,
+};
+use super::editor_viewport::{
+    apply_editor_viewport_and_refresh, apply_fit_zoom_once, scroller_center_anchor,
+    sync_editor_zoom_slider, zoom_editor_viewport_and_refresh, ZOOM_SLIDER_STEPS,
+};
+use super::hypr::{current_window_center, request_window_floating_with_geometry};
+use super::input_bridge::modifier_state;
+use super::layout::{
+    centered_window_geometry_for_capture, centered_window_geometry_for_point,
+    clamp_window_geometry_to_current_monitors,
+};
+use super::runtime_support::{
+    close_all_preview_windows, close_editor_window_if_open, PreviewWindowRuntime, RuntimeSession,
+    ToastRuntime,
+};
+use super::window_state::{RuntimeWindowGeometry, RuntimeWindowKind, RuntimeWindowState};
+use super::{
+    close_editor_if_open_and_clear, editor_window_default_geometry, editor_window_min_geometry,
+    reset_editor_session_state, set_editor_pan_cursor, EditorOutputActionRuntime,
+    EditorRuntimeState, EditorToolSwitchContext, SharedToolOptionsRefresh,
+};
+use crate::ui::{icon_button, StyleTokens};
 
 #[derive(Clone)]
 pub(super) struct EditorRenderContext {

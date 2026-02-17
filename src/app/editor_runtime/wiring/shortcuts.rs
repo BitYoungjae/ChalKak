@@ -1,8 +1,30 @@
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use crate::editor::tools::CropElement;
+use crate::editor::{self, ToolKind, ToolObject};
+use crate::input::{
+    resolve_shortcut, InputContext, InputMode, ShortcutAction, TextInputAction, TextInputEvent,
+};
+
+use gtk4::prelude::*;
+use gtk4::{Button, DrawingArea, Label, Overlay, Scale, ScrolledWindow};
+
+use crate::app::editor_history::{record_undo_snapshot, snapshot_editor_objects};
+use crate::app::editor_popup::{clear_selection, copy_active_text_to_clipboard, TextPreeditState};
+use crate::app::editor_text_runtime::{
+    handle_editor_text_commit, handle_editor_text_key_action, handle_editor_text_preedit_changed,
+    EditorTextCommitContext, EditorTextKeyContext, EditorTextPreeditContext,
+};
+use crate::app::input_bridge::{
+    key_name, modifier_state, normalize_shortcut_key, resolve_text_input_event, shortcut_modifiers,
+};
+use crate::app::{shortcut_editor_tool_switch, EditorToolSwitchContext, TextInputActivation};
+
 use super::tools::switch_editor_tool_with_text_policy;
 use super::viewport::{
     editor_viewport_runtime, handle_editor_viewport_shortcuts, EditorViewportShortcutContext,
 };
-use super::*;
 
 struct EditorShortcutActionContext {
     editor_undo_button: Button,

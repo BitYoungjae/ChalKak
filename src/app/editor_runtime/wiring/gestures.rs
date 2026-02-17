@@ -1,8 +1,27 @@
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use crate::editor::tools::{CropElement, RectangleElement};
+use crate::editor::{self, ToolKind, ToolObject};
+
+use gtk4::prelude::*;
+use gtk4::{DrawingArea, Label, ScrolledWindow};
+
+use crate::app::editor_history::{record_undo_snapshot, snapshot_editor_objects};
+use crate::app::editor_popup::{
+    canvas_point_to_image_point, clear_selection, normalize_tool_box, point_in_bounds,
+    rectangle_handle_at_point, resizable_object_handle_at_point, resize_object_from_handle,
+    resize_status_label, resized_crop_from_handle, set_optional_single_selection,
+    set_single_selection, tool_kind_label, top_object_id_at_point, top_object_id_in_drag_box,
+    top_text_id_at_point, ObjectDragState, TextPreeditState, ToolDragPreview,
+};
+use crate::app::editor_viewport::{apply_editor_viewport_to_canvas, set_editor_viewport_status};
+use crate::app::EditorToolSwitchContext;
+
 use super::tools::{
     add_text_box_and_enter_editing, arm_text_tool_for_selection, enter_text_box_editing,
     finish_text_editing_and_arm_text_tool,
 };
-use super::*;
 
 #[derive(Clone)]
 pub(in crate::app::editor_runtime) struct EditorTextClickContext {

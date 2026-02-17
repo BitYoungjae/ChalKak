@@ -1,4 +1,18 @@
-use super::*;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use crate::editor::{self, ToolKind};
+
+use gtk4::prelude::*;
+use gtk4::{
+    Align, Box as GtkBox, Button, DrawingArea, Label, Orientation, Revealer, RevealerTransitionType,
+};
+
+use crate::app::adaptive::{nearest_preset_u8, EditorToolOptionPresets};
+use crate::app::{EditorToolSwitchContext, SharedToolOptionsRefresh};
+use crate::ui::{icon_button, StyleTokens};
+
+use super::wiring::{connect_tool_button_selection, EDITOR_TOOLBAR_ENTRIES};
 
 const STROKE_PREVIEW_ENDPOINT_MARGIN: f64 = 4.5;
 const STROKE_PREVIEW_STROKE_PADDING: i32 = 2;

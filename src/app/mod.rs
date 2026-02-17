@@ -4,23 +4,15 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use crate::capture;
-use crate::editor::tools::{CropElement, ImageBounds, RectangleElement};
-use crate::editor::{self, EditorAction, ToolKind, ToolObject};
+use crate::editor::tools::CropElement;
+use crate::editor::{self, EditorAction, ToolKind};
 use crate::error::AppResult;
-use crate::input::{
-    resolve_shortcut, InputContext, InputMode, ShortcutAction, ShortcutKey, TextInputAction,
-    TextInputEvent,
-};
+use crate::input::ShortcutAction;
 use crate::state::{AppEvent, AppState, StateMachine};
 use crate::storage::StorageService;
-use crate::ui::{icon_button, icon_toggle_button, install_lucide_icon_theme, StyleTokens};
-use gtk4::gdk::prelude::GdkCairoContextExt;
+use crate::ui::{install_lucide_icon_theme, StyleTokens};
 use gtk4::prelude::*;
-use gtk4::{
-    Align, Application, ApplicationWindow, Box as GtkBox, Button, Dialog, DrawingArea, Frame,
-    Label, Orientation, Overflow, Overlay, ResponseType, Revealer, RevealerTransitionType, Scale,
-    ScrolledWindow,
-};
+use gtk4::{Application, ApplicationWindow, Button};
 
 mod actions;
 mod adaptive;
@@ -44,18 +36,11 @@ mod runtime_support;
 mod window_state;
 mod worker;
 
-use self::adaptive::*;
 use self::bootstrap::*;
-use self::editor_history::*;
 use self::editor_popup::*;
 use self::editor_runtime::*;
-use self::editor_text_runtime::*;
-use self::editor_viewport::*;
-use self::hypr::*;
-use self::input_bridge::*;
 use self::launchpad::*;
 use self::launchpad_actions::*;
-use self::layout::*;
 use self::lifecycle::*;
 use self::preview_runtime::*;
 use self::runtime_support::*;
@@ -782,6 +767,11 @@ impl Default for App {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use super::editor_viewport::{
+        zoom_percent_from_slider_value, zoom_slider_value_for_percent, ZOOM_SLIDER_STEPS,
+    };
+    use super::hypr::hypr_client_match_from_json;
 
     #[test]
     fn hypr_client_match_from_json_reads_pin_state_when_available() {

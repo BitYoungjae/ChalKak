@@ -1,4 +1,22 @@
-use super::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::editor::tools::{CropElement, ImageBounds};
+use crate::editor::{self};
+
+use gtk4::gdk::prelude::GdkCairoContextExt;
+use gtk4::prelude::*;
+use gtk4::DrawingArea;
+
+use crate::app::adaptive::{
+    adaptive_stroke_size_for_image_with_presets, adaptive_text_size_for_image_with_presets,
+    EditorToolOptionPresets,
+};
+use crate::app::editor_popup::{
+    caret_layout_to_canvas_cursor_rect, draw_crop_mask, draw_drag_preview_overlay,
+    draw_editor_tool_objects, text_caret_layout, BlurRenderCache, EditorSelectionPalette,
+    EditorTextInputPalette, TextPreeditState, ToolDragPreview, ToolRenderContext,
+};
 
 pub(super) struct EditorCanvasDrawDeps {
     pub(super) editor_tools: Rc<RefCell<editor::EditorTools>>,

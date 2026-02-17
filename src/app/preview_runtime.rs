@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use crate::capture;
 use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutAction};
 use crate::preview;
-use crate::ui::StyleTokens;
+use crate::ui::{icon_button, icon_toggle_button, StyleTokens};
 use gtk4::prelude::*;
 use gtk4::{
     Align, Application, ApplicationWindow, Box as GtkBox, Button, Frame, Orientation, Overflow,
@@ -21,10 +21,7 @@ use super::runtime_support::{
     close_all_preview_windows, close_preview_window_for_capture, PreviewWindowRuntime, ToastRuntime,
 };
 use super::window_state::{RuntimeWindowGeometry, RuntimeWindowState};
-use super::{
-    close_editor_if_open_and_clear, icon_button, icon_toggle_button, EditorRuntimeState,
-    EDITOR_PEN_ICON_NAME,
-};
+use super::{close_editor_if_open_and_clear, EditorRuntimeState, EDITOR_PEN_ICON_NAME};
 
 #[derive(Clone)]
 pub(super) struct PreviewRenderContext {
