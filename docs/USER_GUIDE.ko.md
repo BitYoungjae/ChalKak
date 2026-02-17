@@ -238,7 +238,7 @@ graph LR
 ### 크롭 (`c`)
 
 - 드래그로 크롭 영역 지정. 크롭은 렌더 시점(저장/복사)에 적용되며 파괴적이지 않음.
-- **비율 프리셋:** 자유, 16:9, 4:3, 1:1, 9:16, 원본 (캔버스 비율 유지).
+- **비율 프리셋:** 자유, 16:9, 1:1, 9:16, 원본 (캔버스 비율 유지).
 - 최소 크롭 크기: 16×16 픽셀.
 - `Esc`로 크롭 취소 후 선택 도구로 복귀.
 
@@ -414,7 +414,7 @@ Omarchy를 사용하는 경우, `source = ~/.config/hypr/chalkak.conf`가 Hyprla
 | 종류 | 경로 | 예시 |
 |------|------|------|
 | 임시 캡처 | `$XDG_RUNTIME_DIR/` (fallback: `/tmp/chalkak/`) | `capture_<id>.png` |
-| 저장된 스크린샷 | `$HOME/Pictures/` | `Screenshot_20260216_143052.png` |
+| 저장된 스크린샷 | `$HOME/Pictures/` | `capture-1739698252000000000.png` |
 | 설정 디렉터리 | `$XDG_CONFIG_HOME/chalkak/` (fallback: `$HOME/.config/chalkak/`) | `theme.json`, `keybindings.json` |
 
 ChalKak은 필요한 디렉터리를 자동으로 생성합니다.
@@ -432,7 +432,8 @@ ChalKak에서 복사하면 (미리보기 `c` 또는 편집기 `Ctrl+C`) 여러 �
 | `image/png` | PNG 이미지 바이트 | 이미지 편집기, 브라우저, 채팅 앱, 코딩 에이전트 |
 | `text/uri-list` | 파일 URI (`file:///path/to/image.png`) | 파일 관리자 |
 | `x-special/gnome-copied-files` | GNOME 파일 복사 형식 | Nautilus, GNOME 앱 |
-| `text/plain` | 절대 파일 경로 | 터미널, 텍스트 편집기 |
+| `text/plain;charset=utf-8` | 절대 파일 경로 (UTF-8) | 최신 텍스트 편집기, 터미널 |
+| `text/plain` | 절대 파일 경로 | 레거시 터미널, 텍스트 편집기 |
 
 이미지를 인식하는 앱에 붙여넣으면 PNG 데이터가, 파일 관리자에 붙여넣으면 파일 참조가 전달됩니다.
 
@@ -622,9 +623,9 @@ OCR 인식 언어를 오버라이드합니다. 생략 시 시스템 `LANG` 환�
 |----|------|
 | `korean` / `ko` | 한국어 |
 | `en` / `english` | 영어 |
-| `chinese` / `zh` | 중국어 |
+| `chinese` / `zh` / `ch` | 중국어 |
 | `latin` | 라틴 문자 언어 |
-| `cyrillic` / `ru` | 키릴 문자 언어 |
+| `cyrillic` / `ru` / `uk` / `be` | 키릴 문자 언어 |
 | `arabic` / `ar` | 아랍어 |
 | `th` / `thai` | 태국어 |
 | `el` / `greek` | 그리스어 |

@@ -238,7 +238,7 @@ Preview is a useful safety gate: verify the capture content before committing to
 ### Crop (`c`)
 
 - Drag to define the crop region. The crop is applied at render time (save/copy), not destructively.
-- **Aspect ratio presets:** Free, 16:9, 4:3, 1:1, 9:16, Original (matches canvas ratio).
+- **Aspect ratio presets:** Free, 16:9, 1:1, 9:16, Original (matches canvas ratio).
 - Minimum crop size: 16×16 pixels.
 - `Esc` cancels the crop and returns to Select.
 
@@ -414,7 +414,7 @@ If you use Omarchy, ensure `source = ~/.config/hypr/chalkak.conf` is loaded with
 | Type | Path | Example |
 |------|------|---------|
 | Temp captures | `$XDG_RUNTIME_DIR/` (fallback: `/tmp/chalkak/`) | `capture_<id>.png` |
-| Saved screenshots | `$HOME/Pictures/` | `Screenshot_20260216_143052.png` |
+| Saved screenshots | `$HOME/Pictures/` | `capture-1739698252000000000.png` |
 | Config directory | `$XDG_CONFIG_HOME/chalkak/` (fallback: `$HOME/.config/chalkak/`) | `theme.json`, `keybindings.json` |
 
 ChalKak creates these directories automatically when needed.
@@ -432,7 +432,8 @@ When you copy from ChalKak (Preview `c` or Editor `Ctrl+C`), the clipboard recei
 | `image/png` | Raw PNG image bytes | Image editors, browsers, chat apps, coding agents |
 | `text/uri-list` | File URI (`file:///path/to/image.png`) | File managers |
 | `x-special/gnome-copied-files` | GNOME file copy format | Nautilus, GNOME apps |
-| `text/plain` | Absolute file path | Terminals, text editors |
+| `text/plain;charset=utf-8` | Absolute file path (UTF-8) | Modern text editors, terminals |
+| `text/plain` | Absolute file path | Legacy terminals, text editors |
 
 This means you can paste into image-aware apps (they receive the PNG data) or file managers (they receive the file reference).
 
@@ -622,9 +623,9 @@ Overrides the OCR recognition language. If omitted, ChalKak auto-detects from th
 |-------|----------|
 | `korean` / `ko` | Korean |
 | `en` / `english` | English |
-| `chinese` / `zh` | Chinese |
+| `chinese` / `zh` / `ch` | Chinese |
 | `latin` | Latin script languages |
-| `cyrillic` / `ru` | Cyrillic script languages |
+| `cyrillic` / `ru` / `uk` / `be` | Cyrillic script languages |
 | `arabic` / `ar` | Arabic |
 | `th` / `thai` | Thai |
 | `el` / `greek` | Greek |
