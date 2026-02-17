@@ -435,31 +435,35 @@ impl LaunchpadActionExecutor {
             return;
         };
         match crate::ocr::recognize_text_from_file(engine, &active_capture.temp_path) {
-            Ok(text) if text.is_empty() => {
-                set_status(&self.status_log, "OCR: no text found");
-                crate::notification::send("No text found");
-            }
-            Ok(text) => {
-                if let Some(display) = gtk4::gdk::Display::default() {
-                    display.clipboard().set_text(&text);
-                }
-                let preview_text = if text.chars().count() > 60 {
-                    let truncated: String = text.chars().take(57).collect();
-                    format!("{truncated}...")
-                } else {
-                    text.clone()
-                };
-                set_status(
-                    &self.status_log,
-                    format!("OCR copied {} chars", text.chars().count()),
-                );
-                crate::notification::send(format!("Copied: {preview_text}"));
-            }
+            Ok(text) => self.handle_ocr_result(text),
             Err(err) => {
                 set_status(&self.status_log, format!("OCR recognition failed: {err}"));
                 crate::notification::send(format!("OCR failed: {err}"));
             }
         }
+    }
+
+    fn handle_ocr_result(&self, text: String) {
+        if text.is_empty() {
+            set_status(&self.status_log, "OCR: no text found");
+            crate::notification::send("No text found");
+            return;
+        }
+
+        if let Some(display) = gtk4::gdk::Display::default() {
+            display.clipboard().set_text(&text);
+        }
+        let preview_text = if text.chars().count() > 60 {
+            let truncated: String = text.chars().take(57).collect();
+            format!("{truncated}...")
+        } else {
+            text.clone()
+        };
+        set_status(
+            &self.status_log,
+            format!("OCR copied {} chars", text.chars().count()),
+        );
+        crate::notification::send(format!("Copied: {preview_text}"));
     }
 
     fn apply_deleted_capture(&self, capture_id: &str) {
