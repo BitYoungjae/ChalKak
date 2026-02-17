@@ -667,9 +667,9 @@ pub(in crate::app) fn draw_editor_tool_objects(
                 }
                 set_source_rgb_u8(
                     context,
-                    stroke.options.color_r,
-                    stroke.options.color_g,
-                    stroke.options.color_b,
+                    stroke.options.color.r,
+                    stroke.options.color.g,
+                    stroke.options.color.b,
                     stroke.options.opacity,
                 );
                 context.set_line_width(f64::from(stroke.options.thickness.max(1)));
@@ -688,9 +688,9 @@ pub(in crate::app) fn draw_editor_tool_objects(
                     arrow.start,
                     arrow.end,
                     super::ArrowDrawStyle {
-                        color_r: arrow.options.color_r,
-                        color_g: arrow.options.color_g,
-                        color_b: arrow.options.color_b,
+                        color_r: arrow.options.color.r,
+                        color_g: arrow.options.color.g,
+                        color_b: arrow.options.color.b,
                         opacity_percent: 100,
                         thickness: arrow.options.thickness,
                         head_size: arrow.options.head_size,
@@ -701,9 +701,9 @@ pub(in crate::app) fn draw_editor_tool_objects(
                 if rectangle.options.fill_enabled {
                     set_source_rgb_u8(
                         context,
-                        rectangle.options.color_r,
-                        rectangle.options.color_g,
-                        rectangle.options.color_b,
+                        rectangle.options.color.r,
+                        rectangle.options.color.g,
+                        rectangle.options.color.b,
                         24,
                     );
                     append_rectangle_path(
@@ -718,9 +718,9 @@ pub(in crate::app) fn draw_editor_tool_objects(
                 }
                 set_source_rgb_u8(
                     context,
-                    rectangle.options.color_r,
-                    rectangle.options.color_g,
-                    rectangle.options.color_b,
+                    rectangle.options.color.r,
+                    rectangle.options.color.g,
+                    rectangle.options.color.b,
                     100,
                 );
                 context.set_line_width(f64::from(rectangle.options.thickness.max(1)));
@@ -771,9 +771,9 @@ pub(in crate::app) fn draw_editor_tool_objects(
                 context.set_font_size(f64::from(text.options.size.max(1)));
                 set_source_rgb_u8(
                     context,
-                    text.options.color_r,
-                    text.options.color_g,
-                    text.options.color_b,
+                    text.options.color.r,
+                    text.options.color.g,
+                    text.options.color.b,
                     100,
                 );
                 let line_height = text_line_height(text);
@@ -961,9 +961,9 @@ pub(in crate::app) fn draw_drag_preview_overlay(
                 preview.start,
                 preview.current,
                 super::ArrowDrawStyle {
-                    color_r: options.color_r,
-                    color_g: options.color_g,
-                    color_b: options.color_b,
+                    color_r: options.color.r,
+                    color_g: options.color.g,
+                    color_b: options.color.b,
                     opacity_percent: 100,
                     thickness: options.thickness,
                     head_size: options.head_size,
@@ -977,9 +977,9 @@ pub(in crate::app) fn draw_drag_preview_overlay(
                 if options.fill_enabled {
                     set_source_rgb_u8(
                         context,
-                        options.color_r,
-                        options.color_g,
-                        options.color_b,
+                        options.color.r,
+                        options.color.g,
+                        options.color.b,
                         20,
                     );
                     append_rectangle_path(context, x, y, width, height, options.border_radius);
@@ -987,9 +987,9 @@ pub(in crate::app) fn draw_drag_preview_overlay(
                 }
                 set_source_rgb_u8(
                     context,
-                    options.color_r,
-                    options.color_g,
-                    options.color_b,
+                    options.color.r,
+                    options.color.g,
+                    options.color.b,
                     95,
                 );
                 context.set_line_width(f64::from(options.thickness.max(1)));

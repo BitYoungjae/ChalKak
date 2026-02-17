@@ -1,4 +1,5 @@
 use crate::config::load_app_config;
+use crate::editor::tools::Color;
 use crate::input::{load_editor_navigation_bindings, EditorNavigationBindings};
 use crate::storage::prune_stale_temp_files;
 use crate::theme::{
@@ -30,7 +31,7 @@ pub(super) struct ResolvedThemeRuntime {
 pub(super) struct EditorThemeOverrides {
     pub(super) rectangle_border_radius: Option<u16>,
     pub(super) selection_palette: EditorSelectionPalette,
-    pub(super) default_tool_color: Option<(u8, u8, u8)>,
+    pub(super) default_tool_color: Option<Color>,
     pub(super) default_text_size: Option<u8>,
     pub(super) default_stroke_width: Option<u8>,
     pub(super) tool_color_palette: Option<Vec<StrokeColorPreset>>,
@@ -272,7 +273,7 @@ fn editor_theme_overrides_from(defaults: &EditorDefaults, mode: ThemeMode) -> Ed
     }
 }
 
-fn parse_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
+fn parse_hex_rgb(value: &str) -> Option<Color> {
     let hex = value.trim();
     let hex = hex.strip_prefix('#').unwrap_or(hex);
     if hex.len() != 6 {
@@ -282,15 +283,14 @@ fn parse_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
     let red = u8::from_str_radix(&hex[0..2], 16).ok()?;
     let green = u8::from_str_radix(&hex[2..4], 16).ok()?;
     let blue = u8::from_str_radix(&hex[4..6], 16).ok()?;
-    Some((red, green, blue))
+    Some(Color::new(red, green, blue))
 }
 
 fn text_input_palette_from_focus_ring_color(value: &str) -> Option<EditorTextInputPalette> {
-    parse_hex_rgb(value)
-        .map(|(red, green, blue)| EditorTextInputPalette::from_rgb(red, green, blue))
+    parse_hex_rgb(value).map(|color| EditorTextInputPalette::from_rgb(color.r, color.g, color.b))
 }
 
-fn parse_hash_hex_rgb(value: &str) -> Option<(u8, u8, u8)> {
+fn parse_hash_hex_rgb(value: &str) -> Option<Color> {
     let hex = value.trim();
     if !hex.starts_with('#') {
         return None;
@@ -350,24 +350,21 @@ fn parse_color_palette_presets(values: &[String]) -> Option<Vec<StrokeColorPrese
             truncated = true;
             break;
         }
-        let Some((red, green, blue)) = parse_hash_hex_rgb(value) else {
+        let Some(color) = parse_hash_hex_rgb(value) else {
             tracing::warn!(
                 value = value.as_str(),
                 "invalid editor.tool_color_palette entry; expected #RRGGBB"
             );
             continue;
         };
-        if parsed
-            .iter()
-            .any(|preset| preset.rgb() == (red, green, blue))
-        {
+        if parsed.iter().any(|preset| preset.rgb() == color.rgb()) {
             continue;
         }
         parsed.push(StrokeColorPreset::new(
-            format!("#{red:02X}{green:02X}{blue:02X}"),
-            red,
-            green,
-            blue,
+            format!("#{:02X}{:02X}{:02X}", color.r, color.g, color.b),
+            color.r,
+            color.g,
+            color.b,
         ));
     }
     if truncated {
@@ -438,8 +435,8 @@ mod tests {
 
     #[test]
     fn parse_hex_rgb_accepts_hash_or_plain_six_digit_hex() {
-        assert_eq!(parse_hex_rgb("#12ab34"), Some((0x12, 0xab, 0x34)));
-        assert_eq!(parse_hex_rgb("12AB34"), Some((0x12, 0xab, 0x34)));
+        assert_eq!(parse_hex_rgb("#12ab34"), Some(Color::new(0x12, 0xab, 0x34)));
+        assert_eq!(parse_hex_rgb("12AB34"), Some(Color::new(0x12, 0xab, 0x34)));
     }
 
     #[test]
@@ -451,7 +448,10 @@ mod tests {
 
     #[test]
     fn parse_hash_hex_rgb_requires_hash_prefix() {
-        assert_eq!(parse_hash_hex_rgb("#12ab34"), Some((0x12, 0xab, 0x34)));
+        assert_eq!(
+            parse_hash_hex_rgb("#12ab34"),
+            Some(Color::new(0x12, 0xab, 0x34))
+        );
         assert_eq!(parse_hash_hex_rgb("12ab34"), None);
     }
 
@@ -494,7 +494,10 @@ mod tests {
 
         let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
-        assert_eq!(overrides.default_tool_color, Some((0x10, 0x11, 0x12)));
+        assert_eq!(
+            overrides.default_tool_color,
+            Some(Color::new(0x10, 0x11, 0x12))
+        );
     }
 
     #[test]
@@ -743,7 +746,7 @@ mod tests {
         let runtime = resolve_theme_runtime(&config, ThemeMode::Dark);
         assert_eq!(
             runtime.editor_theme_overrides.default_tool_color,
-            Some((0xEE, 0xEE, 0xEE))
+            Some(Color::new(0xEE, 0xEE, 0xEE))
         );
     }
 

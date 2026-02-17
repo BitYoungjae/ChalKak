@@ -1,10 +1,8 @@
-use super::ToolPoint;
+use super::{Color, ToolPoint};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ArrowOptions {
-    pub color_r: u8,
-    pub color_g: u8,
-    pub color_b: u8,
+    pub color: Color,
     pub thickness: u8,
     pub head_size: u8,
 }
@@ -12,9 +10,7 @@ pub struct ArrowOptions {
 impl Default for ArrowOptions {
     fn default() -> Self {
         Self {
-            color_r: 0,
-            color_g: 0,
-            color_b: 0,
+            color: Color::new(0, 0, 0),
             thickness: 3,
             head_size: 8,
         }
@@ -22,10 +18,8 @@ impl Default for ArrowOptions {
 }
 
 impl ArrowOptions {
-    pub fn set_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.color_r = color_r;
-        self.color_g = color_g;
-        self.color_b = color_b;
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
     }
 
     pub fn set_thickness(&mut self, thickness: u8) {

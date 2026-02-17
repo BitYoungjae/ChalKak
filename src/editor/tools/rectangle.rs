@@ -1,8 +1,8 @@
+use super::Color;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RectangleOptions {
-    pub color_r: u8,
-    pub color_g: u8,
-    pub color_b: u8,
+    pub color: Color,
     pub thickness: u8,
     pub fill_enabled: bool,
     pub border_radius: u16,
@@ -11,9 +11,7 @@ pub struct RectangleOptions {
 impl Default for RectangleOptions {
     fn default() -> Self {
         Self {
-            color_r: 0,
-            color_g: 0,
-            color_b: 0,
+            color: Color::new(0, 0, 0),
             thickness: 3,
             fill_enabled: false,
             border_radius: DEFAULT_RECTANGLE_BORDER_RADIUS,
@@ -22,10 +20,8 @@ impl Default for RectangleOptions {
 }
 
 impl RectangleOptions {
-    pub fn set_border_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.color_r = color_r;
-        self.color_g = color_g;
-        self.color_b = color_b;
+    pub fn set_border_color(&mut self, color: Color) {
+        self.color = color;
     }
 
     pub fn set_thickness(&mut self, thickness: u8) {

@@ -16,7 +16,7 @@ pub(super) struct EditorRenderContext {
     pub(super) editor_selection_palette: EditorSelectionPalette,
     pub(super) text_input_palette: EditorTextInputPalette,
     pub(super) rectangle_border_radius_override: Option<u16>,
-    pub(super) default_tool_color_override: Option<(u8, u8, u8)>,
+    pub(super) default_tool_color_override: Option<editor::tools::Color>,
     pub(super) default_text_size_override: Option<u8>,
     pub(super) default_stroke_width_override: Option<u8>,
     pub(super) editor_tool_option_presets: EditorToolOptionPresets,
@@ -317,7 +317,7 @@ fn stroke_preview_line_width(thickness: u8, preview_width: i32, preview_height: 
 fn apply_editor_default_tool_settings(
     editor_tools: &Rc<RefCell<editor::EditorTools>>,
     tool_option_presets: &EditorToolOptionPresets,
-    default_tool_color_override: Option<(u8, u8, u8)>,
+    default_tool_color_override: Option<editor::tools::Color>,
     default_text_size_override: Option<u8>,
     default_stroke_width_override: Option<u8>,
     rectangle_border_radius_override: Option<u16>,
@@ -338,11 +338,13 @@ fn apply_editor_default_tool_settings(
             tool_option_presets.adaptive_stroke_width_presets(),
         )
     });
-    let (default_stroke_r, default_stroke_g, default_stroke_b) = default_tool_color_override
-        .unwrap_or_else(|| tool_option_presets.stroke_color_palette().default_color());
+    let default_stroke = default_tool_color_override.unwrap_or_else(|| {
+        let (r, g, b) = tool_option_presets.stroke_color_palette().default_color();
+        editor::tools::Color::new(r, g, b)
+    });
     let mut tools = editor_tools.borrow_mut();
     tools.set_text_size(default_text_size);
-    tools.set_shared_stroke_color(default_stroke_r, default_stroke_g, default_stroke_b);
+    tools.set_shared_stroke_color(default_stroke);
     tools.set_shared_stroke_thickness(default_stroke_size);
     if let Some(radius) = rectangle_border_radius_override {
         tools.set_rectangle_border_radius(radius);
@@ -1114,16 +1116,12 @@ pub(super) fn render_editor_state(
             tool_options_collapsed_row.set_vexpand(false);
             tool_options_collapsed_row.set_visible(false);
 
-            let collapsed_color_rgb = Rc::new(Cell::new((0_u8, 0_u8, 0_u8)));
+            let collapsed_color_rgb = Rc::new(Cell::new(editor::tools::Color::new(0, 0, 0)));
             let collapsed_thickness = Rc::new(Cell::new(1_u8));
             {
                 let tools = editor_tools.borrow();
                 let arrow_options = tools.arrow_options();
-                collapsed_color_rgb.set((
-                    arrow_options.color_r,
-                    arrow_options.color_g,
-                    arrow_options.color_b,
-                ));
+                collapsed_color_rgb.set(arrow_options.color);
                 collapsed_thickness.set(nearest_preset_u8(
                     f64::from(arrow_options.thickness),
                     &stroke_width_presets,
@@ -1145,7 +1143,7 @@ pub(super) fn render_editor_state(
             {
                 let collapsed_color_rgb = collapsed_color_rgb.clone();
                 collapsed_color_swatch.set_draw_func(move |_, context, width, height| {
-                    let (r, g, b) = collapsed_color_rgb.get();
+                    let (r, g, b) = collapsed_color_rgb.get().rgb();
                     let radius = (f64::from(width.min(height)) / 2.0) - 1.2;
                     let center_x = f64::from(width) / 2.0;
                     let center_y = f64::from(height) / 2.0;
@@ -1262,11 +1260,7 @@ pub(super) fn render_editor_state(
                         return;
                     };
                     let arrow_options = tools.arrow_options();
-                    collapsed_color_rgb.set((
-                        arrow_options.color_r,
-                        arrow_options.color_g,
-                        arrow_options.color_b,
-                    ));
+                    collapsed_color_rgb.set(arrow_options.color);
                     collapsed_color_swatch.queue_draw();
                     collapsed_thickness.set(nearest_preset_u8(
                         f64::from(arrow_options.thickness),
@@ -1290,9 +1284,10 @@ pub(super) fn render_editor_state(
             let color_chip_buttons = Rc::new(RefCell::new(Vec::<(usize, Button)>::new()));
             let initial_color_index = {
                 let options = editor_tools.borrow().arrow_options();
-                stroke_color_palette.presets().iter().position(|preset| {
-                    preset.rgb() == (options.color_r, options.color_g, options.color_b)
-                })
+                stroke_color_palette
+                    .presets()
+                    .iter()
+                    .position(|preset| preset.rgb() == options.color.rgb())
             };
             for (index, preset) in stroke_color_palette.presets().iter().cloned().enumerate() {
                 let chip = Button::new();
@@ -1347,7 +1342,9 @@ pub(super) fn render_editor_state(
                     }
                     {
                         let mut tools = editor_tools.borrow_mut();
-                        tools.set_shared_stroke_color(preset_r, preset_g, preset_b);
+                        tools.set_shared_stroke_color(editor::tools::Color::new(
+                            preset_r, preset_g, preset_b,
+                        ));
                     }
                     *status_log_for_render.borrow_mut() =
                         format!("stroke color preset: {preset_r},{preset_g},{preset_b}");

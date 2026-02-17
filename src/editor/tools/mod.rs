@@ -70,6 +70,23 @@ impl ImageBounds {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl Color {
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b }
+    }
+
+    pub const fn rgb(self) -> (u8, u8, u8) {
+        (self.r, self.g, self.b)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolObject {
     Blur(BlurElement),
@@ -266,16 +283,16 @@ impl EditorTools {
         self.text_options
     }
 
-    fn set_pen_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.pen_options.set_color(color_r, color_g, color_b);
+    fn set_pen_color(&mut self, color: Color) {
+        self.pen_options.set_color(color);
     }
 
     fn set_pen_thickness(&mut self, thickness: u8) {
         self.pen_options.set_thickness(thickness);
     }
 
-    fn set_arrow_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.arrow_options.set_color(color_r, color_g, color_b);
+    fn set_arrow_color(&mut self, color: Color) {
+        self.arrow_options.set_color(color);
     }
 
     fn set_arrow_thickness(&mut self, thickness: u8) {
@@ -286,9 +303,8 @@ impl EditorTools {
         self.arrow_options.set_head_size(head_size);
     }
 
-    fn set_rectangle_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.rectangle_options
-            .set_border_color(color_r, color_g, color_b);
+    fn set_rectangle_color(&mut self, color: Color) {
+        self.rectangle_options.set_border_color(color);
     }
 
     fn set_rectangle_thickness(&mut self, thickness: u8) {
@@ -303,15 +319,15 @@ impl EditorTools {
         self.crop_options.set_preset(preset);
     }
 
-    fn set_text_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.text_options.set_color(color_r, color_g, color_b);
+    fn set_text_color(&mut self, color: Color) {
+        self.text_options.set_color(color);
     }
 
-    pub fn set_shared_stroke_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.set_pen_color(color_r, color_g, color_b);
-        self.set_arrow_color(color_r, color_g, color_b);
-        self.set_rectangle_color(color_r, color_g, color_b);
-        self.set_text_color(color_r, color_g, color_b);
+    pub fn set_shared_stroke_color(&mut self, color: Color) {
+        self.set_pen_color(color);
+        self.set_arrow_color(color);
+        self.set_rectangle_color(color);
+        self.set_text_color(color);
     }
 
     pub fn set_shared_stroke_thickness(&mut self, thickness: u8) {
@@ -1066,26 +1082,23 @@ mod tests {
     fn shared_stroke_style_updates_pen_arrow_rectangle_and_text_options() {
         let mut tools = session();
 
-        tools.set_shared_stroke_color(12, 24, 36);
+        tools.set_shared_stroke_color(Color::new(12, 24, 36));
         tools.set_shared_stroke_thickness(7);
 
         let pen = tools.pen_options();
-        assert_eq!((pen.color_r, pen.color_g, pen.color_b), (12, 24, 36));
+        assert_eq!(pen.color, Color::new(12, 24, 36));
         assert_eq!(pen.thickness, 7);
 
         let arrow = tools.arrow_options();
-        assert_eq!((arrow.color_r, arrow.color_g, arrow.color_b), (12, 24, 36));
+        assert_eq!(arrow.color, Color::new(12, 24, 36));
         assert_eq!(arrow.thickness, 7);
 
         let rectangle = tools.rectangle_options();
-        assert_eq!(
-            (rectangle.color_r, rectangle.color_g, rectangle.color_b),
-            (12, 24, 36)
-        );
+        assert_eq!(rectangle.color, Color::new(12, 24, 36));
         assert_eq!(rectangle.thickness, 7);
 
         let text = tools.text_options();
-        assert_eq!((text.color_r, text.color_g, text.color_b), (12, 24, 36));
+        assert_eq!(text.color, Color::new(12, 24, 36));
     }
 
     #[test]
@@ -1110,7 +1123,7 @@ mod tests {
     #[test]
     fn tool_blur_pen_pen_stroke_records_points_and_sticky_options() {
         let mut tools = session();
-        tools.set_pen_color(12, 34, 56);
+        tools.set_pen_color(Color::new(12, 34, 56));
         tools.set_pen_opacity(88);
         tools.set_pen_thickness(7);
 
@@ -1129,7 +1142,7 @@ mod tests {
             .get_pen_stroke(stroke_id)
             .expect("pen stroke should exist");
 
-        assert_eq!(stroke.options.color_r, 12);
+        assert_eq!(stroke.options.color, Color::new(12, 34, 56));
         assert_eq!(stroke.options.opacity, 88);
         assert_eq!(stroke.options.thickness, 7);
         assert_eq!(stroke.points.len(), 3);
@@ -1173,7 +1186,7 @@ mod tests {
     fn tool_arrow_rect_arrow_sticky_options_and_geometry_are_preserved() {
         let mut tools = session();
         tools.select_tool(ToolKind::Arrow);
-        tools.set_arrow_color(10, 20, 30);
+        tools.set_arrow_color(Color::new(10, 20, 30));
         tools.set_arrow_thickness(6);
         tools.set_arrow_head_size(16);
 
@@ -1186,9 +1199,7 @@ mod tests {
 
         assert_eq!(arrow.start, ToolPoint::new(1, 1));
         assert_eq!(arrow.end, ToolPoint::new(13, 9));
-        assert_eq!(arrow.options.color_r, 10);
-        assert_eq!(arrow.options.color_g, 20);
-        assert_eq!(arrow.options.color_b, 30);
+        assert_eq!(arrow.options.color, Color::new(10, 20, 30));
         assert_eq!(arrow.options.thickness, 6);
         assert_eq!(arrow.options.head_size, 16);
         assert_eq!(tools.arrow_count(), 1);
@@ -1208,7 +1219,7 @@ mod tests {
     fn tool_arrow_rect_rectangle_is_normalized_from_drag_and_keeps_style() {
         let mut tools = session();
         tools.select_tool(ToolKind::Rectangle);
-        tools.set_rectangle_color(5, 15, 25);
+        tools.set_rectangle_color(Color::new(5, 15, 25));
         tools.set_rectangle_thickness(11);
         tools.set_rectangle_fill(true);
         tools.set_rectangle_border_radius(12);
@@ -1224,9 +1235,7 @@ mod tests {
         assert_eq!(rectangle.y, 8);
         assert_eq!(rectangle.width, 18);
         assert_eq!(rectangle.height, 32);
-        assert_eq!(rectangle.options.color_r, 5);
-        assert_eq!(rectangle.options.color_g, 15);
-        assert_eq!(rectangle.options.color_b, 25);
+        assert_eq!(rectangle.options.color, Color::new(5, 15, 25));
         assert_eq!(rectangle.options.thickness, 11);
         assert!(rectangle.options.fill_enabled);
         assert_eq!(rectangle.options.border_radius, 12);
@@ -1444,7 +1453,7 @@ mod tests {
     fn tool_text_input_add_text_box_creates_active_edit_target() {
         let mut tools = session();
         tools.select_tool(ToolKind::Text);
-        tools.set_text_color(1, 2, 3);
+        tools.set_text_color(Color::new(1, 2, 3));
         tools.set_text_size(19);
         tools.set_text_weight(700);
         tools.set_text_family(TextFontFamily::Serif);
@@ -1458,9 +1467,7 @@ mod tests {
         assert_eq!(text.content, "");
         assert_eq!(text.x, 14);
         assert_eq!(text.y, 7);
-        assert_eq!(text.options.color_r, 1);
-        assert_eq!(text.options.color_g, 2);
-        assert_eq!(text.options.color_b, 3);
+        assert_eq!(text.options.color, Color::new(1, 2, 3));
         assert_eq!(text.options.size, 19);
         assert_eq!(text.options.weight, 700);
         assert_eq!(text.options.family, TextFontFamily::Serif);
