@@ -25,7 +25,7 @@ pub(in crate::app::editor_runtime) const EDITOR_TOOLBAR_ENTRIES: [(ToolKind, &st
     ),
     (ToolKind::Crop, "crop-symbolic", "Crop (C)"),
     (ToolKind::Text, "text-cursor-input-symbolic", "Text (T)"),
-    (ToolKind::Ocr, "edit-find-symbolic", "OCR (O)"),
+    (ToolKind::Ocr, "scan-text-symbolic", "OCR (O)"),
 ];
 
 pub(in crate::app::editor_runtime) fn connect_tool_button_selection(

@@ -365,7 +365,7 @@ fn build_preview_controls(
     );
 
     let preview_ocr_button = icon_button(
-        "edit-find-symbolic",
+        "scan-text-symbolic",
         "Extract text (OCR)",
         context.style_tokens.control_size as i32,
         &["preview-icon-button"],
