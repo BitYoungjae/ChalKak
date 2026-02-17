@@ -1087,9 +1087,15 @@ mod tests {
 
     #[test]
     fn text_caret_layout_tracks_preedit_cursor_with_measured_width() {
-        let surface = gtk4::cairo::ImageSurface::create(gtk4::cairo::Format::ARgb32, 256, 128)
-            .expect("surface");
-        let context = gtk4::cairo::Context::new(&surface).expect("context");
+        let surface = match gtk4::cairo::ImageSurface::create(gtk4::cairo::Format::ARgb32, 256, 128)
+        {
+            Ok(surface) => surface,
+            Err(_) => panic!("surface"),
+        };
+        let context = match gtk4::cairo::Context::new(&surface) {
+            Ok(context) => context,
+            Err(_) => panic!("context"),
+        };
         let mut options = editor::tools::TextOptions::default();
         options.set_size(24);
         let text = editor::tools::TextElement::with_text(
@@ -1113,8 +1119,11 @@ mod tests {
         let committed_width = measure_text_advance(&context, "ab");
         let preedit_width = measure_text_advance(&context, "가나");
         let cursor_prefix_width = measure_text_advance(&context, "가");
-        let preedit_start = layout.preedit_start_x.expect("preedit start");
-        let preedit_end = layout.preedit_end_x.expect("preedit end");
+        let (Some(preedit_start), Some(preedit_end)) =
+            (layout.preedit_start_x, layout.preedit_end_x)
+        else {
+            panic!("preedit start/end");
+        };
 
         assert!((preedit_start - (12.0 + committed_width)).abs() < 0.01);
         assert!((preedit_end - (preedit_start + preedit_width)).abs() < 0.01);
@@ -1123,9 +1132,15 @@ mod tests {
 
     #[test]
     fn text_caret_layout_uses_committed_cursor_position_not_text_end() {
-        let surface = gtk4::cairo::ImageSurface::create(gtk4::cairo::Format::ARgb32, 256, 128)
-            .expect("surface");
-        let context = gtk4::cairo::Context::new(&surface).expect("context");
+        let surface = match gtk4::cairo::ImageSurface::create(gtk4::cairo::Format::ARgb32, 256, 128)
+        {
+            Ok(surface) => surface,
+            Err(_) => panic!("surface"),
+        };
+        let context = match gtk4::cairo::Context::new(&surface) {
+            Ok(context) => context,
+            Err(_) => panic!("context"),
+        };
         let mut options = editor::tools::TextOptions::default();
         options.set_size(24);
         let mut text = editor::tools::TextElement::with_text(

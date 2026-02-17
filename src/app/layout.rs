@@ -295,8 +295,10 @@ mod tests {
         }];
         let geometry = RuntimeWindowGeometry::with_position(120, 80, 900, 560);
 
-        let clamped = clamp_window_geometry_to_bounds(geometry, &bounds).expect("clamped");
-        assert_eq!(clamped, geometry);
+        assert_eq!(
+            clamp_window_geometry_to_bounds(geometry, &bounds),
+            Some(geometry)
+        );
     }
 
     #[test]
@@ -309,10 +311,9 @@ mod tests {
         }];
         let geometry = RuntimeWindowGeometry::with_position(5000, 120, 800, 600);
 
-        let clamped = clamp_window_geometry_to_bounds(geometry, &bounds).expect("clamped");
         assert_eq!(
-            clamped,
-            RuntimeWindowGeometry::with_position(1120, 120, 800, 600)
+            clamp_window_geometry_to_bounds(geometry, &bounds),
+            Some(RuntimeWindowGeometry::with_position(1120, 120, 800, 600))
         );
     }
 
@@ -334,10 +335,9 @@ mod tests {
         ];
         let geometry = RuntimeWindowGeometry::with_position(5200, 140, 900, 700);
 
-        let clamped = clamp_window_geometry_to_bounds(geometry, &bounds).expect("clamped");
         assert_eq!(
-            clamped,
-            RuntimeWindowGeometry::with_position(3580, 140, 900, 700)
+            clamp_window_geometry_to_bounds(geometry, &bounds),
+            Some(RuntimeWindowGeometry::with_position(3580, 140, 900, 700))
         );
     }
 }

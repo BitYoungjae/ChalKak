@@ -676,7 +676,13 @@ fn perform_ocr_recognition(
     };
 
     let engine_ref = context.ocr_engine.borrow();
-    let engine = engine_ref.as_ref().expect("OCR engine initialized above");
+    let Some(engine) = engine_ref.as_ref() else {
+        *context.status_log_for_render.borrow_mut() =
+            "OCR engine became unavailable before recognition".to_string();
+        tracing::error!("OCR engine missing unexpectedly after initialization");
+        crate::notification::send("OCR failed: engine unavailable");
+        return;
+    };
     match crate::ocr::recognize_text(engine, &image) {
         Ok(text) if text.is_empty() => {
             *context.status_log_for_render.borrow_mut() = "OCR: no text found".to_string();

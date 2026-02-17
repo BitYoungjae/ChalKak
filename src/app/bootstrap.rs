@@ -476,8 +476,7 @@ mod tests {
 
     #[test]
     fn text_input_palette_from_focus_ring_color_parses_hex() {
-        let palette =
-            text_input_palette_from_focus_ring_color("#18181B").expect("expected palette");
+        let palette = text_input_palette_from_focus_ring_color("#18181B").unwrap_or_default();
         assert_eq!(
             palette.preedit_underline,
             RgbaColor::new(0x18, 0x18, 0x1B, 0xEB)
@@ -539,8 +538,10 @@ mod tests {
 
         let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
-        let palette = overrides.tool_color_palette.unwrap();
-        let colors = palette
+        let colors = overrides
+            .tool_color_palette
+            .as_deref()
+            .unwrap_or(&[])
             .iter()
             .map(StrokeColorPreset::rgb)
             .collect::<Vec<_>>();
@@ -565,7 +566,7 @@ mod tests {
 
         let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
-        let palette = overrides.tool_color_palette.unwrap();
+        let palette = overrides.tool_color_palette.as_deref().unwrap_or(&[]);
         assert_eq!(palette.len(), 1);
         assert_eq!(palette[0].rgb(), (0x22, 0x33, 0x44));
         assert_eq!(overrides.stroke_width_presets, Some(vec![4]));
@@ -591,7 +592,7 @@ mod tests {
 
         let overrides = editor_theme_overrides_from(&defaults, ThemeMode::Dark);
 
-        let palette = overrides.tool_color_palette.unwrap();
+        let palette = overrides.tool_color_palette.as_deref().unwrap_or(&[]);
         assert_eq!(palette.len(), 6);
         assert_eq!(
             palette

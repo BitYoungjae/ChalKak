@@ -425,7 +425,15 @@ impl LaunchpadActionExecutor {
         }
 
         let engine_ref = self.ocr_engine.borrow();
-        let engine = engine_ref.as_ref().expect("OCR engine initialized above");
+        let Some(engine) = engine_ref.as_ref() else {
+            set_status(
+                &self.status_log,
+                "OCR engine became unavailable before recognition",
+            );
+            tracing::error!("OCR engine missing unexpectedly after initialization");
+            crate::notification::send("OCR failed: engine unavailable");
+            return;
+        };
         match crate::ocr::recognize_text_from_file(engine, &active_capture.temp_path) {
             Ok(text) if text.is_empty() => {
                 set_status(&self.status_log, "OCR: no text found");
@@ -921,8 +929,10 @@ mod tests {
             &machine,
             &storage_service,
             &status_log,
-        )
-        .expect("preview action should be prepared");
+        );
+        let Some(prepared) = prepared else {
+            panic!("preview action should be prepared");
+        };
 
         assert_eq!(prepared.action, PreviewAction::Copy);
         assert_eq!(prepared.active_capture.capture_id, "one");
