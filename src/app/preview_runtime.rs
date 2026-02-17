@@ -4,7 +4,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use crate::capture;
-use crate::input::{resolve_shortcut, InputContext, ShortcutAction};
+use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutAction};
 use crate::preview;
 use crate::state::{RuntimeWindowGeometry, RuntimeWindowState};
 use crate::ui::StyleTokens;
@@ -574,8 +574,7 @@ fn connect_preview_window_action_wiring(
                 shortcut_key,
                 shortcut_modifiers(modifier),
                 InputContext {
-                    in_preview: true,
-                    ..Default::default()
+                    mode: InputMode::Preview,
                 },
             );
             let Some(action) = shortcut else {

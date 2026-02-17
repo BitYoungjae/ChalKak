@@ -79,8 +79,7 @@ fn open_editor_unsaved_close_dialog(
                 shortcut_key,
                 shortcut_modifiers(modifier),
                 InputContext {
-                    dialog_open: true,
-                    ..Default::default()
+                    mode: InputMode::Dialog,
                 },
             );
             match shortcut {

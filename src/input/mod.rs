@@ -7,6 +7,6 @@ pub use navigation::{
     ModifierState, ZoomScrollModifier,
 };
 pub use shortcut::{
-    resolve_shortcut, InputContext, ShortcutAction, ShortcutKey, ShortcutModifiers,
+    resolve_shortcut, InputContext, InputMode, ShortcutAction, ShortcutKey, ShortcutModifiers,
 };
 pub use text_input::{resolve_text_input, TextInputAction, TextInputEvent};

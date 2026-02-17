@@ -343,12 +343,17 @@ pub(in crate::app::editor_runtime) fn connect_editor_key_handling(
             shortcut_key,
             shortcut_modifiers(modifier),
             InputContext {
-                dialog_open: *editor_close_dialog_open.borrow(),
-                text_input_active: mode.text_input_active(),
-                crop_active: mode.crop_active(),
-                editor_select_mode: active_editor_tool.get() == ToolKind::Select,
-                in_editor: true,
-                ..Default::default()
+                mode: if *editor_close_dialog_open.borrow() {
+                    InputMode::Dialog
+                } else if mode.text_input_active() {
+                    InputMode::TextInput
+                } else if mode.crop_active() {
+                    InputMode::Crop
+                } else {
+                    InputMode::Editor {
+                        select_mode: active_editor_tool.get() == ToolKind::Select,
+                    }
+                },
             },
         );
 

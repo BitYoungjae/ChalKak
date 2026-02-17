@@ -182,8 +182,7 @@ fn resolve_editor_tool_fallback_shortcut(shortcut_key: ShortcutKey) -> Option<To
         shortcut_key,
         crate::input::ShortcutModifiers::default(),
         InputContext {
-            in_editor: true,
-            ..Default::default()
+            mode: InputMode::Editor { select_mode: false },
         },
     )?;
     shortcut_editor_tool_switch(action).map(|(tool, _)| tool)

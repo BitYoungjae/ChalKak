@@ -9,7 +9,8 @@ use crate::editor::tools::{CropElement, ImageBounds, RectangleElement};
 use crate::editor::{self, EditorAction, ToolKind, ToolObject};
 use crate::error::AppResult;
 use crate::input::{
-    resolve_shortcut, InputContext, ShortcutAction, ShortcutKey, TextInputAction, TextInputEvent,
+    resolve_shortcut, InputContext, InputMode, ShortcutAction, ShortcutKey, TextInputAction,
+    TextInputEvent,
 };
 use crate::preview::PreviewAction;
 use crate::state::{
