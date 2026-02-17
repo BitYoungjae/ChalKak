@@ -7,6 +7,7 @@ use crate::clipboard::WlCopyBackend;
 use crate::preview::{self, PreviewAction, PreviewEvent};
 use crate::state::{AppEvent, AppState, RuntimeWindowState, StateMachine};
 use crate::storage::StorageService;
+use gtk4::prelude::*;
 
 use super::runtime_support::{
     close_preview_window_for_capture, show_toast_for_capture, PreviewWindowRuntime, RuntimeSession,
@@ -413,8 +414,14 @@ impl LaunchpadActionExecutor {
             &self.status_log,
             super::ocr_support::ocr_processing_status(engine.is_some()),
         );
+        set_preview_cursor(
+            &self.preview_windows,
+            &active_capture.capture_id,
+            Some("progress"),
+        );
 
         let executor = self.clone();
+        let capture_id = active_capture.capture_id.clone();
         spawn_worker_action(
             move || {
                 let engine = match super::ocr_support::resolve_or_init_engine(engine, ocr_language)
@@ -433,6 +440,7 @@ impl LaunchpadActionExecutor {
                     *executor.ocr_engine.borrow_mut() = Some(engine);
                 }
                 executor.ocr_in_progress.set(false);
+                set_preview_cursor(&executor.preview_windows, &capture_id, None);
 
                 match result {
                     Ok(text) => {
@@ -684,6 +692,16 @@ fn preview_action_ui_outcome(
             toast_capture_id: active_capture_id.to_string(),
             toast_message: format!("{} failed: {err}", labels.title),
         },
+    }
+}
+
+fn set_preview_cursor(
+    preview_windows: &Rc<RefCell<HashMap<String, PreviewWindowRuntime>>>,
+    capture_id: &str,
+    cursor: Option<&str>,
+) {
+    if let Some(runtime) = preview_windows.borrow().get(capture_id) {
+        runtime.window.set_cursor_from_name(cursor);
     }
 }
 

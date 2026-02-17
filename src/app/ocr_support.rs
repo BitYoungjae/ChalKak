@@ -17,11 +17,10 @@ pub(super) fn resolve_or_init_engine(
         return Ok(engine);
     }
 
-    let model_dir = crate::ocr::resolve_model_dir().ok_or_else(|| {
-        crate::ocr::OcrError::EngineInit {
+    let model_dir =
+        crate::ocr::resolve_model_dir().ok_or_else(|| crate::ocr::OcrError::EngineInit {
             message: "model directory not found".to_string(),
-        }
-    })?;
+        })?;
     crate::ocr::create_engine(&model_dir, language)
 }
 
@@ -66,10 +65,7 @@ mod tests {
     #[test]
     fn ocr_processing_status_indicates_engine_state() {
         assert_eq!(ocr_processing_status(true), "Recognizing text...");
-        assert_eq!(
-            ocr_processing_status(false),
-            "Initializing OCR engine..."
-        );
+        assert_eq!(ocr_processing_status(false), "Initializing OCR engine...");
     }
 
     #[test]

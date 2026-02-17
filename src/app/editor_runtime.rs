@@ -31,6 +31,7 @@ pub(super) struct EditorRenderContext {
     pub(super) shared_machine: Rc<RefCell<StateMachine>>,
     pub(super) ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
     pub(super) ocr_language: crate::ocr::OcrLanguage,
+    pub(super) ocr_in_progress: Rc<Cell<bool>>,
 }
 
 mod wiring;
@@ -761,6 +762,7 @@ pub(super) fn render_editor_state(
                     editor_source_pixbuf: editor_source_pixbuf.clone(),
                     ocr_engine: ocr_engine.clone(),
                     ocr_language: context.ocr_language,
+                    ocr_in_progress: context.ocr_in_progress.clone(),
                 });
             }
             {

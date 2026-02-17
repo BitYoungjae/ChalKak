@@ -38,10 +38,10 @@ mod input_bridge;
 mod launchpad_actions;
 mod layout;
 mod lifecycle;
+mod ocr_support;
 mod preview_pin;
 mod preview_runtime;
 mod runtime_css;
-mod ocr_support;
 mod runtime_support;
 mod worker;
 
@@ -1169,6 +1169,7 @@ impl App {
                 shared_machine: machine_for_activate.clone(),
                 ocr_engine: ocr_engine.clone(),
                 ocr_language,
+                ocr_in_progress: ocr_in_progress.clone(),
             };
 
             let render = {
