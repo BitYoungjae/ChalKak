@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::mpsc;
@@ -36,6 +36,7 @@ pub(super) struct LaunchpadActionExecutor {
     toast_duration_ms: u32,
     ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
     ocr_language: crate::ocr::OcrLanguage,
+    ocr_in_progress: Rc<Cell<bool>>,
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +68,7 @@ impl LaunchpadActionExecutor {
         toast_duration_ms: u32,
         ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>>,
         ocr_language: crate::ocr::OcrLanguage,
+        ocr_in_progress: Rc<Cell<bool>>,
     ) -> Self {
         Self {
             runtime_session,
@@ -80,6 +82,7 @@ impl LaunchpadActionExecutor {
             toast_duration_ms,
             ocr_engine,
             ocr_language,
+            ocr_in_progress,
         }
     }
 
@@ -385,6 +388,11 @@ impl LaunchpadActionExecutor {
     }
 
     pub(super) fn run_preview_ocr_action(&self) {
+        if self.ocr_in_progress.get() {
+            set_status(&self.status_log, "OCR already in progress");
+            return;
+        }
+
         let active_capture = match consume_and_resolve_active_capture(
             &self.runtime_session,
             &self.capture_selection,
@@ -400,47 +408,65 @@ impl LaunchpadActionExecutor {
             return;
         }
 
-        {
-            let mut engine_ref = self.ocr_engine.borrow_mut();
-            if engine_ref.is_none() {
-                let model_dir = match crate::ocr::resolve_model_dir() {
-                    Some(dir) => dir,
+        let engine = self.ocr_engine.borrow_mut().take();
+        let ocr_language = self.ocr_language;
+        let temp_path = active_capture.temp_path.clone();
+
+        self.ocr_in_progress.set(true);
+        set_status(
+            &self.status_log,
+            if engine.is_some() {
+                "Recognizing text..."
+            } else {
+                "Initializing OCR engine..."
+            },
+        );
+
+        let executor = self.clone();
+        spawn_worker_action(
+            move || {
+                let engine = match engine {
+                    Some(engine) => engine,
                     None => {
-                        set_status(&self.status_log, "OCR: model directory not found");
-                        crate::notification::send(
-                            "OCR: model files not found in ~/.local/share/chalkak/models/",
-                        );
-                        return;
+                        let model_dir = match crate::ocr::resolve_model_dir() {
+                            Some(dir) => dir,
+                            None => {
+                                return (
+                                    None,
+                                    Err(crate::ocr::OcrError::EngineInit {
+                                        message: "model directory not found".to_string(),
+                                    }),
+                                );
+                            }
+                        };
+                        match crate::ocr::create_engine(&model_dir, ocr_language) {
+                            Ok(engine) => engine,
+                            Err(err) => return (None, Err(err)),
+                        }
                     }
                 };
-                match crate::ocr::create_engine(&model_dir, self.ocr_language) {
-                    Ok(engine) => *engine_ref = Some(engine),
+
+                let result = crate::ocr::recognize_text_from_file(&engine, &temp_path);
+                (Some(engine), result)
+            },
+            move |(engine, result): (
+                Option<ocr_rs::OcrEngine>,
+                Result<String, crate::ocr::OcrError>,
+            )| {
+                if let Some(engine) = engine {
+                    *executor.ocr_engine.borrow_mut() = Some(engine);
+                }
+                executor.ocr_in_progress.set(false);
+
+                match result {
+                    Ok(text) => executor.handle_ocr_result(text),
                     Err(err) => {
-                        set_status(&self.status_log, format!("OCR engine init failed: {err}"));
-                        crate::notification::send(format!("OCR init failed: {err}"));
-                        return;
+                        set_status(&executor.status_log, format!("OCR failed: {err}"));
+                        crate::notification::send(format!("OCR failed: {err}"));
                     }
                 }
-            }
-        }
-
-        let engine_ref = self.ocr_engine.borrow();
-        let Some(engine) = engine_ref.as_ref() else {
-            set_status(
-                &self.status_log,
-                "OCR engine became unavailable before recognition",
-            );
-            tracing::error!("OCR engine missing unexpectedly after initialization");
-            crate::notification::send("OCR failed: engine unavailable");
-            return;
-        };
-        match crate::ocr::recognize_text_from_file(engine, &active_capture.temp_path) {
-            Ok(text) => self.handle_ocr_result(text),
-            Err(err) => {
-                set_status(&self.status_log, format!("OCR recognition failed: {err}"));
-                crate::notification::send(format!("OCR failed: {err}"));
-            }
-        }
+            },
+        );
     }
 
     fn handle_ocr_result(&self, text: String) {

@@ -1116,6 +1116,7 @@ impl App {
 
             window.set_child(Some(&launchpad.root));
             let ocr_engine: Rc<RefCell<Option<ocr_rs::OcrEngine>>> = Rc::new(RefCell::new(None));
+            let ocr_in_progress = Rc::new(Cell::new(false));
             let app_for_preview = app.clone();
             let app_for_lifecycle = app.clone();
             let preview_render_context = PreviewRenderContext::new(
@@ -1258,6 +1259,7 @@ impl App {
                 style_tokens.toast_duration_ms,
                 ocr_engine.clone(),
                 ocr_language,
+                ocr_in_progress.clone(),
             );
             connect_launchpad_default_buttons(&launchpad, &launchpad_actions, &render);
 
