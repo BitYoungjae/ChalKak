@@ -4,10 +4,9 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use crate::capture;
-use crate::input::{resolve_shortcut, InputContext, ShortcutAction};
+use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutAction};
 use crate::preview;
-use crate::state::{RuntimeWindowGeometry, RuntimeWindowState};
-use crate::ui::StyleTokens;
+use crate::ui::{icon_button, icon_toggle_button, StyleTokens};
 use gtk4::prelude::*;
 use gtk4::{
     Align, Application, ApplicationWindow, Box as GtkBox, Button, Frame, Orientation, Overflow,
@@ -21,10 +20,8 @@ use super::preview_pin::setup_preview_pin_toggle;
 use super::runtime_support::{
     close_all_preview_windows, close_preview_window_for_capture, PreviewWindowRuntime, ToastRuntime,
 };
-use super::{
-    close_editor_if_open_and_clear, icon_button, icon_toggle_button, EditorRuntimeState,
-    EDITOR_PEN_ICON_NAME,
-};
+use super::window_state::{RuntimeWindowGeometry, RuntimeWindowState};
+use super::{close_editor_if_open_and_clear, EditorRuntimeState, EDITOR_PEN_ICON_NAME};
 
 #[derive(Clone)]
 pub(super) struct PreviewRenderContext {
@@ -34,6 +31,7 @@ pub(super) struct PreviewRenderContext {
     status_log: Rc<RefCell<String>>,
     save_button: Button,
     copy_button: Button,
+    ocr_button: Button,
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
@@ -43,6 +41,7 @@ pub(super) struct PreviewRenderContext {
     editor_window: Rc<RefCell<Option<ApplicationWindow>>>,
     editor_close_guard: Rc<Cell<bool>>,
     editor_runtime: Rc<EditorRuntimeState>,
+    ocr_available: bool,
 }
 
 impl PreviewRenderContext {
@@ -54,6 +53,7 @@ impl PreviewRenderContext {
         status_log: Rc<RefCell<String>>,
         save_button: Button,
         copy_button: Button,
+        ocr_button: Button,
         open_editor_button: Button,
         close_preview_button: Button,
         delete_button: Button,
@@ -63,6 +63,7 @@ impl PreviewRenderContext {
         editor_window: Rc<RefCell<Option<ApplicationWindow>>>,
         editor_close_guard: Rc<Cell<bool>>,
         editor_runtime: Rc<EditorRuntimeState>,
+        ocr_available: bool,
     ) -> Self {
         Self {
             app,
@@ -71,6 +72,7 @@ impl PreviewRenderContext {
             status_log,
             save_button,
             copy_button,
+            ocr_button,
             open_editor_button,
             close_preview_button,
             delete_button,
@@ -80,6 +82,7 @@ impl PreviewRenderContext {
             editor_window,
             editor_close_guard,
             editor_runtime,
+            ocr_available,
         }
     }
 }
@@ -229,15 +232,18 @@ fn connect_preview_action_bridges(
 struct PreviewLaunchpadButtons {
     save_button: Button,
     copy_button: Button,
+    ocr_button: Button,
     open_editor_button: Button,
     close_preview_button: Button,
     delete_button: Button,
+    ocr_available: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PreviewShortcutTarget {
     Save,
     Copy,
+    Ocr,
     Edit,
     Delete,
     Close,
@@ -247,6 +253,7 @@ fn preview_shortcut_target(action: ShortcutAction) -> Option<PreviewShortcutTarg
     match action {
         ShortcutAction::PreviewSave => Some(PreviewShortcutTarget::Save),
         ShortcutAction::PreviewCopy => Some(PreviewShortcutTarget::Copy),
+        ShortcutAction::PreviewOcr => Some(PreviewShortcutTarget::Ocr),
         ShortcutAction::PreviewEdit => Some(PreviewShortcutTarget::Edit),
         ShortcutAction::PreviewDelete => Some(PreviewShortcutTarget::Delete),
         ShortcutAction::PreviewClose => Some(PreviewShortcutTarget::Close),
@@ -259,9 +266,11 @@ impl PreviewLaunchpadButtons {
         Self {
             save_button: context.save_button.clone(),
             copy_button: context.copy_button.clone(),
+            ocr_button: context.ocr_button.clone(),
             open_editor_button: context.open_editor_button.clone(),
             close_preview_button: context.close_preview_button.clone(),
             delete_button: context.delete_button.clone(),
+            ocr_available: context.ocr_available,
         }
     }
 
@@ -269,6 +278,13 @@ impl PreviewLaunchpadButtons {
         match preview_shortcut_target(action) {
             Some(PreviewShortcutTarget::Save) => self.save_button.emit_clicked(),
             Some(PreviewShortcutTarget::Copy) => self.copy_button.emit_clicked(),
+            Some(PreviewShortcutTarget::Ocr) => {
+                if self.ocr_available {
+                    self.ocr_button.emit_clicked();
+                } else {
+                    return false;
+                }
+            }
             Some(PreviewShortcutTarget::Edit) => self.open_editor_button.emit_clicked(),
             Some(PreviewShortcutTarget::Delete) => self.delete_button.emit_clicked(),
             Some(PreviewShortcutTarget::Close) => self.close_preview_button.emit_clicked(),
@@ -291,6 +307,7 @@ struct PreviewWindowBuild {
     copy_button: Button,
     save_button: Button,
     edit_button: Button,
+    ocr_button: Button,
     close_button: Button,
 }
 
@@ -301,6 +318,7 @@ struct PreviewControlsBuild {
     copy_button: Button,
     save_button: Button,
     edit_button: Button,
+    ocr_button: Button,
     close_button: Button,
 }
 
@@ -354,9 +372,22 @@ fn build_preview_controls(
         &["preview-icon-button"],
     );
 
+    let preview_ocr_button = icon_button(
+        "scan-text-symbolic",
+        "Extract text (OCR)",
+        context.style_tokens.control_size as i32,
+        &["preview-icon-button"],
+    );
+
+    if !context.ocr_available {
+        preview_ocr_button.set_sensitive(false);
+        preview_ocr_button.set_tooltip_text(Some("OCR models not installed"));
+    }
+
     top_center_actions.append(&preview_copy_button);
     top_center_actions.append(&preview_save_button);
     top_center_actions.append(&preview_edit_button);
+    top_center_actions.append(&preview_ocr_button);
 
     let preview_close_button = icon_button(
         "x-symbolic",
@@ -419,6 +450,7 @@ fn build_preview_controls(
         copy_button: preview_copy_button,
         save_button: preview_save_button,
         edit_button: preview_edit_button,
+        ocr_button: preview_ocr_button,
         close_button: preview_close_button,
     }
 }
@@ -454,7 +486,6 @@ fn build_preview_window(
             height: geometry.height,
         });
     let mut preview_shell_model = preview::PreviewWindowShell::with_capture_size(
-        &artifact.capture_id,
         artifact.screen_width,
         artifact.screen_height,
     );
@@ -521,6 +552,7 @@ fn build_preview_window(
         copy_button: preview_controls.copy_button,
         save_button: preview_controls.save_button,
         edit_button: preview_controls.edit_button,
+        ocr_button: preview_controls.ocr_button,
         close_button: preview_controls.close_button,
     }
 }
@@ -534,6 +566,7 @@ fn connect_preview_window_action_wiring(
         &[
             (&build.save_button, &context.save_button),
             (&build.copy_button, &context.copy_button),
+            (&build.ocr_button, &context.ocr_button),
             (&build.edit_button, &context.open_editor_button),
             (&build.close_button, &context.close_preview_button),
         ],
@@ -554,8 +587,7 @@ fn connect_preview_window_action_wiring(
                 shortcut_key,
                 shortcut_modifiers(modifier),
                 InputContext {
-                    in_preview: true,
-                    ..Default::default()
+                    mode: InputMode::Preview,
                 },
             );
             let Some(action) = shortcut else {

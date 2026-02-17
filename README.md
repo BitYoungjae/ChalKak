@@ -25,7 +25,7 @@ A Hyprland-focused screenshot utility for Wayland with a preview-first workflow 
 
 - Capture modes: fullscreen, region, and window.
 - Preview stage before final action (save, copy, edit, delete).
-- Built-in editor tools: select, pan, blur, pen, arrow, rectangle, crop, text.
+- Built-in editor tools: select, pan, blur, pen, arrow, rectangle, crop, text, OCR.
 - Keyboard-centric workflow across preview and editor.
 - Configurable theme and editor navigation keybindings.
 - Startup cleanup for stale temporary captures.
@@ -56,6 +56,12 @@ Install with your AUR helper, for example:
 
 ```bash
 yay -S chalkak
+```
+
+For OCR text recognition support, also install the model files:
+
+```bash
+yay -S chalkak-ocr-models
 ```
 
 If the published AUR package is behind the current crate release, use the source build path below.
@@ -99,6 +105,7 @@ Preview:
 - `s`: save
 - `c`: copy image
 - `e`: open editor
+- `o`: OCR (extract text from entire image)
 - `Delete`: delete capture
 - `Esc`: close preview
 
@@ -109,7 +116,7 @@ Editor:
 - `Ctrl+Z`: undo
 - `Ctrl+Shift+Z`: redo
 - `Delete` / `Backspace`: delete selection
-- `o`: toggle tool options panel
+- `Tab`: toggle tool options panel
 - `Esc`: select tool, or close editor when already in select mode
 
 Tool shortcuts:
@@ -122,6 +129,7 @@ Tool shortcuts:
 - `r` rectangle
 - `c` crop
 - `t` text
+- `o` OCR
 
 Text editing:
 
@@ -149,10 +157,12 @@ Files:
 
 - `theme.json`
 - `keybindings.json`
+- `config.json`
 
 `theme.json` (summary):
 
 - `mode`: `system`, `light`, `dark`
+- `config.json`: application settings (e.g. `ocr_language`)
 - `colors`: supports shared + per-mode overrides
 - `colors.common` + `colors.dark` + `colors.light`
 - `editor`: supports shared + per-mode overrides
@@ -206,6 +216,7 @@ Current module layout:
 - `src/theme`, `src/ui`: theme/config + shared style tokens
 - `src/state`: app state machine
 - `src/clipboard`: clipboard integration (`wl-copy`)
+- `src/ocr`: OCR text recognition (PaddleOCR v5 / MNN)
 - `src/config`: config/keybinding/theme path helpers
 - `src/error`: application-level error/result types
 - `src/logging`: tracing subscriber setup
@@ -225,9 +236,12 @@ When releasing a new version:
 Dependency baseline:
 
 - `depends=('gtk4' 'hyprland' 'grim' 'slurp' 'wl-clipboard')`
-- `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4')`
+- `makedepends=('rust' 'cargo' 'pkgconf' 'gtk4' 'cmake')`
+- `optdepends=('chalkak-ocr-models: OCR text recognition support')`
 
 Package name target: `chalkak`.
+
+A separate AUR package `chalkak-ocr-models` provides PaddleOCR v5 model files for OCR. Its packaging metadata lives in `aur/chalkak-ocr-models/`.
 
 ## Maintainer
 

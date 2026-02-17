@@ -1,14 +1,11 @@
-use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 
 use gtk4::gdk;
 use gtk4::gdk::prelude::*;
 use gtk4::glib;
 use thiserror::Error;
 
-const WL_COPY_COMMAND: &str = "wl-copy";
 const MIME_TEXT_URI_LIST: &str = "text/uri-list";
 const MIME_GNOME_COPIED_FILES: &str = "x-special/gnome-copied-files";
 const MIME_TEXT_PLAIN: &str = "text/plain";
@@ -17,12 +14,6 @@ const MIME_IMAGE_PNG: &str = "image/png";
 
 #[derive(Debug, Error)]
 pub enum ClipboardError {
-    #[error("failed to open file {path}: {source}")]
-    OpenFile {
-        path: PathBuf,
-        #[source]
-        source: io::Error,
-    },
     #[error("failed to run wl-copy command: {command}")]
     CommandIo {
         command: String,
@@ -48,14 +39,11 @@ pub enum ClipboardError {
         #[source]
         source: glib::BoolError,
     },
-    #[error("wl-copy exited with non-zero status: {status}")]
-    CommandFailed { status: String },
 }
 
 pub type ClipboardResult<T> = std::result::Result<T, ClipboardError>;
 
 pub trait ClipboardBackend {
-    fn copy_png_file(&self, path: &Path) -> ClipboardResult<()>;
     fn copy(&self, path: &Path) -> ClipboardResult<()>;
 }
 
@@ -106,29 +94,6 @@ fn resolve_absolute_path(path: &Path) -> ClipboardResult<PathBuf> {
 }
 
 impl ClipboardBackend for WlCopyBackend {
-    fn copy_png_file(&self, path: &Path) -> ClipboardResult<()> {
-        let file = File::open(path).map_err(|err| ClipboardError::OpenFile {
-            path: path.to_path_buf(),
-            source: err,
-        })?;
-
-        let child = Command::new(WL_COPY_COMMAND)
-            .stdin(Stdio::from(file))
-            .status()
-            .map_err(|err| ClipboardError::CommandIo {
-                command: WL_COPY_COMMAND.to_string(),
-                source: err,
-            })?;
-
-        if child.success() {
-            Ok(())
-        } else {
-            Err(ClipboardError::CommandFailed {
-                status: child.to_string(),
-            })
-        }
-    }
-
     fn copy(&self, path: &Path) -> ClipboardResult<()> {
         let absolute_path = resolve_absolute_path(path)?;
         let uri_list_payload = uri_list_payload(path)?;
@@ -185,23 +150,9 @@ mod tests {
 
     struct DummyBackend;
     impl ClipboardBackend for DummyBackend {
-        fn copy_png_file(&self, _path: &Path) -> ClipboardResult<()> {
-            Ok(())
-        }
-
         fn copy(&self, _path: &Path) -> ClipboardResult<()> {
             Ok(())
         }
-    }
-
-    #[test]
-    fn copy_png_file_success_with_backend() {
-        let temp_dir = env::temp_dir();
-        let file_path = temp_dir.join("chalkak-copy-test.png");
-        std::fs::write(&file_path, b"binary").unwrap();
-        let result = DummyBackend.copy_png_file(&file_path);
-        assert!(result.is_ok());
-        let _ = std::fs::remove_file(file_path);
     }
 
     #[test]
@@ -252,13 +203,5 @@ mod tests {
         assert!(is_png_path(Path::new("/tmp/capture.PNG")));
         assert!(is_png_path(Path::new("/tmp/capture.png")));
         assert!(!is_png_path(Path::new("/tmp/capture.jpg")));
-    }
-
-    #[test]
-    fn command_error_contains_command_name() {
-        let err = ClipboardError::CommandFailed {
-            status: "exit status 1".to_string(),
-        };
-        assert!(format!("{err}").contains("wl-copy"));
     }
 }

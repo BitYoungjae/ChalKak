@@ -1,10 +1,9 @@
-use super::ToolPoint;
+use super::{Color, ToolPoint};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextFontFamily {
     Sans,
     Serif,
-    Monospace,
 }
 
 impl TextFontFamily {
@@ -12,16 +11,13 @@ impl TextFontFamily {
         match self {
             Self::Sans => "Sans",
             Self::Serif => "Serif",
-            Self::Monospace => "Monospace",
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TextOptions {
-    pub color_r: u8,
-    pub color_g: u8,
-    pub color_b: u8,
+    pub color: Color,
     pub size: u8,
     pub weight: u16,
     pub family: TextFontFamily,
@@ -30,9 +26,7 @@ pub struct TextOptions {
 impl Default for TextOptions {
     fn default() -> Self {
         Self {
-            color_r: 0,
-            color_g: 0,
-            color_b: 0,
+            color: Color::new(0, 0, 0),
             size: 16,
             weight: 500,
             family: TextFontFamily::Sans,
@@ -41,10 +35,8 @@ impl Default for TextOptions {
 }
 
 impl TextOptions {
-    pub fn set_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.color_r = color_r;
-        self.color_g = color_g;
-        self.color_b = color_b;
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
     }
 
     pub fn set_size(&mut self, size: u8) {
@@ -142,11 +134,6 @@ impl TextElement {
         let byte_index = self.byte_index_for_cursor(self.cursor_chars);
         self.content.insert(byte_index, '\n');
         self.cursor_chars = self.cursor_chars.saturating_add(1);
-    }
-
-    pub fn set_text(&mut self, text: impl Into<String>) {
-        self.content = text.into();
-        self.cursor_chars = self.content.chars().count();
     }
 
     pub fn cursor_chars(&self) -> usize {

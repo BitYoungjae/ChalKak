@@ -1,3 +1,5 @@
+use super::Color;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PenPoint {
     pub x: i32,
@@ -12,9 +14,7 @@ impl PenPoint {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PenOptions {
-    pub color_r: u8,
-    pub color_g: u8,
-    pub color_b: u8,
+    pub color: Color,
     pub opacity: u8,
     pub thickness: u8,
 }
@@ -22,9 +22,7 @@ pub struct PenOptions {
 impl Default for PenOptions {
     fn default() -> Self {
         Self {
-            color_r: 0,
-            color_g: 0,
-            color_b: 0,
+            color: Color::new(0, 0, 0),
             opacity: 100,
             thickness: 3,
         }
@@ -32,20 +30,8 @@ impl Default for PenOptions {
 }
 
 impl PenOptions {
-    pub fn with_rgba(color_r: u8, color_g: u8, color_b: u8, opacity: u8, thickness: u8) -> Self {
-        Self {
-            color_r,
-            color_g,
-            color_b,
-            opacity: clamp_u8_range(opacity, 1, 100),
-            thickness: clamp_u8_range(thickness, 1, 255),
-        }
-    }
-
-    pub fn set_color(&mut self, color_r: u8, color_g: u8, color_b: u8) {
-        self.color_r = color_r;
-        self.color_g = color_g;
-        self.color_b = color_b;
+    pub fn set_color(&mut self, color: Color) {
+        self.color = color;
     }
 
     pub fn set_opacity(&mut self, opacity: u8) {

@@ -1,8 +1,27 @@
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use crate::editor::tools::{CropElement, RectangleElement};
+use crate::editor::{self, ToolKind, ToolObject};
+
+use gtk4::prelude::*;
+use gtk4::{DrawingArea, Label, ScrolledWindow};
+
+use crate::app::editor_history::{record_undo_snapshot, snapshot_editor_objects};
+use crate::app::editor_popup::{
+    canvas_point_to_image_point, clear_selection, normalize_tool_box, point_in_bounds,
+    rectangle_handle_at_point, resizable_object_handle_at_point, resize_object_from_handle,
+    resize_status_label, resized_crop_from_handle, set_optional_single_selection,
+    set_single_selection, tool_kind_label, top_object_id_at_point, top_object_id_in_drag_box,
+    top_text_id_at_point, ObjectDragState, TextPreeditState, ToolDragPreview,
+};
+use crate::app::editor_viewport::{apply_editor_viewport_to_canvas, set_editor_viewport_status};
+use crate::app::EditorToolSwitchContext;
+
 use super::tools::{
     add_text_box_and_enter_editing, arm_text_tool_for_selection, enter_text_box_editing,
     finish_text_editing_and_arm_text_tool,
 };
-use super::*;
 
 #[derive(Clone)]
 pub(in crate::app::editor_runtime) struct EditorTextClickContext {
@@ -79,7 +98,7 @@ pub(in crate::app::editor_runtime) fn connect_editor_text_click_gesture(
         let has_active_text = press_context
             .editor_tools
             .borrow()
-            .active_text_box()
+            .active_text_id()
             .is_some();
         if has_active_text {
             finish_text_editing_and_arm_text_tool(
@@ -149,6 +168,7 @@ pub(in crate::app::editor_runtime) fn connect_editor_selection_click_gesture(
                 | ToolKind::Pen
                 | ToolKind::Arrow
                 | ToolKind::Rectangle
+                | ToolKind::Ocr
         ) {
             return;
         }
@@ -215,6 +235,10 @@ pub(in crate::app::editor_runtime) struct EditorDrawGestureContext {
     pub(in crate::app::editor_runtime) pending_crop: Rc<RefCell<Option<CropElement>>>,
     pub(in crate::app::editor_runtime) editor_image_base_width: i32,
     pub(in crate::app::editor_runtime) editor_image_base_height: i32,
+    pub(in crate::app::editor_runtime) editor_source_pixbuf: Option<gtk4::gdk_pixbuf::Pixbuf>,
+    pub(in crate::app::editor_runtime) ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
+    pub(in crate::app::editor_runtime) ocr_language: crate::ocr::OcrLanguage,
+    pub(in crate::app::editor_runtime) ocr_in_progress: Rc<Cell<bool>>,
 }
 
 fn handle_draw_gesture_begin(
@@ -355,7 +379,7 @@ fn handle_draw_gesture_begin(
             context.active_pen_stroke_id.set(Some(stroke_id));
             context.tool_drag_preview.borrow_mut().take();
         }
-        ToolKind::Blur | ToolKind::Arrow | ToolKind::Rectangle => {
+        ToolKind::Blur | ToolKind::Arrow | ToolKind::Rectangle | ToolKind::Ocr => {
             context.active_pen_stroke_id.set(None);
             *context.tool_drag_preview.borrow_mut() = Some(ToolDragPreview {
                 tool,
@@ -581,6 +605,13 @@ fn handle_draw_gesture_end(context: &EditorDrawGestureContext, offset_x: f64, of
         return;
     }
 
+    if preview.tool == ToolKind::Ocr {
+        drop(tools);
+        perform_ocr_recognition(context, preview.start, end);
+        context.editor_canvas.queue_draw();
+        return;
+    }
+
     let outcome = match preview.tool {
         ToolKind::Select | ToolKind::Pan => Err(editor::ToolError::ToolNotSelected),
         ToolKind::Blur => normalize_tool_box(preview.start, end)
@@ -591,7 +622,7 @@ fn handle_draw_gesture_end(context: &EditorDrawGestureContext, offset_x: f64, of
         ToolKind::Arrow => tools.add_arrow(preview.start, end),
         ToolKind::Rectangle => tools.add_rectangle(preview.start, end),
         ToolKind::Crop => Err(editor::ToolError::ToolNotSelected),
-        ToolKind::Pen | ToolKind::Text => Err(editor::ToolError::ToolNotSelected),
+        ToolKind::Pen | ToolKind::Text | ToolKind::Ocr => Err(editor::ToolError::ToolNotSelected),
     };
 
     match outcome {
@@ -611,6 +642,92 @@ fn handle_draw_gesture_end(context: &EditorDrawGestureContext, offset_x: f64, of
         }
     }
     context.editor_canvas.queue_draw();
+}
+
+fn perform_ocr_recognition(
+    context: &EditorDrawGestureContext,
+    start: editor::tools::ToolPoint,
+    end: editor::tools::ToolPoint,
+) {
+    use crate::app::ocr_support::{handle_ocr_text_result, ocr_processing_status};
+    use crate::app::worker::spawn_worker_action;
+
+    if context.ocr_in_progress.get() {
+        *context.status_log_for_render.borrow_mut() = "OCR already in progress".to_string();
+        return;
+    }
+
+    let Some((x, y, width, height)) = normalize_tool_box(start, end) else {
+        *context.status_log_for_render.borrow_mut() = "OCR drag too small".to_string();
+        return;
+    };
+
+    let Some(ref pixbuf) = context.editor_source_pixbuf else {
+        *context.status_log_for_render.borrow_mut() = "OCR: no source image available".to_string();
+        return;
+    };
+
+    // Convert Pixbuf region to DynamicImage on the main thread (Pixbuf is not Send).
+    let image = match crate::app::ocr_support::pixbuf_region_to_dynamic_image(
+        pixbuf, x, y, width, height,
+    ) {
+        Ok(img) => img,
+        Err(err) => {
+            *context.status_log_for_render.borrow_mut() =
+                format!("OCR image conversion failed: {err}");
+            crate::notification::send(format!("OCR failed: {err}"));
+            return;
+        }
+    };
+
+    // Take the engine for the worker thread.
+    let engine = context.ocr_engine.borrow_mut().take();
+    let ocr_language = context.ocr_language;
+
+    // Set progress state and feedback.
+    context.ocr_in_progress.set(true);
+    *context.status_log_for_render.borrow_mut() =
+        ocr_processing_status(engine.is_some()).to_string();
+    context.editor_canvas.set_cursor_from_name(Some("progress"));
+
+    let ocr_engine = context.ocr_engine.clone();
+    let ocr_in_progress = context.ocr_in_progress.clone();
+    let status_log = context.status_log_for_render.clone();
+    let editor_canvas = context.editor_canvas.clone();
+
+    spawn_worker_action(
+        move || {
+            let engine = match crate::app::ocr_support::resolve_or_init_engine(engine, ocr_language)
+            {
+                Ok(e) => e,
+                Err(err) => return (None, Err(err)),
+            };
+            let result = crate::ocr::recognize_text(&engine, &image);
+            (Some(engine), result)
+        },
+        move |(engine, result): (
+            Option<crate::ocr::OcrEngine>,
+            Result<String, crate::ocr::OcrError>,
+        )| {
+            // Restore engine.
+            if let Some(engine) = engine {
+                *ocr_engine.borrow_mut() = Some(engine);
+            }
+            ocr_in_progress.set(false);
+
+            // Restore cursor.
+            editor_canvas.set_cursor_from_name(None::<&str>);
+
+            match result {
+                Ok(text) => handle_ocr_text_result(&status_log, text),
+                Err(err) => {
+                    *status_log.borrow_mut() = format!("OCR failed: {err}");
+                    crate::notification::send(format!("OCR failed: {err}"));
+                }
+            }
+            editor_canvas.queue_draw();
+        },
+    );
 }
 
 pub(in crate::app::editor_runtime) fn connect_editor_draw_gesture(

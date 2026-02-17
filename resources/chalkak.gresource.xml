@@ -21,6 +21,7 @@
     <file>hicolor/scalable/actions/redo-2-symbolic.svg</file>
     <file>hicolor/scalable/actions/save-symbolic.svg</file>
     <file>hicolor/scalable/actions/scan-symbolic.svg</file>
+    <file>hicolor/scalable/actions/scan-text-symbolic.svg</file>
     <file>hicolor/scalable/actions/undo-2-symbolic.svg</file>
     <file>hicolor/scalable/actions/x-symbolic.svg</file>
   </gresource>

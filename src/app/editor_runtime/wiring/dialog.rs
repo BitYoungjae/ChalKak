@@ -1,4 +1,20 @@
-use super::*;
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use crate::capture;
+use crate::editor::tools::CropElement;
+use crate::editor::{self, EditorAction};
+use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutAction};
+use crate::state::{AppState, StateMachine};
+use crate::storage::StorageService;
+
+use gtk4::prelude::*;
+use gtk4::{ApplicationWindow, Box as GtkBox, Button, Dialog, Label, Orientation, ResponseType};
+
+use crate::app::editor_popup::{execute_editor_output_action, EditorOutputActionContext};
+use crate::app::input_bridge::{normalize_shortcut_key, shortcut_modifiers};
+use crate::app::runtime_support::{RuntimeSession, ToastRuntime};
+use crate::ui::StyleTokens;
 
 #[derive(Clone)]
 struct EditorCloseRequestRuntime {
@@ -79,8 +95,7 @@ fn open_editor_unsaved_close_dialog(
                 shortcut_key,
                 shortcut_modifiers(modifier),
                 InputContext {
-                    dialog_open: true,
-                    ..Default::default()
+                    mode: InputMode::Dialog,
                 },
             );
             match shortcut {

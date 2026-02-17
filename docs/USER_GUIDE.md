@@ -65,6 +65,12 @@ That's it. The recommended workflow is keybinding-driven — bind capture comman
 | `XDG_RUNTIME_DIR` | Recommended | Temp file storage |
 | `XDG_CONFIG_HOME` | Optional | Config directory (default: `$HOME/.config`) |
 
+**Optional dependencies:**
+
+| Package | Purpose |
+|---------|---------|
+| `chalkak-ocr-models` | OCR text recognition (PaddleOCR v5 model files) |
+
 **Verify everything at once:**
 
 ```bash
@@ -80,6 +86,9 @@ hyprctl version && grim -h && slurp -h && wl-copy --help && echo "All dependenci
 ```bash
 # Using an AUR helper (e.g., yay or paru)
 yay -S chalkak
+
+# Optional: install OCR model files for text recognition
+yay -S chalkak-ocr-models
 ```
 
 ### From source
@@ -151,6 +160,7 @@ Preview is a confirmation step before saving or editing.
 | `s` | Save to file |
 | `c` | Copy to clipboard |
 | `e` | Open editor |
+| `o` | OCR — extract text from entire image and copy to clipboard |
 | `Delete` | Discard capture |
 | `Esc` | Close preview |
 
@@ -169,7 +179,7 @@ Preview is a useful safety gate: verify the capture content before committing to
 | `Ctrl+Z` | Undo |
 | `Ctrl+Shift+Z` | Redo |
 | `Delete` / `Backspace` | Delete selected object |
-| `o` | Toggle tool options panel |
+| `Tab` | Toggle tool options panel |
 | `Esc` | Return to Select tool, or close editor if already in Select |
 
 ### Tool Shortcuts
@@ -184,6 +194,7 @@ Preview is a useful safety gate: verify the capture content before committing to
 | `r` | Rectangle |
 | `c` | Crop |
 | `t` | Text |
+| `o` | OCR |
 
 ---
 
@@ -227,14 +238,14 @@ Preview is a useful safety gate: verify the capture content before committing to
 ### Crop (`c`)
 
 - Drag to define the crop region. The crop is applied at render time (save/copy), not destructively.
-- **Aspect ratio presets:** Free, 16:9, 4:3, 1:1, 9:16, Original (matches canvas ratio).
+- **Aspect ratio presets:** Free, 16:9, 1:1, 9:16, Original (matches canvas ratio).
 - Minimum crop size: 16×16 pixels.
 - `Esc` cancels the crop and returns to Select.
 
 ### Text (`t`)
 
 - Click to create a text box. Double-click existing text to edit.
-- **Options:** color, size (1–255), weight (100–1000), font family (Sans / Serif / Monospace).
+- **Options:** color, size (1–255), weight (100–1000), font family (Sans / Serif).
 - Text editing keys:
 
 | Key | Action |
@@ -246,9 +257,18 @@ Preview is a useful safety gate: verify the capture content before committing to
 | `Backspace` | Delete character |
 | `Esc` | Exit text editing |
 
+### OCR (`o`)
+
+- Drag to define a region, then text is recognized and copied to clipboard.
+- In Preview, press `o` to extract text from the entire image.
+- Recognized text is automatically copied to clipboard with a toast notification.
+- Requires `chalkak-ocr-models` package (PaddleOCR v5 model files).
+- Language is auto-detected from system `LANG` environment variable. Override via `ocr_language` in `config.json` ([Section 14.3](#143-configjson)).
+- Supported languages: Korean (`ko`), English (`en`), Chinese (`zh`), Latin, Cyrillic (`ru`), Arabic (`ar`), Thai (`th`), Greek (`el`), Devanagari (`hi`), Tamil (`ta`), Telugu (`te`).
+
 ### Tool Options Panel
 
-Press `o` to toggle the options panel. This panel exposes configurable properties for the active tool (color, thickness, opacity, etc.). Color palette, stroke width presets, and text size presets can be customized via `theme.json` ([Section 14.1](#141-themejson)).
+Press `Tab` to toggle the options panel. This panel exposes configurable properties for the active tool (color, thickness, opacity, etc.). Color palette, stroke width presets, and text size presets can be customized via `theme.json` ([Section 14.1](#141-themejson)).
 
 ---
 
@@ -394,7 +414,7 @@ If you use Omarchy, ensure `source = ~/.config/hypr/chalkak.conf` is loaded with
 | Type | Path | Example |
 |------|------|---------|
 | Temp captures | `$XDG_RUNTIME_DIR/` (fallback: `/tmp/chalkak/`) | `capture_<id>.png` |
-| Saved screenshots | `$HOME/Pictures/` | `Screenshot_20260216_143052.png` |
+| Saved screenshots | `$HOME/Pictures/` | `capture-1739698252000000000.png` |
 | Config directory | `$XDG_CONFIG_HOME/chalkak/` (fallback: `$HOME/.config/chalkak/`) | `theme.json`, `keybindings.json` |
 
 ChalKak creates these directories automatically when needed.
@@ -412,7 +432,8 @@ When you copy from ChalKak (Preview `c` or Editor `Ctrl+C`), the clipboard recei
 | `image/png` | Raw PNG image bytes | Image editors, browsers, chat apps, coding agents |
 | `text/uri-list` | File URI (`file:///path/to/image.png`) | File managers |
 | `x-special/gnome-copied-files` | GNOME file copy format | Nautilus, GNOME apps |
-| `text/plain` | Absolute file path | Terminals, text editors |
+| `text/plain;charset=utf-8` | Absolute file path (UTF-8) | Modern text editors, terminals |
+| `text/plain` | Absolute file path | Legacy terminals, text editors |
 
 This means you can paste into image-aware apps (they receive the PNG data) or file managers (they receive the file reference).
 
@@ -438,6 +459,18 @@ Shift+Print → e (editor) → r (rectangle) / a (arrow) / t (text) → Ctrl+S (
 
 ```
 Ctrl+Print → e (editor) → b (blur) → drag over sensitive areas → Ctrl+C (copy)
+```
+
+### Extract text from a screenshot (OCR)
+
+```
+Print → select region → e (editor) → o (OCR tool) → drag over text → copied to clipboard
+```
+
+Or from preview for the entire image:
+
+```
+Print → select region → o (OCR) → copied to clipboard
 ```
 
 ### Feed context to a coding agent
@@ -535,7 +568,6 @@ Controls theme mode, UI colors, and editor defaults.
 | `selection_drag_stroke_color` | string | `#RRGGBB` or `#RRGGBBAA` |
 | `selection_outline_color` | string | `#RRGGBB` or `#RRGGBBAA` |
 | `selection_handle_color` | string | `#RRGGBB` or `#RRGGBBAA` |
-
 Invalid values are ignored with a warning in logs.
 
 #### Legacy compatibility
@@ -573,6 +605,34 @@ Overrides editor navigation defaults. If this file is missing, built-in defaults
 jq empty "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json"
 ```
 
+### 14.3 `config.json`
+
+Application-level settings. If this file is missing, built-in defaults are used.
+
+```json
+{
+  "ocr_language": "korean"
+}
+```
+
+#### `ocr_language`
+
+Overrides the OCR recognition language. If omitted, ChalKak auto-detects from the system `LANG` environment variable.
+
+| Value | Language |
+|-------|----------|
+| `korean` / `ko` | Korean |
+| `en` / `english` | English |
+| `chinese` / `zh` / `ch` | Chinese |
+| `latin` | Latin script languages |
+| `cyrillic` / `ru` / `uk` / `be` | Cyrillic script languages |
+| `arabic` / `ar` | Arabic |
+| `th` / `thai` | Thai |
+| `el` / `greek` | Greek |
+| `devanagari` / `hi` | Devanagari script languages |
+| `ta` / `tamil` | Tamil |
+| `te` / `telugu` | Telugu |
+
 ---
 
 ## 15. Troubleshooting
@@ -598,6 +658,14 @@ jq empty "${XDG_CONFIG_HOME:-$HOME/.config}/chalkak/keybindings.json"
 |-------|-----|
 | `HOME` not set | Set `HOME` environment variable |
 | No write permission | Check permissions on `~/Pictures`: `ls -ld ~/Pictures` |
+
+### OCR not working
+
+| Check | Fix |
+|-------|-----|
+| "Model files not found" toast | Install `chalkak-ocr-models` package, or place model files in `~/.local/share/chalkak/models/` |
+| Wrong language recognized | Set `ocr_language` in `config.json` ([Section 14.3](#143-configjson)) or check system `LANG` |
+| "No text found" on valid text | Try a larger selection area; very small or low-contrast text may not be detected |
 
 ### Temp files accumulate
 

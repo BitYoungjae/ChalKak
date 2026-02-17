@@ -1,4 +1,16 @@
-use super::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::editor::{self, ToolObject};
+use crate::input::{TextInputAction, TextInputEvent};
+use gtk4::prelude::*;
+use gtk4::DrawingArea;
+
+use super::editor_history::{record_undo_snapshot_if_some, snapshot_active_text_objects};
+use super::editor_popup::{
+    copy_active_text_to_clipboard, preedit_cursor_char_index, TextPreeditState,
+};
+use super::stop_editor_text_input;
 
 pub(super) struct EditorTextCommitContext<'a> {
     pub(super) editor_tools: &'a Rc<RefCell<editor::EditorTools>>,

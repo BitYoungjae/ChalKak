@@ -1,4 +1,16 @@
-use super::*;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use crate::editor::{self, EditorAction, ToolKind};
+
+use gtk4::prelude::*;
+use gtk4::Button;
+
+use crate::app::editor_popup::{set_single_selection, tool_kind_label, TextPreeditState};
+use crate::app::{
+    EditorOutputActionRuntime, EditorToolSwitchContext, TextInputActivation, ToolSwitchConfig,
+    EDITOR_PEN_ICON_NAME,
+};
 
 pub(in crate::app::editor_runtime) fn connect_editor_output_button(
     button: &Button,
@@ -12,7 +24,7 @@ pub(in crate::app::editor_runtime) fn connect_editor_output_button(
     });
 }
 
-pub(in crate::app::editor_runtime) const EDITOR_TOOLBAR_ENTRIES: [(ToolKind, &str, &str); 8] = [
+pub(in crate::app::editor_runtime) const EDITOR_TOOLBAR_ENTRIES: [(ToolKind, &str, &str); 9] = [
     (ToolKind::Select, "mouse-pointer-symbolic", "Select (V)"),
     (ToolKind::Pan, "hand-symbolic", "Pan (H)"),
     (ToolKind::Blur, "eye-off-symbolic", "Blur (B)"),
@@ -25,6 +37,7 @@ pub(in crate::app::editor_runtime) const EDITOR_TOOLBAR_ENTRIES: [(ToolKind, &st
     ),
     (ToolKind::Crop, "crop-symbolic", "Crop (C)"),
     (ToolKind::Text, "text-cursor-input-symbolic", "Text (T)"),
+    (ToolKind::Ocr, "scan-text-symbolic", "OCR (O)"),
 ];
 
 pub(in crate::app::editor_runtime) fn connect_tool_button_selection(

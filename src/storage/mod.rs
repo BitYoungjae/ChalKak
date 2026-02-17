@@ -167,14 +167,7 @@ pub fn create_temp_capture(capture_id: &str) -> PathBuf {
     path
 }
 
-pub fn allocate_target_path(capture_id: &str) -> StorageResult<PathBuf> {
-    StorageService::with_default_paths()?.allocate_target_path(capture_id)
-}
-
-pub fn save_overwrite<S: AsRef<Path>, D: AsRef<Path>>(
-    source: S,
-    destination: D,
-) -> StorageResult<()> {
+fn save_overwrite<S: AsRef<Path>, D: AsRef<Path>>(source: S, destination: D) -> StorageResult<()> {
     let source = source.as_ref();
     let destination = destination.as_ref();
 
@@ -185,10 +178,6 @@ pub fn save_overwrite<S: AsRef<Path>, D: AsRef<Path>>(
     let _ = fs::remove_file(destination);
     fs::copy(source, destination)?;
     Ok(())
-}
-
-pub fn discard_session_artifacts(capture_id: &str) -> StorageResult<()> {
-    StorageService::with_default_paths()?.discard_session_artifacts(capture_id)
 }
 
 pub fn prune_stale_temp_files(max_age_hours: u64) -> StorageResult<PruneReport> {

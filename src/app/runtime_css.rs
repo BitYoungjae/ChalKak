@@ -106,6 +106,14 @@ window.floating-editor-window {{
               border-color 60ms ease,
               box-shadow 60ms ease;
 }}
+.icon-button:disabled {{
+  opacity: 0.38;
+  box-shadow: none;
+}}
+.icon-button:disabled:hover,
+.icon-button:disabled:active {{
+  box-shadow: none;
+}}
 .editor-toolbar button.tool-active {{
   background-image: linear-gradient(
                       rgba(0, 0, 0, 0.24),
@@ -345,8 +353,24 @@ label.launchpad-section-title {{
   font-weight: 650;
   opacity: 0.92;
 }}
-label.launchpad-key-value {{
+label.launchpad-kv-key {{
+  font-size: 12px;
+  opacity: 0.56;
+  min-width: 72px;
+}}
+label.launchpad-kv-value {{
   font-size: 13px;
+}}
+label.launchpad-version {{
+  font-size: 11px;
+  opacity: 0.5;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: {border_width}px solid {border_color};
+  background: rgba(0, 0, 0, 0.04);
+}}
+.launchpad-info-row > * {{
+  min-width: 0;
 }}
 label.launchpad-capture-ids {{
   font-size: 12px;
@@ -356,7 +380,7 @@ label.launchpad-capture-ids {{
 frame.launchpad-panel {{
   border-radius: {control_radius}px;
   border: {border_width}px solid {border_color};
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(0, 0, 0, 0.03);
   padding: {spacing_12}px;
 }}
 frame.launchpad-panel > border {{

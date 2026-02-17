@@ -1,26 +1,25 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::time::Duration;
 
 use crate::capture;
 use crate::clipboard::WlCopyBackend;
-use crate::preview::{self, PreviewAction, PreviewEvent};
-use crate::state::{AppEvent, AppState, RuntimeWindowState, StateMachine};
+use crate::preview::{PreviewAction, PreviewActionError, PreviewEvent};
+use crate::state::{AppEvent, AppState, StateMachine};
 use crate::storage::StorageService;
+use gtk4::prelude::*;
 
 use super::runtime_support::{
     close_preview_window_for_capture, show_toast_for_capture, PreviewWindowRuntime, RuntimeSession,
     ToastRuntime,
 };
+use super::window_state::RuntimeWindowState;
+use super::worker::spawn_worker_action;
 
 pub(super) type SharedMachine = Rc<RefCell<StateMachine>>;
 pub(super) type SharedRuntimeSession = Rc<RefCell<RuntimeSession>>;
 pub(super) type SharedStatusLog = Rc<RefCell<String>>;
 pub(super) type SharedCaptureSelection = Rc<RefCell<Option<String>>>;
-
-const ACTION_RESULT_POLL_INTERVAL: Duration = Duration::from_millis(24);
 
 #[derive(Clone)]
 pub(super) struct LaunchpadActionExecutor {
@@ -33,6 +32,9 @@ pub(super) struct LaunchpadActionExecutor {
     runtime_window_state: Rc<RefCell<RuntimeWindowState>>,
     fallback_toast: ToastRuntime,
     toast_duration_ms: u32,
+    ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
+    ocr_language: crate::ocr::OcrLanguage,
+    ocr_in_progress: Rc<Cell<bool>>,
 }
 
 #[derive(Debug, Clone)]
@@ -62,6 +64,9 @@ impl LaunchpadActionExecutor {
         runtime_window_state: Rc<RefCell<RuntimeWindowState>>,
         fallback_toast: ToastRuntime,
         toast_duration_ms: u32,
+        ocr_engine: Rc<RefCell<Option<crate::ocr::OcrEngine>>>,
+        ocr_language: crate::ocr::OcrLanguage,
+        ocr_in_progress: Rc<Cell<bool>>,
     ) -> Self {
         Self {
             runtime_session,
@@ -73,6 +78,9 @@ impl LaunchpadActionExecutor {
             runtime_window_state,
             fallback_toast,
             toast_duration_ms,
+            ocr_engine,
+            ocr_language,
+            ocr_in_progress,
         }
     }
 
@@ -97,15 +105,11 @@ impl LaunchpadActionExecutor {
                     return;
                 }
                 set_status(&self.status_log, format!("preview opened for {capture_id}"));
-                self.fallback_toast
-                    .show(success_toast_message, self.toast_duration_ms);
+                crate::notification::send(success_toast_message);
             }
             Err(err) => {
                 set_status(&self.status_log, format!("{failure_status_prefix}: {err}"));
-                self.fallback_toast.show(
-                    format!("{failure_toast_prefix}: {err}"),
-                    self.toast_duration_ms,
-                );
+                crate::notification::send(format!("{failure_toast_prefix}: {err}"));
             }
         }
     }
@@ -280,7 +284,7 @@ impl LaunchpadActionExecutor {
         };
 
         if requires_main_thread_preview_action(action) {
-            let result = preview::execute_preview_action(
+            let result = super::actions::execute_preview_action(
                 &prepared.active_capture,
                 prepared.action,
                 &prepared.storage_service,
@@ -307,7 +311,7 @@ impl LaunchpadActionExecutor {
         let mut on_complete = Some(on_complete);
         spawn_worker_action(
             move || {
-                preview::execute_preview_action(
+                super::actions::execute_preview_action(
                     &worker_capture,
                     worker_action,
                     &worker_storage,
@@ -354,7 +358,7 @@ impl LaunchpadActionExecutor {
         let mut on_complete = Some(on_complete);
         spawn_worker_action(
             move || {
-                preview::execute_preview_action(
+                super::actions::execute_preview_action(
                     &worker_capture,
                     PreviewAction::Delete,
                     &worker_storage,
@@ -376,6 +380,77 @@ impl LaunchpadActionExecutor {
                 }
                 if let Some(on_complete) = on_complete.take() {
                     on_complete();
+                }
+            },
+        );
+    }
+
+    pub(super) fn run_preview_ocr_action(&self) {
+        if self.ocr_in_progress.get() {
+            set_status(&self.status_log, "OCR already in progress");
+            return;
+        }
+
+        let active_capture = match consume_and_resolve_active_capture(
+            &self.runtime_session,
+            &self.capture_selection,
+        ) {
+            Some(artifact) => artifact,
+            None => {
+                set_status(&self.status_log, "OCR requires an active capture");
+                return;
+            }
+        };
+        if !matches!(self.machine.borrow().state(), AppState::Preview) {
+            set_status(&self.status_log, "OCR requires preview state");
+            return;
+        }
+
+        let engine = self.ocr_engine.borrow_mut().take();
+        let ocr_language = self.ocr_language;
+        let temp_path = active_capture.temp_path.clone();
+
+        self.ocr_in_progress.set(true);
+        set_status(
+            &self.status_log,
+            super::ocr_support::ocr_processing_status(engine.is_some()),
+        );
+        set_preview_cursor(
+            &self.preview_windows,
+            &active_capture.capture_id,
+            Some("progress"),
+        );
+
+        let executor = self.clone();
+        let capture_id = active_capture.capture_id.clone();
+        spawn_worker_action(
+            move || {
+                let engine = match super::ocr_support::resolve_or_init_engine(engine, ocr_language)
+                {
+                    Ok(e) => e,
+                    Err(err) => return (None, Err(err)),
+                };
+                let result = crate::ocr::recognize_text_from_file(&engine, &temp_path);
+                (Some(engine), result)
+            },
+            move |(engine, result): (
+                Option<crate::ocr::OcrEngine>,
+                Result<String, crate::ocr::OcrError>,
+            )| {
+                if let Some(engine) = engine {
+                    *executor.ocr_engine.borrow_mut() = Some(engine);
+                }
+                executor.ocr_in_progress.set(false);
+                set_preview_cursor(&executor.preview_windows, &capture_id, None);
+
+                match result {
+                    Ok(text) => {
+                        super::ocr_support::handle_ocr_text_result(&executor.status_log, text)
+                    }
+                    Err(err) => {
+                        set_status(&executor.status_log, format!("OCR failed: {err}"));
+                        crate::notification::send(format!("OCR failed: {err}"));
+                    }
                 }
             },
         );
@@ -568,7 +643,7 @@ fn prepare_preview_action_request(
 fn apply_preview_action_result(
     action: PreviewAction,
     active_capture: &capture::CaptureArtifact,
-    result: Result<PreviewEvent, preview::PreviewActionError>,
+    result: Result<PreviewEvent, PreviewActionError>,
     status_log: &SharedStatusLog,
     preview_windows: &Rc<RefCell<HashMap<String, PreviewWindowRuntime>>>,
     fallback_toast: &ToastRuntime,
@@ -576,20 +651,24 @@ fn apply_preview_action_result(
 ) -> Option<PreviewEvent> {
     let outcome = preview_action_ui_outcome(action, &active_capture.capture_id, result);
     set_status(status_log, outcome.status_message);
-    show_toast_for_capture(
-        preview_windows,
-        &outcome.toast_capture_id,
-        fallback_toast,
-        outcome.toast_message,
-        toast_duration_ms,
-    );
+    if matches!(action, PreviewAction::Save | PreviewAction::Copy) {
+        crate::notification::send(outcome.toast_message);
+    } else {
+        show_toast_for_capture(
+            preview_windows,
+            &outcome.toast_capture_id,
+            fallback_toast,
+            outcome.toast_message,
+            toast_duration_ms,
+        );
+    }
     outcome.event
 }
 
 fn preview_action_ui_outcome(
     action: PreviewAction,
     active_capture_id: &str,
-    result: Result<PreviewEvent, preview::PreviewActionError>,
+    result: Result<PreviewEvent, PreviewActionError>,
 ) -> PreviewActionUiOutcome {
     let labels = PreviewActionLabels::for_action(action);
     match result {
@@ -617,26 +696,14 @@ fn preview_action_ui_outcome(
     }
 }
 
-fn spawn_worker_action<T, W, H>(work: W, mut on_result: H)
-where
-    T: Send + 'static,
-    W: FnOnce() -> T + Send + 'static,
-    H: FnMut(T) + 'static,
-{
-    let (tx, rx) = mpsc::channel::<T>();
-    std::thread::spawn(move || {
-        let result = work();
-        let _ = tx.send(result);
-    });
-
-    gtk4::glib::timeout_add_local(ACTION_RESULT_POLL_INTERVAL, move || match rx.try_recv() {
-        Ok(result) => {
-            on_result(result);
-            gtk4::glib::ControlFlow::Break
-        }
-        Err(mpsc::TryRecvError::Empty) => gtk4::glib::ControlFlow::Continue,
-        Err(mpsc::TryRecvError::Disconnected) => gtk4::glib::ControlFlow::Break,
-    });
+fn set_preview_cursor(
+    preview_windows: &Rc<RefCell<HashMap<String, PreviewWindowRuntime>>>,
+    capture_id: &str,
+    cursor: Option<&str>,
+) {
+    if let Some(runtime) = preview_windows.borrow().get(capture_id) {
+        runtime.window.set_cursor_from_name(cursor);
+    }
 }
 
 fn requires_main_thread_preview_action(action: PreviewAction) -> bool {
@@ -777,11 +844,12 @@ mod tests {
 
     #[test]
     fn preview_action_ui_outcome_reports_error_for_failed_copy() {
-        let result = Err(preview::PreviewActionError::ClipboardError {
+        let result = Err(PreviewActionError::ClipboardError {
             operation: "copy",
             capture_id: "capture-copy".to_string(),
-            source: crate::clipboard::ClipboardError::CommandFailed {
-                status: "exit status 1".to_string(),
+            source: crate::clipboard::ClipboardError::CommandIo {
+                command: "wl-copy".to_string(),
+                source: std::io::Error::other("exit status 1"),
             },
         });
 
@@ -843,8 +911,10 @@ mod tests {
             &machine,
             &storage_service,
             &status_log,
-        )
-        .expect("preview action should be prepared");
+        );
+        let Some(prepared) = prepared else {
+            panic!("preview action should be prepared");
+        };
 
         assert_eq!(prepared.action, PreviewAction::Copy);
         assert_eq!(prepared.active_capture.capture_id, "one");

@@ -2,12 +2,11 @@
 
 pub mod tools;
 
-use crate::capture::CaptureArtifact;
-use crate::clipboard::{ClipboardBackend, ClipboardError};
-use crate::storage::{CaptureStorage, StorageError};
+use crate::clipboard::ClipboardError;
+use crate::storage::StorageError;
 use thiserror::Error;
 
-pub use tools::{EditorTools, ToolError, ToolKind, ToolObject};
+pub use tools::{EditorTools, ToolError, ToolKind, ToolObject, ToolOptionVisibility};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EditorViewport {
@@ -61,8 +60,6 @@ const VIEWPORT_ZOOM_LEVELS_PERCENT: &[u16] = &[
     1, 2, 3, 4, 5, 8, 10, 12, 16, 20, 25, 33, 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200,
     250, 300, 400, 500, 600, 800, 1000, 1200, 1600,
 ];
-const VIEWPORT_PAN_STEP_PX: i32 = 48;
-
 fn clamp_zoom_percent(zoom_percent: u16) -> u16 {
     zoom_percent.clamp(VIEWPORT_ZOOM_MIN_PERCENT, VIEWPORT_ZOOM_MAX_PERCENT)
 }
@@ -150,13 +147,16 @@ impl EditorViewport {
         self.pan_x = pan_x;
         self.pan_y = pan_y;
     }
+}
 
-    pub fn pan_right(&mut self) {
-        self.pan_by(VIEWPORT_PAN_STEP_PX, 0);
+#[cfg(test)]
+impl EditorViewport {
+    fn pan_right(&mut self) {
+        self.pan_by(48, 0);
     }
 
-    pub fn pan_down(&mut self) {
-        self.pan_by(0, VIEWPORT_PAN_STEP_PX);
+    fn pan_down(&mut self) {
+        self.pan_by(0, 48);
     }
 }
 
@@ -200,44 +200,9 @@ impl EditorInputMode {
     }
 }
 
-pub fn execute_editor_action<S: CaptureStorage, C: ClipboardBackend>(
-    artifact: &CaptureArtifact,
-    action: EditorAction,
-    storage: &S,
-    clipboard: &C,
-) -> Result<EditorEvent, EditorActionError> {
-    let capture_id = artifact.capture_id.clone();
-    match action {
-        EditorAction::Save => {
-            storage
-                .save_capture(artifact)
-                .map_err(|err| EditorActionError::StorageError {
-                    operation: "save",
-                    capture_id: capture_id.clone(),
-                    source: err,
-                })?;
-            Ok(EditorEvent::Save { capture_id })
-        }
-        EditorAction::Copy => {
-            clipboard.copy(&artifact.temp_path).map_err(|err| {
-                EditorActionError::ClipboardError {
-                    operation: "copy",
-                    capture_id: capture_id.clone(),
-                    source: err,
-                }
-            })?;
-            Ok(EditorEvent::Copy { capture_id })
-        }
-        EditorAction::CloseRequested => Ok(EditorEvent::CloseRequested { capture_id }),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::clipboard::ClipboardResult;
-    use crate::storage::StorageResult;
-    use std::path::PathBuf;
 
     #[test]
     fn editor_viewport_defaults_to_100_percent_and_origin() {
@@ -321,87 +286,5 @@ mod tests {
         mode.reset();
         assert!(!mode.crop_active());
         assert!(!mode.text_input_active());
-    }
-
-    struct MockStorage;
-    impl CaptureStorage for MockStorage {
-        fn save_capture(&self, artifact: &CaptureArtifact) -> StorageResult<PathBuf> {
-            Ok(PathBuf::from(format!("/tmp/{}.png", artifact.capture_id)))
-        }
-
-        fn discard_session_artifacts(&self, _capture_id: &str) -> StorageResult<()> {
-            Ok(())
-        }
-    }
-
-    struct MockClipboard;
-    impl ClipboardBackend for MockClipboard {
-        fn copy_png_file(&self, _path: &std::path::Path) -> ClipboardResult<()> {
-            Ok(())
-        }
-
-        fn copy(&self, _path: &std::path::Path) -> ClipboardResult<()> {
-            Ok(())
-        }
-    }
-
-    fn test_artifact(capture_id: &str) -> CaptureArtifact {
-        CaptureArtifact {
-            capture_id: capture_id.to_string(),
-            temp_path: PathBuf::from(format!("/tmp/{capture_id}.png")),
-            width: 320,
-            height: 180,
-            screen_x: 0,
-            screen_y: 0,
-            screen_width: 320,
-            screen_height: 180,
-            created_at: 0,
-        }
-    }
-
-    #[test]
-    fn editor_execute_action_save_maps_to_save_event() {
-        let artifact = test_artifact("one");
-        let event =
-            execute_editor_action(&artifact, EditorAction::Save, &MockStorage, &MockClipboard)
-                .unwrap();
-        assert_eq!(
-            event,
-            EditorEvent::Save {
-                capture_id: "one".to_string()
-            }
-        );
-    }
-
-    #[test]
-    fn editor_execute_action_copy_maps_to_copy_event() {
-        let artifact = test_artifact("one");
-        let event =
-            execute_editor_action(&artifact, EditorAction::Copy, &MockStorage, &MockClipboard)
-                .unwrap();
-        assert_eq!(
-            event,
-            EditorEvent::Copy {
-                capture_id: "one".to_string()
-            }
-        );
-    }
-
-    #[test]
-    fn editor_execute_action_close_requested_maps_to_close_event() {
-        let artifact = test_artifact("one");
-        let event = execute_editor_action(
-            &artifact,
-            EditorAction::CloseRequested,
-            &MockStorage,
-            &MockClipboard,
-        )
-        .unwrap();
-        assert_eq!(
-            event,
-            EditorEvent::CloseRequested {
-                capture_id: "one".to_string()
-            }
-        );
     }
 }

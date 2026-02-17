@@ -1,8 +1,31 @@
+use std::cell::{Cell, RefCell};
+use std::rc::Rc;
+
+use crate::editor::tools::CropElement;
+use crate::editor::{self, ToolKind, ToolObject};
+use crate::input::{
+    resolve_shortcut, InputContext, InputMode, ShortcutAction, ShortcutKey, TextInputAction,
+    TextInputEvent,
+};
+
+use gtk4::prelude::*;
+use gtk4::{Button, DrawingArea, Label, Overlay, Scale, ScrolledWindow};
+
+use crate::app::editor_history::{record_undo_snapshot, snapshot_editor_objects};
+use crate::app::editor_popup::{clear_selection, copy_active_text_to_clipboard, TextPreeditState};
+use crate::app::editor_text_runtime::{
+    handle_editor_text_commit, handle_editor_text_key_action, handle_editor_text_preedit_changed,
+    EditorTextCommitContext, EditorTextKeyContext, EditorTextPreeditContext,
+};
+use crate::app::input_bridge::{
+    key_name, modifier_state, normalize_shortcut_key, resolve_text_input_event, shortcut_modifiers,
+};
+use crate::app::{shortcut_editor_tool_switch, EditorToolSwitchContext, TextInputActivation};
+
 use super::tools::switch_editor_tool_with_text_policy;
 use super::viewport::{
     editor_viewport_runtime, handle_editor_viewport_shortcuts, EditorViewportShortcutContext,
 };
-use super::*;
 
 struct EditorShortcutActionContext {
     editor_undo_button: Button,
@@ -302,6 +325,12 @@ pub(in crate::app::editor_runtime) fn connect_editor_key_handling(
                 };
                 return handle_editor_text_key_action(text_event, &context);
             }
+            if let Some(ShortcutKey::Tab) = normalize_shortcut_key(key, keycode) {
+                return handle_editor_shortcut_action(
+                    ShortcutAction::EditorToggleToolOptions,
+                    &shortcut_action_context,
+                );
+            }
             return gtk4::glib::Propagation::Proceed;
         }
         if !mode.text_input_active()
@@ -343,12 +372,17 @@ pub(in crate::app::editor_runtime) fn connect_editor_key_handling(
             shortcut_key,
             shortcut_modifiers(modifier),
             InputContext {
-                dialog_open: *editor_close_dialog_open.borrow(),
-                text_input_active: mode.text_input_active(),
-                crop_active: mode.crop_active(),
-                editor_select_mode: active_editor_tool.get() == ToolKind::Select,
-                in_editor: true,
-                ..Default::default()
+                mode: if *editor_close_dialog_open.borrow() {
+                    InputMode::Dialog
+                } else if mode.text_input_active() {
+                    InputMode::TextInput
+                } else if mode.crop_active() {
+                    InputMode::Crop
+                } else {
+                    InputMode::Editor {
+                        select_mode: active_editor_tool.get() == ToolKind::Select,
+                    }
+                },
             },
         );
 

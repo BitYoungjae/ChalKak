@@ -179,6 +179,7 @@ git checkout main
 - Source tarball pattern in `PKGBUILD`: `.../archive/refs/tags/v$pkgver.tar.gz`.
 - Package name and AUR repo name: `chalkak`.
 - Expected release command intent: create Git tag, refresh checksums, and sync AUR metadata.
+- OCR models are a separate AUR package (`chalkak-ocr-models`) and do not need updating during app releases.
 
 ## Output Template
 

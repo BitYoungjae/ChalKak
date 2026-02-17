@@ -5,6 +5,7 @@ pub enum ShortcutKey {
     Escape,
     Delete,
     Backspace,
+    Tab,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -21,12 +22,20 @@ impl ShortcutModifiers {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct InputContext {
-    pub dialog_open: bool,
-    pub text_input_active: bool,
-    pub crop_active: bool,
-    pub editor_select_mode: bool,
-    pub in_editor: bool,
-    pub in_preview: bool,
+    pub mode: InputMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum InputMode {
+    #[default]
+    Idle,
+    Preview,
+    Editor {
+        select_mode: bool,
+    },
+    Crop,
+    TextInput,
+    Dialog,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +61,7 @@ pub enum ShortcutAction {
     EditorEnterRectangle,
     EditorEnterCrop,
     EditorEnterText,
+    EditorEnterOcr,
     EditorToggleToolOptions,
     EditorCloseRequested,
     PreviewSave,
@@ -59,6 +69,7 @@ pub enum ShortcutAction {
     PreviewEdit,
     PreviewDelete,
     PreviewClose,
+    PreviewOcr,
 }
 
 fn resolve_dialog_shortcut(key: ShortcutKey) -> Option<ShortcutAction> {
@@ -97,6 +108,7 @@ fn resolve_editor_tool_shortcut(key: ShortcutKey) -> Option<ShortcutAction> {
         ShortcutKey::Character('r') => Some(ShortcutAction::EditorEnterRectangle),
         ShortcutKey::Character('c') => Some(ShortcutAction::EditorEnterCrop),
         ShortcutKey::Character('t') => Some(ShortcutAction::EditorEnterText),
+        ShortcutKey::Character('o') => Some(ShortcutAction::EditorEnterOcr),
         _ => None,
     }
 }
@@ -104,7 +116,7 @@ fn resolve_editor_tool_shortcut(key: ShortcutKey) -> Option<ShortcutAction> {
 fn resolve_editor_shortcut(
     key: ShortcutKey,
     modifiers: ShortcutModifiers,
-    context: InputContext,
+    select_mode: bool,
 ) -> Option<ShortcutAction> {
     match (key, modifiers.ctrl, modifiers.shift) {
         (ShortcutKey::Character('z'), true, false) => Some(ShortcutAction::EditorUndo),
@@ -114,11 +126,8 @@ fn resolve_editor_shortcut(
         }
         (ShortcutKey::Character('s'), true, _) => Some(ShortcutAction::EditorSave),
         (ShortcutKey::Character('c'), true, _) => Some(ShortcutAction::EditorCopyImage),
-        (ShortcutKey::Character('o'), false, false) => {
-            Some(ShortcutAction::EditorToggleToolOptions)
-        }
         (ShortcutKey::Escape, false, false) => {
-            if context.editor_select_mode {
+            if select_mode {
                 Some(ShortcutAction::EditorCloseRequested)
             } else {
                 Some(ShortcutAction::EditorEnterSelect)
@@ -138,6 +147,7 @@ fn resolve_preview_shortcut(
         (ShortcutKey::Character('s'), false, false) => Some(ShortcutAction::PreviewSave),
         (ShortcutKey::Character('c'), false, false) => Some(ShortcutAction::PreviewCopy),
         (ShortcutKey::Character('e'), false, false) => Some(ShortcutAction::PreviewEdit),
+        (ShortcutKey::Character('o'), false, false) => Some(ShortcutAction::PreviewOcr),
         (ShortcutKey::Delete, false, false) => Some(ShortcutAction::PreviewDelete),
         (ShortcutKey::Escape, false, false) => Some(ShortcutAction::PreviewClose),
         _ => None,
@@ -149,27 +159,22 @@ pub fn resolve_shortcut(
     modifiers: ShortcutModifiers,
     context: InputContext,
 ) -> Option<ShortcutAction> {
-    if context.dialog_open {
-        return resolve_dialog_shortcut(key);
+    if key == ShortcutKey::Tab
+        && matches!(
+            context.mode,
+            InputMode::Editor { .. } | InputMode::Crop | InputMode::TextInput
+        )
+    {
+        return Some(ShortcutAction::EditorToggleToolOptions);
     }
-
-    if context.text_input_active {
-        return resolve_text_shortcut(key, modifiers);
+    match context.mode {
+        InputMode::Dialog => resolve_dialog_shortcut(key),
+        InputMode::TextInput => resolve_text_shortcut(key, modifiers),
+        InputMode::Crop => resolve_crop_shortcut(key),
+        InputMode::Editor { select_mode } => resolve_editor_shortcut(key, modifiers, select_mode),
+        InputMode::Preview => resolve_preview_shortcut(key, modifiers),
+        InputMode::Idle => None,
     }
-
-    if context.crop_active {
-        return resolve_crop_shortcut(key);
-    }
-
-    if context.in_editor {
-        return resolve_editor_shortcut(key, modifiers, context);
-    }
-
-    if context.in_preview {
-        return resolve_preview_shortcut(key, modifiers);
-    }
-
-    None
 }
 
 #[cfg(test)]
@@ -179,12 +184,7 @@ mod tests {
     #[test]
     fn resolve_shortcut_prioritizes_dialog_context() {
         let context = InputContext {
-            dialog_open: true,
-            text_input_active: true,
-            crop_active: true,
-            editor_select_mode: true,
-            in_editor: true,
-            in_preview: true,
+            mode: InputMode::Dialog,
         };
         assert_eq!(
             resolve_shortcut(ShortcutKey::Enter, ShortcutModifiers::default(), context),
@@ -199,9 +199,7 @@ mod tests {
     #[test]
     fn resolve_shortcut_prioritizes_text_over_editor_copy() {
         let context = InputContext {
-            text_input_active: true,
-            in_editor: true,
-            ..Default::default()
+            mode: InputMode::TextInput,
         };
         assert_eq!(
             resolve_shortcut(
@@ -216,9 +214,7 @@ mod tests {
     #[test]
     fn resolve_shortcut_prioritizes_crop_over_editor_escape() {
         let context = InputContext {
-            crop_active: true,
-            in_editor: true,
-            ..Default::default()
+            mode: InputMode::Crop,
         };
         assert_eq!(
             resolve_shortcut(ShortcutKey::Escape, ShortcutModifiers::default(), context),
@@ -229,8 +225,7 @@ mod tests {
     #[test]
     fn resolve_shortcut_maps_editor_shortcuts() {
         let context = InputContext {
-            in_editor: true,
-            ..Default::default()
+            mode: InputMode::Editor { select_mode: false },
         };
         assert_eq!(
             resolve_shortcut(
@@ -338,6 +333,10 @@ mod tests {
                 ShortcutModifiers::new(false, false),
                 context
             ),
+            Some(ShortcutAction::EditorEnterOcr)
+        );
+        assert_eq!(
+            resolve_shortcut(ShortcutKey::Tab, ShortcutModifiers::default(), context),
             Some(ShortcutAction::EditorToggleToolOptions)
         );
         assert_eq!(
@@ -349,9 +348,7 @@ mod tests {
     #[test]
     fn resolve_shortcut_maps_editor_escape_to_close_when_select_mode() {
         let context = InputContext {
-            in_editor: true,
-            editor_select_mode: true,
-            ..Default::default()
+            mode: InputMode::Editor { select_mode: true },
         };
         assert_eq!(
             resolve_shortcut(ShortcutKey::Escape, ShortcutModifiers::default(), context),
@@ -362,8 +359,7 @@ mod tests {
     #[test]
     fn resolve_shortcut_maps_preview_shortcuts() {
         let context = InputContext {
-            in_preview: true,
-            ..Default::default()
+            mode: InputMode::Preview,
         };
         assert_eq!(
             resolve_shortcut(
@@ -388,6 +384,14 @@ mod tests {
                 context
             ),
             Some(ShortcutAction::PreviewEdit)
+        );
+        assert_eq!(
+            resolve_shortcut(
+                ShortcutKey::Character('o'),
+                ShortcutModifiers::default(),
+                context
+            ),
+            Some(ShortcutAction::PreviewOcr)
         );
         assert_eq!(
             resolve_shortcut(ShortcutKey::Delete, ShortcutModifiers::default(), context),

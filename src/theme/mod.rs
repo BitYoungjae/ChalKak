@@ -6,12 +6,25 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::config::{app_config_path, config_env_dirs, ConfigPathError};
-use crate::ui::style::{default_color_tokens, ColorTokens};
+use crate::ui::style::{StyleTokens, LAYOUT_TOKENS};
 
 const THEME_APP_DIR: &str = "chalkak";
 const THEME_CONFIG_FILE: &str = "theme.json";
 
 pub type ThemeResult<T> = std::result::Result<T, ThemeError>;
+
+/// Runtime color tokens — overridable via theme.json
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColorTokens {
+    pub focus_ring_color: String,
+    pub focus_ring_glow: String,
+    pub border_color: String,
+    pub panel_background: String,
+    pub canvas_background: String,
+    pub text_color: String,
+    pub accent_gradient: String,
+    pub accent_text_color: String,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -150,6 +163,45 @@ pub struct ThemeConfig {
     pub editor_modes: Option<EditorModeDefaults>,
 }
 
+/// Mumyeong "Bright Mist" light palette
+fn default_light_colors() -> ColorTokens {
+    ColorTokens {
+        canvas_background: "#FAFAFA".into(),
+        panel_background: "rgba(255, 255, 255, 0.88)".into(),
+        border_color: "rgba(9, 9, 11, 0.08)".into(),
+        text_color: "#09090B".into(),
+        focus_ring_color: "#18181B".into(),
+        focus_ring_glow: "rgba(24, 24, 27, 0.15)".into(),
+        accent_gradient: "linear-gradient(135deg, #71717A 0%, #27272A 100%)".into(),
+        accent_text_color: "#FFFFFF".into(),
+    }
+}
+
+/// Mumyeong dark palette (oma series)
+fn default_dark_colors() -> ColorTokens {
+    ColorTokens {
+        canvas_background: "#09090B".into(),
+        panel_background: "rgba(24, 24, 27, 0.88)".into(),
+        border_color: "rgba(113, 113, 122, 0.25)".into(),
+        text_color: "#E4E4E7".into(),
+        focus_ring_color: "#F4F4F5".into(),
+        focus_ring_glow: "rgba(244, 244, 245, 0.20)".into(),
+        accent_gradient: "linear-gradient(135deg, #A1A1AA 0%, #F4F4F5 100%)".into(),
+        accent_text_color: "#09090B".into(),
+    }
+}
+
+pub fn default_color_tokens(mode: ThemeMode) -> ColorTokens {
+    match mode {
+        ThemeMode::Light => default_light_colors(),
+        ThemeMode::Dark | ThemeMode::System => default_dark_colors(),
+    }
+}
+
+pub fn tokens_for(mode: ThemeMode, overrides: Option<&ThemeColors>) -> (StyleTokens, ColorTokens) {
+    (LAYOUT_TOKENS, resolve_color_tokens(mode, overrides))
+}
+
 /// Resolve color tokens for a given mode, applying user overrides on top of defaults.
 pub fn resolve_color_tokens(mode: ThemeMode, overrides: Option<&ThemeColors>) -> ColorTokens {
     let mut tokens = default_color_tokens(mode);
@@ -235,16 +287,7 @@ fn load_theme_config_with(
     Ok(config)
 }
 
-/// Backward-compatible: load only the mode preference
-pub fn load_theme_preference() -> ThemeResult<ThemeMode> {
-    load_theme_config().map(|c| c.mode)
-}
-
-pub fn save_theme_preference(mode: ThemeMode) -> ThemeResult<()> {
-    let (xdg_config_home, home) = config_env_dirs();
-    save_theme_preference_with(mode, xdg_config_home.as_deref(), home.as_deref())
-}
-
+#[cfg(test)]
 fn save_theme_preference_with(
     mode: ThemeMode,
     xdg_config_home: Option<&Path>,
@@ -781,6 +824,34 @@ mod tests {
             assert_eq!(modes.light.default_tool_color.as_deref(), Some("#111111"));
             assert_eq!(modes.light.default_stroke_width, Some(2));
         });
+    }
+
+    #[test]
+    fn color_tokens_have_accent_gradient() {
+        assert!(default_color_tokens(ThemeMode::Light)
+            .accent_gradient
+            .contains("linear-gradient"));
+        assert!(default_color_tokens(ThemeMode::Dark)
+            .accent_gradient
+            .contains("linear-gradient"));
+    }
+
+    #[test]
+    fn mumyeong_dark_uses_oma_palette() {
+        let colors = default_color_tokens(ThemeMode::Dark);
+        assert_eq!(colors.canvas_background, "#09090B");
+        assert_eq!(colors.text_color, "#E4E4E7");
+        assert_eq!(colors.focus_ring_color, "#F4F4F5");
+        assert_eq!(colors.accent_text_color, "#09090B");
+    }
+
+    #[test]
+    fn mumyeong_light_uses_bright_mist_palette() {
+        let colors = default_color_tokens(ThemeMode::Light);
+        assert_eq!(colors.canvas_background, "#FAFAFA");
+        assert_eq!(colors.text_color, "#09090B");
+        assert_eq!(colors.focus_ring_color, "#18181B");
+        assert_eq!(colors.accent_text_color, "#FFFFFF");
     }
 
     #[test]
