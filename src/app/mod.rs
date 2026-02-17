@@ -42,6 +42,7 @@ mod preview_pin;
 mod preview_runtime;
 mod runtime_css;
 mod runtime_support;
+mod worker;
 
 use self::adaptive::*;
 use self::bootstrap::*;
