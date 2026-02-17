@@ -50,6 +50,8 @@ Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보�
 
 ### AUR
 
+> **⚠️ 알림 (v0.4.1):** v0.4.1 AUR 패키지에 일시적인 빌드 문제가 있습니다. AUR 패키지가 수정될 때까지 아래 [소스에서 빌드](#소스에서-빌드) 방법을 사용해 주세요.
+
 이 저장소에는 `chalkak`용 AUR 패키징 메타데이터(`PKGBUILD`, `.SRCINFO`)가 포함되어 있습니다.
 
 예를 들어 아래처럼 AUR 헬퍼로 설치할 수 있습니다.
@@ -68,11 +70,27 @@ yay -S chalkak-ocr-models
 
 ### 소스에서 빌드
 
+사전 요구사항:
+
+- Rust 툴체인 (`rustup` 권장)
+- 빌드 의존성: `pkgconf`, `gtk4`, `cmake`
+- 런타임 의존성: `grim`, `slurp`, `wl-clipboard`, `hyprland`
+
+Arch Linux에서 의존성 일괄 설치:
+
+```bash
+sudo pacman -S rust pkgconf gtk4 cmake grim slurp wl-clipboard
+```
+
+빌드 및 설치:
+
 ```bash
 git clone https://github.com/BitYoungjae/ChalKak.git chalkak
 cd chalkak
-cargo run
+cargo install --path .
 ```
+
+`chalkak` 바이너리가 `~/.cargo/bin/`에 설치됩니다. 이 디렉터리가 `PATH`에 포함되어 있는지 확인하세요.
 
 ## 사용법
 

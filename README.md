@@ -50,6 +50,8 @@ Environment assumptions:
 
 ### AUR
 
+> **⚠️ Note (v0.4.1):** The AUR package for v0.4.1 has a temporary build issue. Please use the [Build from source](#build-from-source) method below until the AUR package is fixed.
+
 This repository includes AUR packaging metadata for `chalkak` in `PKGBUILD` and `.SRCINFO`.
 
 Install with your AUR helper, for example:
@@ -68,11 +70,27 @@ If the published AUR package is behind the current crate release, use the source
 
 ### Build from source
 
+Prerequisites:
+
+- Rust toolchain (`rustup` recommended)
+- Build dependencies: `pkgconf`, `gtk4`, `cmake`
+- Runtime dependencies: `grim`, `slurp`, `wl-clipboard`, `hyprland`
+
+On Arch Linux, install all dependencies at once:
+
+```bash
+sudo pacman -S rust pkgconf gtk4 cmake grim slurp wl-clipboard
+```
+
+Build and install:
+
 ```bash
 git clone https://github.com/BitYoungjae/ChalKak.git chalkak
 cd chalkak
-cargo run
+cargo install --path .
 ```
+
+The `chalkak` binary will be installed to `~/.cargo/bin/`. Make sure this directory is in your `PATH`.
 
 ## Usage
 
