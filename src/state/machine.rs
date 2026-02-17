@@ -1,5 +1,5 @@
+use super::error::{StateError, StateResult};
 use super::{event::StateTransition, AppEvent, AppState};
-use crate::error::{AppError, AppResult};
 
 #[derive(Debug)]
 pub struct StateMachine {
@@ -36,12 +36,12 @@ impl StateMachine {
         }
     }
 
-    pub fn transition(&mut self, event: AppEvent) -> AppResult<AppState> {
+    pub fn transition(&mut self, event: AppEvent) -> StateResult<AppState> {
         tracing::debug!(from = ?self.state, event = ?event, "request state transition");
         let next = self.next_state(event).ok_or_else(|| {
             let from = self.state;
             tracing::warn!(from = ?from, event = ?event, "invalid state transition requested");
-            AppError::InvalidStateTransition { from, event }
+            StateError::InvalidStateTransition { from, event }
         })?;
 
         let record = StateTransition::new(Some(self.state), event, next);
@@ -148,7 +148,7 @@ mod tests {
             .expect_err("idle -> close preview should fail");
         assert!(matches!(
             err,
-            AppError::InvalidStateTransition {
+            StateError::InvalidStateTransition {
                 from: AppState::Idle,
                 event: AppEvent::ClosePreview
             }

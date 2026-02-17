@@ -1,4 +1,4 @@
 pub mod style;
 
-pub use style::LAYOUT_TOKENS;
-pub use style::{default_color_tokens, tokens_for, ColorTokens, StyleTokens};
+pub use crate::theme::{default_color_tokens, tokens_for, ColorTokens};
+pub use style::{StyleTokens, LAYOUT_TOKENS};
