@@ -11,7 +11,7 @@ optdepends=('chalkak-ocr-models: OCR text recognition support')
 provides=('chalkak')
 conflicts=('chalkak')
 source=("$pkgname-$pkgver-x86_64.tar.gz::$url/releases/download/v$pkgver/chalkak-x86_64-unknown-linux-gnu.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('c4111cc5fb9f745d47ccb8315d7f33206a80a56f8252685790c7a46d27ed3ce1')
 
 package() {
   install -Dm755 "chalkak" "$pkgdir/usr/bin/chalkak"
