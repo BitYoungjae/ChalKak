@@ -1,9 +1,10 @@
 # Maintainer: BitYoungjae <bityoungjae@gmail.com>
 pkgname=chalkak
 pkgver=0.4.1
-pkgrel=1
+pkgrel=2
 pkgdesc="Hyprland screenshot preview and editor utility"
 arch=('x86_64' 'aarch64')
+options=(!lto)
 url="https://github.com/bityoungjae/chalkak"
 _srcname="ChalKak"
 license=('MIT' 'Apache-2.0')
