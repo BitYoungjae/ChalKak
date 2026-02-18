@@ -263,7 +263,15 @@ impl LaunchpadActionExecutor {
             "cannot close editor",
             "cannot close editor",
         ) {
-            set_status(&self.status_log, "editor closed");
+            if close_preview_when_session_empty(
+                &self.machine,
+                &self.runtime_session,
+                &self.status_log,
+            ) {
+                set_status(&self.status_log, "preview closed");
+            } else {
+                set_status(&self.status_log, "editor closed");
+            }
         }
     }
 
@@ -710,6 +718,24 @@ fn requires_main_thread_preview_action(action: PreviewAction) -> bool {
     matches!(action, PreviewAction::Copy)
 }
 
+fn close_preview_when_session_empty(
+    machine: &SharedMachine,
+    runtime_session: &SharedRuntimeSession,
+    status_log: &SharedStatusLog,
+) -> bool {
+    if runtime_session.borrow().active_capture().is_some() {
+        return false;
+    }
+
+    transition_with_status(
+        machine,
+        status_log,
+        AppEvent::ClosePreview,
+        "cannot close preview",
+        "cannot close preview",
+    )
+}
+
 fn matches_preview_action(action: PreviewAction, event: &PreviewEvent) -> bool {
     matches!(
         (action, event),
@@ -926,5 +952,34 @@ mod tests {
         assert!(requires_main_thread_preview_action(PreviewAction::Copy));
         assert!(!requires_main_thread_preview_action(PreviewAction::Save));
         assert!(!requires_main_thread_preview_action(PreviewAction::Delete));
+    }
+
+    #[test]
+    fn close_preview_when_session_empty_transitions_preview_to_idle() {
+        let machine = Rc::new(RefCell::new(StateMachine::new()));
+        let _ = machine.borrow_mut().transition(AppEvent::OpenPreview);
+        let runtime = Rc::new(RefCell::new(RuntimeSession::default()));
+        let status_log = Rc::new(RefCell::new(String::new()));
+
+        let changed = close_preview_when_session_empty(&machine, &runtime, &status_log);
+
+        assert!(changed);
+        assert_eq!(machine.borrow().state(), AppState::Idle);
+        assert_eq!(status_log.borrow().as_str(), "");
+    }
+
+    #[test]
+    fn close_preview_when_session_empty_keeps_preview_when_capture_exists() {
+        let machine = Rc::new(RefCell::new(StateMachine::new()));
+        let _ = machine.borrow_mut().transition(AppEvent::OpenPreview);
+        let runtime = Rc::new(RefCell::new(RuntimeSession::default()));
+        runtime.borrow_mut().push_capture(artifact("one"));
+        let status_log = Rc::new(RefCell::new(String::new()));
+
+        let changed = close_preview_when_session_empty(&machine, &runtime, &status_log);
+
+        assert!(!changed);
+        assert_eq!(machine.borrow().state(), AppState::Preview);
+        assert_eq!(status_log.borrow().as_str(), "");
     }
 }
