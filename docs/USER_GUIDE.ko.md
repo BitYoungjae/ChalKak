@@ -81,11 +81,24 @@ hyprctl version && grim -h && slurp -h && wl-copy --help && echo "All dependenci
 
 ## 3. 설치
 
+### 사전 빌드 바이너리 (GitHub Releases)
+
+[GitHub Releases](https://github.com/BitYoungjae/ChalKak/releases)에서 최신 `x86_64` Linux 바이너리를 다운로드할 수 있습니다:
+
+```bash
+curl -LO https://github.com/BitYoungjae/ChalKak/releases/latest/download/chalkak-x86_64-unknown-linux-gnu.tar.gz
+tar xzf chalkak-x86_64-unknown-linux-gnu.tar.gz
+sudo install -Dm755 chalkak /usr/local/bin/chalkak
+```
+
 ### AUR에서 설치
 
 ```bash
-# AUR 헬퍼 사용 (예: yay 또는 paru)
+# 소스 빌드 패키지
 yay -S chalkak
+
+# 또는 사전 빌드 바이너리 패키지 (빠른 설치, 빌드 의존성 불필요)
+yay -S chalkak-bin
 
 # 선택: OCR 텍스트 인식용 모델 파일 설치
 yay -S chalkak-ocr-models
@@ -103,8 +116,8 @@ cargo build --release
 ### 확인
 
 ```bash
-which chalkak
-# 예상 결과: /usr/bin/chalkak (AUR) 또는 사용자 지정 경로
+chalkak --version
+# 예상 결과: ChalKak 0.5.0 (abc1234)
 ```
 
 ---
@@ -119,15 +132,21 @@ ChalKak은 세 가지 캡처 모드와 런치패드 모드를 지원합니다:
 | `--capture-window` | `--window` | 창 선택 즉시 시작 |
 | `--capture-full` | `--full` | 전체 화면 즉시 캡처 |
 | `--launchpad` | — | 런치패드 창 열기 (주로 개발용) |
+| `--version` | `-V` | 버전 문자열 출력 (예: `ChalKak 0.5.0 (abc1234)`) 후 종료 |
+| `--help` | `-h` | 사용법 출력 후 종료 |
 
 ```bash
 chalkak --region        # 영역 선택 후 캡처 (권장)
 chalkak --window        # 창 선택 후 캡처
 chalkak --full          # 전체 화면 캡처
 chalkak --launchpad     # 런치패드 UI (주로 개발용)
+chalkak --version       # 버전 출력 후 종료
+chalkak --help          # 사용법 출력 후 종료
 ```
 
 Hyprland 단축키에 캡처 명령을 바인딩해두고 키보드로 바로 실행하는 방식을 권장합니다 ([10장](#10-hyprland-키바인딩-설정)). `--launchpad` 모드는 버튼 기반 UI를 제공하지만 주로 개발 및 테스트 용도입니다.
+
+`--version`과 `--help`는 GUI 실행 없이 즉시 종료되며, 디스플레이 서버가 없어도 동작합니다.
 
 캡처 플래그를 여러 개 지정하면 마지막 것이 적용됩니다.
 

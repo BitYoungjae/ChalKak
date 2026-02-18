@@ -48,14 +48,29 @@ Environment assumptions:
 
 ## Install
 
+### Pre-built binary (GitHub Releases)
+
+Download the latest `x86_64` Linux binary from [GitHub Releases](https://github.com/BitYoungjae/ChalKak/releases):
+
+```bash
+# Download and extract
+curl -LO https://github.com/BitYoungjae/ChalKak/releases/latest/download/chalkak-x86_64-unknown-linux-gnu.tar.gz
+tar xzf chalkak-x86_64-unknown-linux-gnu.tar.gz
+sudo install -Dm755 chalkak /usr/local/bin/chalkak
+```
+
 ### AUR
 
-This repository includes AUR packaging metadata for `chalkak` in `PKGBUILD` and `.SRCINFO`.
-
-Install with your AUR helper, for example:
+Source build package:
 
 ```bash
 yay -S chalkak
+```
+
+Pre-built binary package (faster install, no build dependencies needed):
+
+```bash
+yay -S chalkak-bin
 ```
 
 For OCR text recognition support, also install the model files:
@@ -98,7 +113,7 @@ Launchpad UI:
 chalkak --launchpad
 ```
 
-Running `chalkak` with no flags starts and exits immediately.
+Running `chalkak` with no flags starts and exits immediately. Use `--help` to see all available options.
 
 Startup flags:
 
@@ -106,6 +121,8 @@ Startup flags:
 - `--region` or `--capture-region`
 - `--window` or `--capture-window`
 - `--launchpad`
+- `--version` / `-V` — print version (e.g. `ChalKak 0.5.0 (abc1234)`)
+- `--help` / `-h` — print usage summary
 
 Typical flow:
 

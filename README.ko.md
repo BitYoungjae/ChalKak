@@ -48,14 +48,29 @@ Wayland + Hyprland 환경에서 동작하는 스크린샷 도구로, 미리보�
 
 ## 설치
 
+### 사전 빌드 바이너리 (GitHub Releases)
+
+[GitHub Releases](https://github.com/BitYoungjae/ChalKak/releases)에서 최신 `x86_64` Linux 바이너리를 다운로드할 수 있습니다:
+
+```bash
+# 다운로드 및 설치
+curl -LO https://github.com/BitYoungjae/ChalKak/releases/latest/download/chalkak-x86_64-unknown-linux-gnu.tar.gz
+tar xzf chalkak-x86_64-unknown-linux-gnu.tar.gz
+sudo install -Dm755 chalkak /usr/local/bin/chalkak
+```
+
 ### AUR
 
-이 저장소에는 `chalkak`용 AUR 패키징 메타데이터(`PKGBUILD`, `.SRCINFO`)가 포함되어 있습니다.
-
-예를 들어 아래처럼 AUR 헬퍼로 설치할 수 있습니다.
+소스 빌드 패키지:
 
 ```bash
 yay -S chalkak
+```
+
+사전 빌드 바이너리 패키지 (빠른 설치, 빌드 의존성 불필요):
+
+```bash
+yay -S chalkak-bin
 ```
 
 OCR 텍스트 인식 기능을 사용하려면 모델 파일도 함께 설치하세요:
@@ -98,7 +113,7 @@ cargo install --path .
 chalkak --launchpad
 ```
 
-`chalkak`를 플래그 없이 실행하면 시작 직후 종료됩니다.
+`chalkak`를 플래그 없이 실행하면 시작 직후 종료됩니다. `--help`로 사용 가능한 옵션을 확인할 수 있습니다.
 
 시작 플래그:
 
@@ -106,6 +121,8 @@ chalkak --launchpad
 - `--region` 또는 `--capture-region`
 - `--window` 또는 `--capture-window`
 - `--launchpad`
+- `--version` / `-V` — 버전 출력 (예: `ChalKak 0.5.0 (abc1234)`)
+- `--help` / `-h` — 사용법 출력
 
 일반 작업 흐름:
 

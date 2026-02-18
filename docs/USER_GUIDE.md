@@ -81,11 +81,24 @@ hyprctl version && grim -h && slurp -h && wl-copy --help && echo "All dependenci
 
 ## 3. Installation
 
+### Pre-built binary (GitHub Releases)
+
+Download the latest `x86_64` Linux binary from [GitHub Releases](https://github.com/BitYoungjae/ChalKak/releases):
+
+```bash
+curl -LO https://github.com/BitYoungjae/ChalKak/releases/latest/download/chalkak-x86_64-unknown-linux-gnu.tar.gz
+tar xzf chalkak-x86_64-unknown-linux-gnu.tar.gz
+sudo install -Dm755 chalkak /usr/local/bin/chalkak
+```
+
 ### From AUR
 
 ```bash
-# Using an AUR helper (e.g., yay or paru)
+# Source build package
 yay -S chalkak
+
+# Or pre-built binary package (faster, no build dependencies)
+yay -S chalkak-bin
 
 # Optional: install OCR model files for text recognition
 yay -S chalkak-ocr-models
@@ -103,8 +116,8 @@ cargo build --release
 ### Verify
 
 ```bash
-which chalkak
-# Expected: /usr/bin/chalkak (AUR) or your custom path
+chalkak --version
+# Expected: ChalKak 0.5.0 (abc1234)
 ```
 
 ---
@@ -119,15 +132,21 @@ ChalKak supports three capture modes and a launchpad mode:
 | `--capture-window` | `--window` | Immediately starts window selection |
 | `--capture-full` | `--full` | Immediately captures the entire screen |
 | `--launchpad` | — | Opens the launchpad window (primarily for development) |
+| `--version` | `-V` | Print version string (e.g. `ChalKak 0.5.0 (abc1234)`) and exit |
+| `--help` | `-h` | Print usage summary and exit |
 
 ```bash
 chalkak --region        # Select and capture a region (recommended)
 chalkak --window        # Select and capture a window
 chalkak --full          # Capture full screen
 chalkak --launchpad     # Launchpad UI (primarily for development)
+chalkak --version       # Print version and exit
+chalkak --help          # Print usage and exit
 ```
 
 The recommended approach is to bind these commands to Hyprland hotkeys ([Section 10](#10-hyprland-keybinding-setup)) and trigger captures directly from the keyboard. The `--launchpad` mode provides a button-based UI but is mainly intended for development and testing.
+
+`--version` and `--help` exit immediately without launching the GUI or requiring a display server.
 
 If multiple capture flags are given, the last one wins.
 
