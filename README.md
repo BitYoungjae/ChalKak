@@ -50,8 +50,6 @@ Environment assumptions:
 
 ### AUR
 
-> **⚠️ Note (v0.4.1):** The AUR package for v0.4.1 has a temporary build issue. Please use the [Build from source](#build-from-source) method below until the AUR package is fixed.
-
 This repository includes AUR packaging metadata for `chalkak` in `PKGBUILD` and `.SRCINFO`.
 
 Install with your AUR helper, for example:
