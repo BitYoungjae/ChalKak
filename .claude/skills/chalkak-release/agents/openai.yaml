@@ -1,0 +1,4 @@
+interface:
+  display_name: "Chalkak Release"
+  short_description: "One-run GitHub + 3x AUR release orchestrator"
+  default_prompt: "Use $chalkak-release [app_version] [models_version] to detect release necessity, write English PR-based release notes, create/update GitHub release before binary upload, and sync chalkak/chalkak-bin/chalkak-ocr-models AUR packages."
