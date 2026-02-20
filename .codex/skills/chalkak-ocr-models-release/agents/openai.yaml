@@ -1,4 +1,0 @@
-interface:
-  display_name: "OCR Models Release"
-  short_description: "Publish chalkak-ocr-models to AUR"
-  default_prompt: "Use $chalkak-ocr-models-release [version] to update aur/chalkak-ocr-models PKGBUILD/.SRCINFO and push to AUR."
