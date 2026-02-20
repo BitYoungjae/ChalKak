@@ -1,7 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::{Duration, Instant};
 
 use crate::capture;
 use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutAction};
@@ -13,6 +12,7 @@ use gtk4::{
     Overlay, Revealer, RevealerTransitionType, Scale,
 };
 
+use super::hover_controls::{connect_overlay_hover, set_revealer_visibility};
 use super::hypr::request_window_floating_with_geometry;
 use super::input_bridge::{normalize_shortcut_key, shortcut_modifiers};
 use super::layout::{clamp_window_geometry_to_current_monitors, compute_initial_preview_placement};
@@ -123,33 +123,9 @@ pub(super) fn render_preview_state(
     }
 }
 
-pub(super) fn install_preview_hover_tick(
-    preview_windows: Rc<RefCell<HashMap<String, PreviewWindowRuntime>>>,
-    tick_interval: Duration,
-) {
-    gtk4::glib::timeout_add_local(tick_interval, move || {
-        let preview_runtimes = preview_windows
-            .borrow()
-            .values()
-            .cloned()
-            .collect::<Vec<_>>();
-        let now = Instant::now();
-        for runtime in preview_runtimes {
-            let mut shell = runtime.shell.borrow_mut();
-            let was_visible = shell.controls_visible();
-            shell.update_hover_controls_visibility(now);
-            if was_visible != shell.controls_visible() {
-                runtime.controls.set_reveal_child(shell.controls_visible());
-            }
-        }
-        gtk4::glib::ControlFlow::Continue
-    });
-}
-
 fn sync_existing_preview_runtime(runtime: &PreviewWindowRuntime) {
     let shell = runtime.shell.borrow();
-    runtime.controls.set_reveal_child(shell.controls_visible());
-    runtime.controls.set_can_target(shell.controls_visible());
+    set_revealer_visibility(&runtime.controls, shell.controls_visible());
     runtime
         .preview_surface
         .set_opacity(shell.transparency() as f64);
@@ -634,24 +610,25 @@ fn connect_preview_window_interactions(build: &PreviewWindowBuild) {
         });
     }
     {
-        let pointer = gtk4::EventControllerMotion::new();
-        {
+        let on_enter = {
             let preview_shell = build.shell.clone();
             let controls_revealer = build.controls_revealer.clone();
-            pointer.connect_enter(move |_, _, _| {
+            Rc::new(move || {
                 let mut shell = preview_shell.borrow_mut();
-                shell.hover_enter(Instant::now());
-                controls_revealer.set_reveal_child(shell.controls_visible());
-                controls_revealer.set_can_target(shell.controls_visible());
-            });
-        }
-        {
+                shell.hover_enter();
+                set_revealer_visibility(&controls_revealer, shell.controls_visible());
+            })
+        };
+        let on_leave = {
             let preview_shell = build.shell.clone();
-            pointer.connect_leave(move |_| {
-                preview_shell.borrow_mut().hover_exit(Instant::now());
-            });
-        }
-        build.overlay.add_controller(pointer);
+            let controls_revealer = build.controls_revealer.clone();
+            Rc::new(move || {
+                let mut shell = preview_shell.borrow_mut();
+                shell.hover_exit();
+                set_revealer_visibility(&controls_revealer, shell.controls_visible());
+            })
+        };
+        connect_overlay_hover(&build.overlay, on_enter, on_leave, false);
     }
 }
 
@@ -663,12 +640,10 @@ fn create_preview_window_for_capture(
     let close_guard = connect_preview_window_action_wiring(context, &build, &artifact.capture_id);
     connect_preview_window_interactions(&build);
 
-    build
-        .controls_revealer
-        .set_reveal_child(build.shell.borrow().controls_visible());
-    build
-        .controls_revealer
-        .set_can_target(build.shell.borrow().controls_visible());
+    set_revealer_visibility(
+        &build.controls_revealer,
+        build.shell.borrow().controls_visible(),
+    );
     build.window.present();
     request_window_floating_with_geometry(
         "preview",

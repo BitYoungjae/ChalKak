@@ -1,13 +1,9 @@
-use std::time::{Duration, Instant};
-
 use super::geometry::{
     DEFAULT_PREVIEW_HEIGHT, DEFAULT_PREVIEW_WIDTH, DEFAULT_PREVIEW_X, DEFAULT_PREVIEW_Y,
     MIN_PREVIEW_HEIGHT, MIN_PREVIEW_WIDTH,
 };
 use super::PreviewWindowGeometry;
 
-// Combined with the 120ms revealer transition, this targets ~600ms perceived hide timing.
-const PREVIEW_CONTROL_HIDE_DELAY: Duration = Duration::from_millis(480);
 const MIN_PREVIEW_TRANSPARENCY: f32 = 0.2;
 const MAX_PREVIEW_TRANSPARENCY: f32 = 1.0;
 
@@ -16,7 +12,6 @@ pub struct PreviewWindowShell {
     geometry: PreviewWindowGeometry,
     controls_visible: bool,
     hover_depth: usize,
-    controls_hide_at: Option<Instant>,
     transparency: f32,
 }
 
@@ -33,7 +28,6 @@ impl PreviewWindowShell {
             },
             controls_visible: false,
             hover_depth: 0,
-            controls_hide_at: None,
             transparency: 1.0,
         }
     }
@@ -58,28 +52,18 @@ impl PreviewWindowShell {
         self.transparency = value.clamp(MIN_PREVIEW_TRANSPARENCY, MAX_PREVIEW_TRANSPARENCY);
     }
 
-    pub fn hover_enter(&mut self, _now: Instant) {
+    pub fn hover_enter(&mut self) {
         self.hover_depth += 1;
         self.controls_visible = true;
-        self.controls_hide_at = None;
     }
 
-    pub fn hover_exit(&mut self, now: Instant) {
+    pub fn hover_exit(&mut self) {
         if self.hover_depth == 0 {
             return;
         }
         self.hover_depth -= 1;
         if self.hover_depth == 0 {
-            self.controls_hide_at = Some(now + PREVIEW_CONTROL_HIDE_DELAY);
-        }
-    }
-
-    pub fn update_hover_controls_visibility(&mut self, now: Instant) {
-        if let Some(deadline) = self.controls_hide_at {
-            if now >= deadline {
-                self.controls_visible = false;
-                self.controls_hide_at = None;
-            }
+            self.controls_visible = false;
         }
     }
 }
@@ -132,40 +116,35 @@ mod tests {
     }
 
     #[test]
-    fn preview_hover_controls_show_and_hide_with_delay() {
+    fn preview_hover_controls_show_and_hide_immediately() {
         let mut shell = PreviewWindowShell::new();
         assert!(!shell.controls_visible());
 
-        let now = Instant::now();
-        shell.hover_enter(now);
+        shell.hover_enter();
         assert!(shell.controls_visible());
         assert_eq!(shell.hover_depth(), 1);
 
-        shell.hover_exit(now);
+        shell.hover_exit();
         assert_eq!(shell.hover_depth(), 0);
-        assert!(shell.controls_visible());
-
-        shell.update_hover_controls_visibility(now + Duration::from_millis(479));
-        assert!(shell.controls_visible());
-
-        shell.update_hover_controls_visibility(now + Duration::from_millis(481));
         assert!(!shell.controls_visible());
     }
 
     #[test]
-    fn preview_hover_controls_reappear_when_hovered_during_delay() {
+    fn preview_hover_controls_keep_visible_until_last_leave() {
         let mut shell = PreviewWindowShell::new();
-        let now = Instant::now();
 
-        shell.hover_enter(now);
-        shell.hover_exit(now + Duration::from_millis(10));
-        shell.update_hover_controls_visibility(now + Duration::from_millis(450));
+        shell.hover_enter();
+        shell.hover_enter();
+        assert_eq!(shell.hover_depth(), 2);
         assert!(shell.controls_visible());
 
-        shell.hover_enter(now + Duration::from_millis(450));
+        shell.hover_exit();
+        assert_eq!(shell.hover_depth(), 1);
         assert!(shell.controls_visible());
-        shell.update_hover_controls_visibility(now + Duration::from_millis(1_200));
-        assert!(shell.controls_visible());
+
+        shell.hover_exit();
+        assert_eq!(shell.hover_depth(), 0);
+        assert!(!shell.controls_visible());
     }
 
     #[test]
