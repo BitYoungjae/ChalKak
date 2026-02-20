@@ -7,6 +7,7 @@ use crate::input::{resolve_shortcut, InputContext, InputMode, ShortcutKey};
 use gtk4::prelude::*;
 use gtk4::{Application, ApplicationWindow, Button, Overlay, Revealer};
 
+use crate::app::hover_controls::{connect_overlay_hover, set_revealers_visibility};
 use crate::app::input_bridge::normalize_shortcut_key;
 use crate::app::shortcut_editor_tool_switch;
 use crate::app::window_state::RuntimeWindowGeometry;
@@ -112,56 +113,18 @@ pub(super) fn connect_editor_overlay_hover_controls(
     bottom_left_controls_revealer: &Revealer,
     bottom_right_controls_revealer: &Revealer,
 ) {
-    let pointer = gtk4::EventControllerMotion::new();
-    {
-        let top_controls_left_revealer = top_controls_left_revealer.clone();
-        let top_controls_right_revealer = top_controls_right_revealer.clone();
-        let bottom_left_controls_revealer = bottom_left_controls_revealer.clone();
-        let bottom_right_controls_revealer = bottom_right_controls_revealer.clone();
-        pointer.connect_enter(move |_, _, _| {
-            top_controls_left_revealer.set_reveal_child(true);
-            top_controls_left_revealer.set_can_target(true);
-            top_controls_right_revealer.set_reveal_child(true);
-            top_controls_right_revealer.set_can_target(true);
-            bottom_left_controls_revealer.set_reveal_child(true);
-            bottom_left_controls_revealer.set_can_target(true);
-            bottom_right_controls_revealer.set_reveal_child(true);
-            bottom_right_controls_revealer.set_can_target(true);
-        });
-    }
-    {
-        let top_controls_left_revealer = top_controls_left_revealer.clone();
-        let top_controls_right_revealer = top_controls_right_revealer.clone();
-        let bottom_left_controls_revealer = bottom_left_controls_revealer.clone();
-        let bottom_right_controls_revealer = bottom_right_controls_revealer.clone();
-        pointer.connect_motion(move |_, _, _| {
-            top_controls_left_revealer.set_reveal_child(true);
-            top_controls_left_revealer.set_can_target(true);
-            top_controls_right_revealer.set_reveal_child(true);
-            top_controls_right_revealer.set_can_target(true);
-            bottom_left_controls_revealer.set_reveal_child(true);
-            bottom_left_controls_revealer.set_can_target(true);
-            bottom_right_controls_revealer.set_reveal_child(true);
-            bottom_right_controls_revealer.set_can_target(true);
-        });
-    }
-    {
-        let top_controls_left_revealer = top_controls_left_revealer.clone();
-        let top_controls_right_revealer = top_controls_right_revealer.clone();
-        let bottom_left_controls_revealer = bottom_left_controls_revealer.clone();
-        let bottom_right_controls_revealer = bottom_right_controls_revealer.clone();
-        pointer.connect_leave(move |_| {
-            top_controls_left_revealer.set_reveal_child(false);
-            top_controls_left_revealer.set_can_target(false);
-            top_controls_right_revealer.set_reveal_child(false);
-            top_controls_right_revealer.set_can_target(false);
-            bottom_left_controls_revealer.set_reveal_child(false);
-            bottom_left_controls_revealer.set_can_target(false);
-            bottom_right_controls_revealer.set_reveal_child(false);
-            bottom_right_controls_revealer.set_can_target(false);
-        });
-    }
-    editor_overlay.add_controller(pointer);
+    let revealers = [
+        top_controls_left_revealer.clone(),
+        top_controls_right_revealer.clone(),
+        bottom_left_controls_revealer.clone(),
+        bottom_right_controls_revealer.clone(),
+    ];
+    let on_enter = {
+        let revealers = revealers.clone();
+        Rc::new(move || set_revealers_visibility(&revealers, true))
+    };
+    let on_leave = Rc::new(move || set_revealers_visibility(&revealers, false));
+    connect_overlay_hover(editor_overlay, on_enter, on_leave, true);
 }
 
 #[cfg(test)]

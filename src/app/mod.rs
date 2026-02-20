@@ -1,7 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
-use std::time::Duration;
 
 use crate::capture;
 use crate::editor::tools::CropElement;
@@ -22,6 +21,7 @@ mod editor_popup;
 mod editor_runtime;
 mod editor_text_runtime;
 mod editor_viewport;
+mod hover_controls;
 mod hypr;
 mod input_bridge;
 mod launchpad;
@@ -46,7 +46,6 @@ use self::preview_runtime::*;
 use self::runtime_support::*;
 use self::window_state::*;
 
-const UI_TICK_INTERVAL: Duration = Duration::from_millis(100);
 const EDITOR_PEN_ICON_NAME: &str = "pencil-symbolic";
 type ToolOptionsRefresh = Rc<dyn Fn(ToolKind)>;
 type ToolOptionsRefreshSlot = RefCell<Option<ToolOptionsRefresh>>;
@@ -699,10 +698,6 @@ impl App {
                     }
                 })
             };
-
-            {
-                install_preview_hover_tick(preview_windows.clone(), UI_TICK_INTERVAL);
-            }
 
             let launchpad_actions = LaunchpadActionExecutor::new(
                 runtime_session_for_activate.clone(),
