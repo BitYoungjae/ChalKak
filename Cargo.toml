@@ -21,4 +21,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [build-dependencies]
-glib-build-tools = "0.21"
+glib-build-tools = "0.22"
