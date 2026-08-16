@@ -2,11 +2,204 @@ use std::io::{BufRead, BufReader};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::time::{Duration, Instant};
 
 const HYPR_FLOAT_RETRY_COUNT: u8 = 40;
 const HYPR_FLOAT_RETRY_DELAY: Duration = Duration::from_millis(50);
 const HYPR_PIN_EVENT_TIMEOUT: Duration = Duration::from_millis(350);
+
+const HYPR_DIALECT_UNKNOWN: u8 = 0;
+const HYPR_DIALECT_LEGACY: u8 = 1;
+const HYPR_DIALECT_LUA: u8 = 2;
+
+/// Hyprland 0.56 evaluates `hyprctl dispatch` arguments as Lua, so the legacy
+/// `setfloating address:0x...` form fails to parse there. Remember which dialect the running
+/// compositor accepted so later dispatches skip the variant it rejects.
+static HYPR_DISPATCH_DIALECT: AtomicU8 = AtomicU8::new(HYPR_DIALECT_UNKNOWN);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HyprPropValue {
+    Toggle(bool),
+    Number(i32),
+}
+
+impl HyprPropValue {
+    fn legacy(self) -> String {
+        match self {
+            Self::Toggle(true) => "on".to_string(),
+            Self::Toggle(false) => "off".to_string(),
+            Self::Number(value) => value.to_string(),
+        }
+    }
+
+    /// Toggles are quoted `"on"`/`"off"` rather than Lua booleans: `hl.window.set_prop` rejects a
+    /// boolean `value` with "'value' is required", while the legacy on/off spelling is accepted.
+    fn lua(self) -> String {
+        match self {
+            Self::Toggle(true) => "\"on\"".to_string(),
+            Self::Toggle(false) => "\"off\"".to_string(),
+            Self::Number(value) => value.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum WindowDispatch<'a> {
+    Float {
+        address: &'a str,
+    },
+    Pin {
+        address: &'a str,
+    },
+    SetProp {
+        address: &'a str,
+        property: &'a str,
+        value: HyprPropValue,
+    },
+    ResizeExact {
+        address: &'a str,
+        width: i32,
+        height: i32,
+    },
+    MoveExact {
+        address: &'a str,
+        x: i32,
+        y: i32,
+    },
+}
+
+impl WindowDispatch<'_> {
+    fn label(&self) -> &'static str {
+        match self {
+            Self::Float { .. } => "float",
+            Self::Pin { .. } => "pin",
+            Self::SetProp { .. } => "setprop",
+            Self::ResizeExact { .. } => "resize",
+            Self::MoveExact { .. } => "move",
+        }
+    }
+
+    fn address(&self) -> &str {
+        match self {
+            Self::Float { address }
+            | Self::Pin { address }
+            | Self::SetProp { address, .. }
+            | Self::ResizeExact { address, .. }
+            | Self::MoveExact { address, .. } => address,
+        }
+    }
+
+    fn legacy_args(&self) -> Vec<String> {
+        let selector = format!("address:{}", self.address());
+        match *self {
+            Self::Float { .. } => vec!["dispatch".into(), "setfloating".into(), selector],
+            Self::Pin { .. } => vec!["dispatch".into(), "pin".into(), selector],
+            Self::SetProp {
+                property, value, ..
+            } => vec![
+                "dispatch".into(),
+                "setprop".into(),
+                selector,
+                property.into(),
+                value.legacy(),
+            ],
+            Self::ResizeExact { width, height, .. } => vec![
+                "dispatch".into(),
+                "resizewindowpixel".into(),
+                format!("exact {} {},{selector}", width.max(1), height.max(1)),
+            ],
+            Self::MoveExact { x, y, .. } => vec![
+                "dispatch".into(),
+                "movewindowpixel".into(),
+                format!("exact {x} {y},{selector}"),
+            ],
+        }
+    }
+
+    fn lua_args(&self) -> Vec<String> {
+        let window = format!("hl.get_window(\"address:{}\")", self.address());
+        let call = match *self {
+            Self::Float { .. } => {
+                format!("hl.dsp.window.float({{ action = \"on\", window = {window} }})")
+            }
+            Self::Pin { .. } => format!("hl.dsp.window.pin({{ window = {window} }})"),
+            Self::SetProp {
+                property, value, ..
+            } => format!(
+                "hl.dsp.window.set_prop({{ prop = \"{property}\", value = {}, window = {window} }})",
+                value.lua()
+            ),
+            Self::ResizeExact { width, height, .. } => format!(
+                "hl.dsp.window.resize({{ x = {}, y = {}, window = {window} }})",
+                width.max(1),
+                height.max(1)
+            ),
+            Self::MoveExact { x, y, .. } => {
+                format!("hl.dsp.window.move({{ x = {x}, y = {y}, window = {window} }})")
+            }
+        };
+        vec!["dispatch".into(), call]
+    }
+
+    fn args(&self, dialect: u8) -> Vec<String> {
+        if dialect == HYPR_DIALECT_LUA {
+            self.lua_args()
+        } else {
+            self.legacy_args()
+        }
+    }
+}
+
+/// Legacy syntax is tried first while the dialect is unknown: a Lua-mode `hyprctl` rejects it with
+/// a non-zero exit, so the fallback stays detectable. Older `hyprctl` builds can report an unknown
+/// dispatcher with a zero exit, which would make the reverse order look successful.
+fn dispatch_dialect_order() -> [u8; 2] {
+    match HYPR_DISPATCH_DIALECT.load(Ordering::Relaxed) {
+        HYPR_DIALECT_LUA => [HYPR_DIALECT_LUA, HYPR_DIALECT_LEGACY],
+        _ => [HYPR_DIALECT_LEGACY, HYPR_DIALECT_LUA],
+    }
+}
+
+fn run_window_dispatch(window_name: &str, dispatch: WindowDispatch<'_>) -> bool {
+    for dialect in dispatch_dialect_order() {
+        let args = dispatch.args(dialect);
+        match Command::new("hyprctl").args(&args).output() {
+            Ok(result) if result.status.success() => {
+                HYPR_DISPATCH_DIALECT.store(dialect, Ordering::Relaxed);
+                tracing::debug!(
+                    window = window_name,
+                    dispatch = dispatch.label(),
+                    ?args,
+                    "hyprctl dispatch applied"
+                );
+                return true;
+            }
+            Ok(result) => {
+                tracing::debug!(
+                    window = window_name,
+                    dispatch = dispatch.label(),
+                    ?args,
+                    status = result.status.code(),
+                    stdout = String::from_utf8_lossy(&result.stdout).trim(),
+                    stderr = String::from_utf8_lossy(&result.stderr).trim(),
+                    "hyprctl dispatch returned non-zero status"
+                );
+            }
+            Err(err) => {
+                tracing::debug!(
+                    window = window_name,
+                    dispatch = dispatch.label(),
+                    ?args,
+                    ?err,
+                    "hyprctl dispatch failed"
+                );
+            }
+        }
+    }
+
+    false
+}
 
 #[derive(Debug, Clone)]
 pub(super) struct HyprClientMatch {
@@ -166,49 +359,29 @@ fn wait_for_pin_event(
     None
 }
 
-fn apply_hypr_window_surface_props(window_name: &str, selector: &str) {
+fn apply_hypr_window_surface_props(window_name: &str, address: &str) {
     for (property, value) in [
-        ("decorate", "off"),
-        ("border_size", "0"),
-        ("rounding", "0"),
-        ("no_blur", "on"),
-        ("no_dim", "on"),
-        ("no_shadow", "on"),
+        ("decorate", HyprPropValue::Toggle(false)),
+        ("border_size", HyprPropValue::Number(0)),
+        ("rounding", HyprPropValue::Number(0)),
+        ("no_blur", HyprPropValue::Toggle(true)),
+        ("no_dim", HyprPropValue::Toggle(true)),
+        ("no_shadow", HyprPropValue::Toggle(true)),
     ] {
-        let outcome = Command::new("hyprctl")
-            .args(["dispatch", "setprop", selector, property, value])
-            .output();
-
-        match outcome {
-            Ok(result) if result.status.success() => {
-                tracing::debug!(
-                    window = window_name,
-                    selector = selector,
-                    property = property,
-                    value = value,
-                    "hyprctl setprop applied"
-                );
-            }
-            Ok(result) => {
-                let stderr = String::from_utf8_lossy(&result.stderr);
-                tracing::debug!(
-                    window = window_name,
-                    selector = selector,
-                    property = property,
-                    status = result.status.code(),
-                    stderr = stderr.trim(),
-                    "hyprctl setprop returned non-zero status"
-                );
-            }
-            Err(err) => {
-                tracing::debug!(
-                    window = window_name,
-                    selector = selector,
-                    property = property,
-                    ?err,
-                    "hyprctl setprop failed"
-                );
-            }
+        if !run_window_dispatch(
+            window_name,
+            WindowDispatch::SetProp {
+                address,
+                property,
+                value,
+            },
+        ) {
+            tracing::debug!(
+                window = window_name,
+                address = address,
+                property = property,
+                "hyprctl setprop could not be applied"
+            );
         }
     }
 }
@@ -244,83 +417,45 @@ pub(super) fn request_window_floating_with_geometry(
             return;
         };
 
-        let selector = format!("address:{}", matched.address);
-        let outcome = Command::new("hyprctl")
-            .args(["dispatch", "setfloating", &selector])
-            .output();
+        let address = matched.address.as_str();
+        if !run_window_dispatch(&window_name, WindowDispatch::Float { address }) {
+            tracing::warn!(
+                window = window_name,
+                address = address,
+                title = expected_title,
+                "failed to request Hyprland floating for exact window"
+            );
+            return;
+        }
 
-        match outcome {
-            Ok(result) if result.status.success() => {
-                tracing::debug!(
-                    window = window_name,
-                    selector = selector,
-                    title = expected_title,
-                    "requested Hyprland floating for exact window"
-                );
-                if strip_surface {
-                    apply_hypr_window_surface_props(&window_name, &selector);
+        tracing::debug!(
+            window = window_name,
+            address = address,
+            title = expected_title,
+            "requested Hyprland floating for exact window"
+        );
+
+        if strip_surface {
+            apply_hypr_window_surface_props(&window_name, address);
+        }
+
+        if let Some((x, y, width, height)) = geometry {
+            for dispatch in [
+                WindowDispatch::ResizeExact {
+                    address,
+                    width,
+                    height,
+                },
+                WindowDispatch::MoveExact { address, x, y },
+            ] {
+                if !run_window_dispatch(&window_name, dispatch) {
+                    tracing::warn!(
+                        window = window_name,
+                        address = address,
+                        dispatch = dispatch.label(),
+                        "window geometry dispatch failed"
+                    );
                 }
-                if let Some((x, y, width, height)) = geometry {
-                    let resize_arg =
-                        format!("exact {} {},{}", width.max(1), height.max(1), selector);
-                    let move_arg = format!("exact {x} {y},{selector}");
-                    for (dispatcher, arg) in [
-                        ("resizewindowpixel", resize_arg),
-                        ("movewindowpixel", move_arg),
-                    ] {
-                        let outcome = Command::new("hyprctl")
-                            .args(["dispatch", dispatcher, &arg])
-                            .output();
-                        match outcome {
-                            Ok(result) if result.status.success() => {
-                                tracing::debug!(
-                                    window = window_name,
-                                    dispatcher = dispatcher,
-                                    arg = arg,
-                                    "applied window geometry dispatch"
-                                );
-                            }
-                            Ok(result) => {
-                                let stderr = String::from_utf8_lossy(&result.stderr);
-                                tracing::warn!(
-                                    window = window_name,
-                                    dispatcher = dispatcher,
-                                    arg = arg,
-                                    status = result.status.code(),
-                                    stderr = stderr.trim(),
-                                    "window geometry dispatch returned non-zero status"
-                                );
-                            }
-                            Err(err) => {
-                                tracing::debug!(
-                                    window = window_name,
-                                    dispatcher = dispatcher,
-                                    arg = arg,
-                                    ?err,
-                                    "window geometry dispatch failed"
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(result) => {
-                let stderr = String::from_utf8_lossy(&result.stderr);
-                tracing::warn!(
-                    window = window_name,
-                    selector = selector,
-                    status = result.status.code(),
-                    stderr = stderr.trim(),
-                    "hyprctl setfloating address returned non-zero status"
-                );
-            }
-            Err(err) => {
-                tracing::debug!(
-                    window = window_name,
-                    selector = selector,
-                    ?err,
-                    "hyprctl setfloating address failed"
-                );
             }
         }
     });
@@ -367,53 +502,38 @@ pub(super) fn request_window_pin(window_name: &str, expected_title: &str, pinned
                 return Some(true);
             }
 
-            let selector = format!("address:{}", matched.address);
             let mut event_reader = open_socket2_reader();
-            let outcome = Command::new("hyprctl")
-                .args(["dispatch", "pin", &selector])
-                .output();
-
-            match outcome {
-                Ok(result) if result.status.success() => {
-                    tracing::debug!(
-                        window = window_name,
-                        selector = selector,
-                        pinned = pinned,
-                        "requested Hyprland pin toggle for exact window"
-                    );
-                    if let Some(reader) = event_reader.as_mut() {
-                        let confirmed = wait_for_pin_event(
-                            reader,
-                            &matched.address,
-                            pinned,
-                            HYPR_PIN_EVENT_TIMEOUT,
-                        )
-                        .unwrap_or(false);
-                        if confirmed {
-                            return Some(true);
-                        }
+            if run_window_dispatch(
+                &window_name,
+                WindowDispatch::Pin {
+                    address: &matched.address,
+                },
+            ) {
+                tracing::debug!(
+                    window = window_name,
+                    address = matched.address,
+                    pinned = pinned,
+                    "requested Hyprland pin toggle for exact window"
+                );
+                if let Some(reader) = event_reader.as_mut() {
+                    let confirmed = wait_for_pin_event(
+                        reader,
+                        &matched.address,
+                        pinned,
+                        HYPR_PIN_EVENT_TIMEOUT,
+                    )
+                    .unwrap_or(false);
+                    if confirmed {
+                        return Some(true);
                     }
                 }
-                Ok(result) => {
-                    let stderr = String::from_utf8_lossy(&result.stderr);
-                    tracing::warn!(
-                        window = window_name,
-                        selector = selector,
-                        pinned = pinned,
-                        status = result.status.code(),
-                        stderr = stderr.trim(),
-                        "hyprctl pin returned non-zero status"
-                    );
-                }
-                Err(err) => {
-                    tracing::debug!(
-                        window = window_name,
-                        selector = selector,
-                        pinned = pinned,
-                        ?err,
-                        "hyprctl pin failed"
-                    );
-                }
+            } else {
+                tracing::debug!(
+                    window = window_name,
+                    address = matched.address,
+                    pinned = pinned,
+                    "hyprctl pin could not be applied"
+                );
             }
 
             if let Some(verified) = find_hypr_window_match(&expected_title) {
@@ -454,6 +574,196 @@ mod tests {
 
     fn hypr_client_address_from_json(stdout: &[u8], expected_title: &str) -> Option<String> {
         hypr_client_match_from_json(stdout, expected_title).map(|item| item.address)
+    }
+
+    fn rendered(dispatch: WindowDispatch<'_>, dialect: u8) -> Vec<String> {
+        dispatch.args(dialect)
+    }
+
+    #[test]
+    fn window_dispatch_renders_legacy_arguments() {
+        let address = "0x1234";
+        assert_eq!(
+            rendered(WindowDispatch::Float { address }, HYPR_DIALECT_LEGACY),
+            vec!["dispatch", "setfloating", "address:0x1234"]
+        );
+        assert_eq!(
+            rendered(WindowDispatch::Pin { address }, HYPR_DIALECT_LEGACY),
+            vec!["dispatch", "pin", "address:0x1234"]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::SetProp {
+                    address,
+                    property: "decorate",
+                    value: HyprPropValue::Toggle(false),
+                },
+                HYPR_DIALECT_LEGACY
+            ),
+            vec!["dispatch", "setprop", "address:0x1234", "decorate", "off"]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::ResizeExact {
+                    address,
+                    width: 700,
+                    height: 500,
+                },
+                HYPR_DIALECT_LEGACY
+            ),
+            vec![
+                "dispatch",
+                "resizewindowpixel",
+                "exact 700 500,address:0x1234"
+            ]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::MoveExact {
+                    address,
+                    x: 300,
+                    y: 200,
+                },
+                HYPR_DIALECT_LEGACY
+            ),
+            vec![
+                "dispatch",
+                "movewindowpixel",
+                "exact 300 200,address:0x1234"
+            ]
+        );
+    }
+
+    #[test]
+    fn window_dispatch_renders_lua_arguments() {
+        let address = "0x1234";
+        assert_eq!(
+            rendered(WindowDispatch::Float { address }, HYPR_DIALECT_LUA),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.float({ action = "on", window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+        assert_eq!(
+            rendered(WindowDispatch::Pin { address }, HYPR_DIALECT_LUA),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.pin({ window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::SetProp {
+                    address,
+                    property: "no_blur",
+                    value: HyprPropValue::Toggle(true),
+                },
+                HYPR_DIALECT_LUA
+            ),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.set_prop({ prop = "no_blur", value = "on", window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::SetProp {
+                    address,
+                    property: "decorate",
+                    value: HyprPropValue::Toggle(false),
+                },
+                HYPR_DIALECT_LUA
+            ),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.set_prop({ prop = "decorate", value = "off", window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::SetProp {
+                    address,
+                    property: "rounding",
+                    value: HyprPropValue::Number(0),
+                },
+                HYPR_DIALECT_LUA
+            ),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.set_prop({ prop = "rounding", value = 0, window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::ResizeExact {
+                    address,
+                    width: 700,
+                    height: 500,
+                },
+                HYPR_DIALECT_LUA
+            ),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.resize({ x = 700, y = 500, window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+        assert_eq!(
+            rendered(
+                WindowDispatch::MoveExact {
+                    address,
+                    x: 300,
+                    y: 200,
+                },
+                HYPR_DIALECT_LUA
+            ),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.move({ x = 300, y = 200, window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+    }
+
+    #[test]
+    fn window_dispatch_clamps_non_positive_size_in_both_dialects() {
+        let dispatch = WindowDispatch::ResizeExact {
+            address: "0x1234",
+            width: 0,
+            height: -10,
+        };
+        assert_eq!(
+            rendered(dispatch, HYPR_DIALECT_LEGACY),
+            vec!["dispatch", "resizewindowpixel", "exact 1 1,address:0x1234"]
+        );
+        assert_eq!(
+            rendered(dispatch, HYPR_DIALECT_LUA),
+            vec![
+                "dispatch",
+                r#"hl.dsp.window.resize({ x = 1, y = 1, window = hl.get_window("address:0x1234") })"#
+            ]
+        );
+    }
+
+    #[test]
+    fn dispatch_dialect_order_tries_legacy_first_until_lua_is_detected() {
+        HYPR_DISPATCH_DIALECT.store(HYPR_DIALECT_UNKNOWN, Ordering::Relaxed);
+        assert_eq!(
+            dispatch_dialect_order(),
+            [HYPR_DIALECT_LEGACY, HYPR_DIALECT_LUA]
+        );
+
+        HYPR_DISPATCH_DIALECT.store(HYPR_DIALECT_LUA, Ordering::Relaxed);
+        assert_eq!(
+            dispatch_dialect_order(),
+            [HYPR_DIALECT_LUA, HYPR_DIALECT_LEGACY]
+        );
+
+        HYPR_DISPATCH_DIALECT.store(HYPR_DIALECT_LEGACY, Ordering::Relaxed);
+        assert_eq!(
+            dispatch_dialect_order(),
+            [HYPR_DIALECT_LEGACY, HYPR_DIALECT_LUA]
+        );
+
+        HYPR_DISPATCH_DIALECT.store(HYPR_DIALECT_UNKNOWN, Ordering::Relaxed);
     }
 
     #[test]
